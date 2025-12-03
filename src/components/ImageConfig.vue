@@ -22,7 +22,7 @@
             min="0"
             @change="saveConfig"
           >
-          <div class="margin-center"></div>
+          <div class="margin-center" />
           <input
             v-model.number="margin.right"
             type="number"
@@ -67,7 +67,7 @@
             min="0"
             @change="saveConfig"
           >
-          <div class="margin-center"></div>
+          <div class="margin-center" />
           <input
             v-model.number="padding.right"
             type="number"

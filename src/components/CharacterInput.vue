@@ -8,15 +8,18 @@
         placeholder="请输入要渲染的文字..."
         rows="3"
         @input="handleTextInput"
-      ></textarea>
+      />
     </div>
     
-    <div v-if="characterEntries.length > 0" class="character-list">
+    <div
+      v-if="characterEntries.length > 0"
+      class="character-list"
+    >
       <div class="character-list-header">
         <span class="character-count">共 {{ characterEntries.length }} 个字符</span>
         <button 
-          @click="clearCharacters" 
-          class="btn btn-sm btn-outline-danger"
+          class="btn btn-sm btn-outline-danger" 
+          @click="clearCharacters"
         >
           清空
         </button>
@@ -57,7 +60,7 @@
                   max="10"
                   @change="saveConfig"
                 >
-                <div class="margin-center"></div>
+                <div class="margin-center" />
                 <input
                   v-model.number="entry.margin.right"
                   type="number"

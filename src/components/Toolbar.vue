@@ -1,23 +1,29 @@
 <template>
-  <div class="toolbar">
+  <div class="toolbar-container">
     <div class="toolbar-left">
-      <button @click="uploadImage" class="btn btn-primary">
+      <button
+        class="btn btn-primary"
+        @click="uploadImage"
+      >
         上传图片
       </button>
-      <button @click="uploadFont" class="btn btn-secondary">
+      <button
+        class="btn btn-secondary"
+        @click="uploadFont"
+      >
         上传字体
       </button>
       <button 
-        @click="renderCharacters" 
-        class="btn btn-success"
+        class="btn btn-success" 
         :disabled="!canRender"
+        @click="renderCharacters"
       >
         渲染文字
       </button>
       <button 
-        @click="exportImage" 
-        class="btn btn-info"
+        class="btn btn-info" 
         :disabled="!canExport"
+        @click="exportImage"
       >
         导出PNG
       </button>
@@ -28,16 +34,16 @@
         <span>插入点:</span>
         <label class="radio-label">
           <input 
-            type="radio" 
             v-model="insertPointMode" 
+            type="radio" 
             value="auto"
           >
           自动
         </label>
         <label class="radio-label">
           <input 
-            type="radio" 
             v-model="insertPointMode" 
+            type="radio" 
             value="manual"
           >
           手动
@@ -46,7 +52,10 @@
     </div>
     
     <div class="toolbar-right">
-      <button @click="clearAll" class="btn btn-danger">
+      <button
+        class="btn btn-danger"
+        @click="clearAll"
+      >
         清空
       </button>
     </div>
@@ -56,15 +65,15 @@
       ref="imageInput"
       type="file" 
       accept="image/*"
-      @change="handleImageUpload"
       style="display: none"
+      @change="handleImageUpload"
     >
     <input 
       ref="fontInput"
       type="file" 
       accept=".ttf,.otf,.woff,.woff2"
-      @change="handleFontUpload"
       style="display: none"
+      @change="handleFontUpload"
     >
   </div>
 </template>
@@ -73,7 +82,7 @@
 import { ref, computed } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { isValidImageFile, isValidFontFile } from '@/utils/file'
-import { exportCanvasToPNG } from '@/utils/download'
+
 
 const editorStore = useEditorStore()
 
@@ -178,7 +187,7 @@ function clearAll() {
 </script>
 
 <style scoped>
-.toolbar {
+.toolbar-container {
   display: flex;
   align-items: center;
   justify-content: space-between;

@@ -10,17 +10,26 @@
       <span class="info-value">{{ currentCellText }}</span>
     </div>
     
-    <div v-if="canvasSpace" class="info-item">
+    <div
+      v-if="canvasSpace"
+      class="info-item"
+    >
       <span class="info-label">网格尺寸:</span>
       <span class="info-value">{{ gridSizeText }}</span>
     </div>
     
-    <div v-if="nextEmptyCell !== null" class="info-item">
+    <div
+      v-if="nextEmptyCell !== null"
+      class="info-item"
+    >
       <span class="info-label">下一个空单元格:</span>
       <span class="info-value">{{ nextEmptyCellText }}</span>
     </div>
     
-    <div v-if="mode === 'auto' && autoDetectionEnabled" class="auto-info">
+    <div
+      v-if="mode === 'auto' && autoDetectionEnabled"
+      class="auto-info"
+    >
       <div class="info-item">
         <span class="info-label">检测阈值:</span>
         <input
@@ -34,7 +43,10 @@
       </div>
       <div class="info-item">
         <span class="info-label">检测状态:</span>
-        <span class="info-value" :class="detectionStatusClass">
+        <span
+          class="info-value"
+          :class="detectionStatusClass"
+        >
           {{ detectionStatusText }}
         </span>
       </div>
@@ -46,7 +58,7 @@
 import { ref, computed, watch } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { CanvasSpace } from '@/utils/canvas'
-import { isCellEmpty } from '@/utils/canvas'
+
 
 const editorStore = useEditorStore()
 

@@ -4,8 +4,14 @@
       <label>字体</label>
       <div class="font-display">
         <span class="font-name">{{ characterStyle.fontFamily }}</span>
-        <span v-if="!currentFont" class="font-status error">未加载</span>
-        <span v-else class="font-status success">已加载</span>
+        <span
+          v-if="!currentFont"
+          class="font-status error"
+        >未加载</span>
+        <span
+          v-else
+          class="font-status success"
+        >已加载</span>
       </div>
     </div>
     
@@ -48,13 +54,16 @@
             type="checkbox"
             @change="saveConfig"
           >
-          <span class="checkmark"></span>
+          <span class="checkmark" />
           启用描边
         </label>
       </div>
     </div>
     
-    <div v-if="characterStyle.outline.enabled" class="outline-settings">
+    <div
+      v-if="characterStyle.outline.enabled"
+      class="outline-settings"
+    >
       <div class="form-group">
         <label>描边颜色</label>
         <div class="color-input-group">

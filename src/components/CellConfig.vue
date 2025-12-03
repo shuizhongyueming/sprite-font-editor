@@ -45,7 +45,7 @@
             min="0"
             @change="saveConfig"
           >
-          <div class="margin-center"></div>
+          <div class="margin-center" />
           <input
             v-model.number="cellConfig.margin.right"
             type="number"
@@ -90,7 +90,7 @@
             min="0"
             @change="saveConfig"
           >
-          <div class="margin-center"></div>
+          <div class="margin-center" />
           <input
             v-model.number="cellConfig.padding.right"
             type="number"
@@ -123,9 +123,15 @@
             class="form-control"
             @change="saveConfig"
           >
-            <option value="left">左对齐</option>
-            <option value="center">居中</option>
-            <option value="right">右对齐</option>
+            <option value="left">
+              左对齐
+            </option>
+            <option value="center">
+              居中
+            </option>
+            <option value="right">
+              右对齐
+            </option>
           </select>
         </div>
         <div class="alignment-row">
@@ -135,9 +141,15 @@
             class="form-control"
             @change="saveConfig"
           >
-            <option value="top">顶部</option>
-            <option value="middle">居中</option>
-            <option value="bottom">底部</option>
+            <option value="top">
+              顶部
+            </option>
+            <option value="middle">
+              居中
+            </option>
+            <option value="bottom">
+              底部
+            </option>
           </select>
         </div>
       </div>

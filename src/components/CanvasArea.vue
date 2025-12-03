@@ -21,7 +21,7 @@
         class="canvas-layer"
         :width="canvasWidth"
         :height="canvasHeight"
-      ></canvas>
+      />
       
       <!-- UI 层（上层）-->
       <div
@@ -36,14 +36,14 @@
           :key="cell.index"
           class="grid-cell"
           :style="cell.style"
-        ></div>
+        />
         
         <!-- 高亮单元格 -->
         <div
           v-if="highlightedCell"
           class="cell-highlight"
           :style="highlightedCell.style"
-        ></div>
+        />
       </div>
     </div>
   </div>

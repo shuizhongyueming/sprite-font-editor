@@ -1,0 +1,285 @@
+<template>
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <button @click="uploadImage" class="btn btn-primary">
+        上传图片
+      </button>
+      <button @click="uploadFont" class="btn btn-secondary">
+        上传字体
+      </button>
+      <button 
+        @click="renderCharacters" 
+        class="btn btn-success"
+        :disabled="!canRender"
+      >
+        渲染文字
+      </button>
+      <button 
+        @click="exportImage" 
+        class="btn btn-info"
+        :disabled="!canExport"
+      >
+        导出PNG
+      </button>
+    </div>
+    
+    <div class="toolbar-center">
+      <div class="insert-point-control">
+        <span>插入点:</span>
+        <label class="radio-label">
+          <input 
+            type="radio" 
+            v-model="insertPointMode" 
+            value="auto"
+          >
+          自动
+        </label>
+        <label class="radio-label">
+          <input 
+            type="radio" 
+            v-model="insertPointMode" 
+            value="manual"
+          >
+          手动
+        </label>
+      </div>
+    </div>
+    
+    <div class="toolbar-right">
+      <button @click="clearAll" class="btn btn-danger">
+        清空
+      </button>
+    </div>
+    
+    <!-- 隐藏的文件输入 -->
+    <input 
+      ref="imageInput"
+      type="file" 
+      accept="image/*"
+      @change="handleImageUpload"
+      style="display: none"
+    >
+    <input 
+      ref="fontInput"
+      type="file" 
+      accept=".ttf,.otf,.woff,.woff2"
+      @change="handleFontUpload"
+      style="display: none"
+    >
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { useEditorStore } from '@/stores/editor'
+import { isValidImageFile, isValidFontFile } from '@/utils/file'
+import { exportCanvasToPNG } from '@/utils/download'
+
+const editorStore = useEditorStore()
+
+const imageInput = ref<HTMLInputElement>()
+const fontInput = ref<HTMLInputElement>()
+
+const insertPointMode = computed({
+  get: () => editorStore.insertPointConfig.mode,
+  set: (value: 'auto' | 'manual') => {
+    editorStore.insertPointConfig.mode = value
+    editorStore.saveToLocalStorage()
+  }
+})
+
+const canRender = computed(() => {
+  return editorStore.baseImage && 
+         editorStore.currentFont && 
+         editorStore.characterEntries.length > 0
+})
+
+const canExport = computed(() => {
+  return editorStore.baseImage !== null
+})
+
+function uploadImage() {
+  imageInput.value?.click()
+}
+
+function uploadFont() {
+  fontInput.value?.click()
+}
+
+async function handleImageUpload(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  
+  if (!file) return
+  
+  if (!isValidImageFile(file)) {
+    alert('请选择有效的图片文件 (PNG, JPG, GIF, WebP)')
+    return
+  }
+  
+  try {
+    const image = new Image()
+    image.onload = () => {
+      editorStore.setBaseImage(image)
+      editorStore.saveToLocalStorage()
+    }
+    image.src = URL.createObjectURL(file)
+  } catch (error) {
+    console.error('Failed to load image:', error)
+    alert('图片加载失败')
+  }
+}
+
+async function handleFontUpload(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  
+  if (!file) return
+  
+  if (!isValidFontFile(file)) {
+    alert('请选择有效的字体文件 (TTF, OTF, WOFF)')
+    return
+  }
+  
+  try {
+    const buffer = await file.arrayBuffer()
+    const fontFace = new FontFace(file.name, buffer)
+    await fontFace.load()
+    
+    // 注册字体
+    document.fonts.add(fontFace)
+    
+    editorStore.setFont(fontFace)
+    editorStore.saveToLocalStorage()
+    
+    alert('字体上传成功！')
+  } catch (error) {
+    console.error('Failed to load font:', error)
+    alert('字体加载失败')
+  }
+}
+
+function renderCharacters() {
+  // TODO: 实现字符渲染逻辑
+  console.log('Rendering characters...')
+}
+
+function exportImage() {
+  // TODO: 实现导出逻辑
+  console.log('Exporting image...')
+  alert('导出功能开发中...')
+}
+
+function clearAll() {
+  if (confirm('确定要清空所有内容吗？')) {
+    editorStore.clearState()
+  }
+}
+</script>
+
+<style scoped>
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #dee2e6;
+  gap: 1rem;
+}
+
+.toolbar-left,
+.toolbar-center,
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.toolbar-center {
+  flex: 1;
+  justify-content: center;
+}
+
+.btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background-color: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #0056b3;
+  border-color: #0056b3;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+  border-color: #6c757d;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #545b62;
+  border-color: #545b62;
+}
+
+.btn-success {
+  background-color: #28a745;
+  color: white;
+  border-color: #28a745;
+}
+
+.btn-success:hover:not(:disabled) {
+  background-color: #1e7e34;
+  border-color: #1e7e34;
+}
+
+.btn-info {
+  background-color: #17a2b8;
+  color: white;
+  border-color: #17a2b8;
+}
+
+.btn-info:hover:not(:disabled) {
+  background-color: #117a8b;
+  border-color: #117a8b;
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  color: white;
+  border-color: #dc3545;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #bd2130;
+  border-color: #bd2130;
+}
+
+.insert-point-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+}
+</style>

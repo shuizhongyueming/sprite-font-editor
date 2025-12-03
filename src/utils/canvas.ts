@@ -1,0 +1,186 @@
+/**
+ * Canvas 工具函数
+ */
+
+/**
+ * 获取设备像素比
+ */
+export function getDevicePixelRatio(): number {
+  return window.devicePixelRatio || 1
+}
+
+/**
+ * 设置 Canvas 的高 DPI 支持
+ */
+export function setupHiDPI(canvas: HTMLCanvasElement, width: number, height: number): void {
+  const dpr = getDevicePixelRatio()
+  
+  // 设置 CSS 尺寸
+  canvas.style.width = `${width}px`
+  canvas.style.height = `${height}px`
+  
+  // 设置实际像素尺寸
+  canvas.width = width * dpr
+  canvas.height = height * dpr
+  
+  // 缩放上下文
+  const ctx = canvas.getContext('2d')
+  if (ctx) {
+    ctx.scale(dpr, dpr)
+  }
+}
+
+/**
+ * 清除 Canvas
+ */
+export function clearCanvas(canvas: HTMLCanvasElement): void {
+  const ctx = canvas.getContext('2d')
+  if (ctx) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+  }
+}
+
+/**
+ * 在 Canvas 上绘制图片
+ */
+export function drawImage(
+  canvas: HTMLCanvasElement,
+  image: HTMLImageElement,
+  x: number = 0,
+  y: number = 0,
+  width?: number,
+  height?: number
+): void {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  const dpr = getDevicePixelRatio()
+  const actualX = x * dpr
+  const actualY = y * dpr
+  const actualWidth = width ? width * dpr : image.width * dpr
+  const actualHeight = height ? height * dpr : image.height * dpr
+
+  ctx.drawImage(image, actualX, actualY, actualWidth, actualHeight)
+}
+
+/**
+ * 检测单元格是否为空（基于透明度）
+ */
+export function isCellEmpty(
+  imageData: ImageData,
+  cellX: number,
+  cellY: number,
+  cellWidth: number,
+  cellHeight: number,
+  threshold: number = 10
+): boolean {
+  const { data, width } = imageData
+  
+  for (let y = cellY; y < cellY + cellHeight; y++) {
+    for (let x = cellX; x < cellX + cellWidth; x++) {
+      const alpha = data[(y * width + x) * 4 + 3]
+      if (alpha > threshold) return false
+    }
+  }
+  return true
+}
+
+/**
+ * 获取图片数据
+ */
+export function getImageData(
+  canvas: HTMLCanvasElement,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): ImageData | null {
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+  
+  const dpr = getDevicePixelRatio()
+  return ctx.getImageData(x * dpr, y * dpr, width * dpr, height * dpr)
+}
+
+/**
+ * Canvas 坐标转换工具
+ */
+export class CanvasSpace {
+  constructor(
+    private canvasWidth: number,
+    private canvasHeight: number,
+    private cellWidth: number,
+    private cellHeight: number,
+    private cellMargin: { top: number; right: number; bottom: number; left: number },
+    private imageMargin: { top: number; right: number; bottom: number; left: number },
+    private imagePadding: { top: number; right: number; bottom: number; left: number }
+  ) {}
+
+  /**
+   * 获取可用宽度
+   */
+  get usableWidth(): number {
+    return this.canvasWidth - this.imagePadding.left - this.imagePadding.right
+  }
+
+  /**
+   * 获取可用高度
+   */
+  get usableHeight(): number {
+    return this.canvasHeight - this.imagePadding.top - this.imagePadding.bottom
+  }
+
+  /**
+   * 计算列数
+   */
+  get columns(): number {
+    const cellTotalWidth = this.cellWidth + this.cellMargin.left + this.cellMargin.right
+    return Math.floor((this.usableWidth + this.cellMargin.left + this.cellMargin.right) / cellTotalWidth)
+  }
+
+  /**
+   * 计算行数
+   */
+  get rows(): number {
+    const cellTotalHeight = this.cellHeight + this.cellMargin.top + this.cellMargin.bottom
+    return Math.floor((this.usableHeight + this.cellMargin.top + this.cellMargin.bottom) / cellTotalHeight)
+  }
+
+  /**
+   * 单元格索引转换为行列
+   */
+  indexToRowCol(index: number): { row: number; col: number } {
+    const cols = this.columns
+    return {
+      row: Math.floor(index / cols),
+      col: index % cols,
+    }
+  }
+
+  /**
+   * 行列转换为单元格索引
+   */
+  rowColToIndex(row: number, col: number): number {
+    return row * this.columns + col
+  }
+
+  /**
+   * 获取单元格的像素坐标
+   */
+  getCellPosition(row: number, col: number): { x: number; y: number } {
+    const cellTotalWidth = this.cellWidth + this.cellMargin.left + this.cellMargin.right
+    const cellTotalHeight = this.cellHeight + this.cellMargin.top + this.cellMargin.bottom
+    
+    return {
+      x: this.imageMargin.left + this.imagePadding.left + col * cellTotalWidth,
+      y: this.imageMargin.top + this.imagePadding.top + row * cellTotalHeight,
+    }
+  }
+
+  /**
+   * 检查坐标是否在有效范围内
+   */
+  isValidPosition(x: number, y: number): boolean {
+    return x >= 0 && y >= 0 && x < this.canvasWidth && y < this.canvasHeight
+  }
+}

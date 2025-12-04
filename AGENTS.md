@@ -182,17 +182,21 @@ interface CharacterEntry {
 - ✅ State persistence
 - ✅ TypeScript type safety
 
-### Week 2 (In Progress)
-- 🔄 DOM grid rendering system
-- 🔄 Insert point auto-detection
-- 🔄 Manual cell selection
-- 🔄 Cell highlighting system
+### Week 2 (Completed)
+- ✅ Image auto-scaling for container fit
+- ✅ DOM grid rendering system with customizable styles
+- ✅ Coordinate transformation utilities
+- ✅ Insert point auto-detection (transparency-based)
+- ✅ Manual cell selection functionality
+- ✅ Enhanced cell highlighting system
+- ✅ Image/Cell configuration panel improvements
+- ✅ Auto/manual mode integration
 
-### Week 3 (Planned)
-- Character rendering implementation
-- Object-fit scaling logic
-- Text alignment functionality
-- Multi-character layout
+### Week 3 (In Progress)
+- 🔄 Character rendering implementation
+- 🔄 Object-fit scaling logic
+- 🔄 Text alignment functionality
+- 🔄 Multi-character layout
 
 ### Week 4 (Planned)
 - PNG export functionality

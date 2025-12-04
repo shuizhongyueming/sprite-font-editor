@@ -183,4 +183,64 @@ export class CanvasSpace {
   isValidPosition(x: number, y: number): boolean {
     return x >= 0 && y >= 0 && x < this.canvasWidth && y < this.canvasHeight
   }
+
+  /**
+   * 获取单元格边界（包含 margin）
+   */
+  getCellBounds(row: number, col: number): { x: number; y: number; width: number; height: number } {
+    const position = this.getCellPosition(row, col)
+    const totalWidth = this.cellWidth + this.cellMargin.left + this.cellMargin.right
+    const totalHeight = this.cellHeight + this.cellMargin.top + this.cellMargin.bottom
+    
+    return {
+      x: position.x - this.cellMargin.left,
+      y: position.y - this.cellMargin.top,
+      width: totalWidth,
+      height: totalHeight,
+    }
+  }
+
+  /**
+   * 画布坐标转换到单元格
+   */
+  positionToCell(x: number, y: number): { row: number; col: number } | null {
+    const offsetX = x - this.imageMargin.left - this.imagePadding.left
+    const offsetY = y - this.imageMargin.top - this.imagePadding.top
+    
+    const cellTotalWidth = this.cellWidth + this.cellMargin.left + this.cellMargin.right
+    const cellTotalHeight = this.cellHeight + this.cellMargin.top + this.cellMargin.bottom
+    
+    if (offsetX < 0 || offsetY < 0) return null
+    
+    const col = Math.floor(offsetX / cellTotalWidth)
+    const row = Math.floor(offsetY / cellTotalHeight)
+    
+    if (row >= 0 && col >= 0 && row < this.rows && col < this.columns) {
+      return { row, col }
+    }
+    
+    return null
+  }
+
+  /**
+   * 获取所有单元格的中心点坐标（用于插入点检测）
+   */
+  getAllCellCenters(): Array<{ row: number; col: number; x: number; y: number }> {
+    const centers = []
+    
+    for (let row = 0; row < this.rows; row++) {
+      for (let col = 0; col < this.columns; col++) {
+        const position = this.getCellPosition(row, col)
+        centers.push({
+          row,
+          col,
+          x: position.x + this.cellWidth / 2,
+          y: position.y + this.cellHeight / 2,
+        })
+      }
+    }
+    
+    return centers
+  }
+
 }

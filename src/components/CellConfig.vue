@@ -25,42 +25,37 @@
     
     <div class="form-group">
       <label>单元格间距 (margin)</label>
-      <div class="margin-inputs">
-        <div class="margin-row">
+      <div class="spacing-inputs">
+        <div class="spacing-row">
           <input
             v-model.number="cellConfig.margin.top"
             type="number"
-            class="form-control margin-input"
+            class="form-control spacing-input"
             placeholder="上"
             min="0"
             @change="saveConfig"
           >
-        </div>
-        <div class="margin-row middle">
-          <input
-            v-model.number="cellConfig.margin.left"
-            type="number"
-            class="form-control margin-input"
-            placeholder="左"
-            min="0"
-            @change="saveConfig"
-          >
-          <div class="margin-center" />
           <input
             v-model.number="cellConfig.margin.right"
             type="number"
-            class="form-control margin-input"
+            class="form-control spacing-input"
             placeholder="右"
             min="0"
             @change="saveConfig"
           >
-        </div>
-        <div class="margin-row">
           <input
             v-model.number="cellConfig.margin.bottom"
             type="number"
-            class="form-control margin-input"
+            class="form-control spacing-input"
             placeholder="下"
+            min="0"
+            @change="saveConfig"
+          >
+          <input
+            v-model.number="cellConfig.margin.left"
+            type="number"
+            class="form-control spacing-input"
+            placeholder="左"
             min="0"
             @change="saveConfig"
           >
@@ -70,42 +65,37 @@
     
     <div class="form-group">
       <label>字符内边距 (padding)</label>
-      <div class="margin-inputs">
-        <div class="margin-row">
+      <div class="spacing-inputs">
+        <div class="spacing-row">
           <input
             v-model.number="cellConfig.padding.top"
             type="number"
-            class="form-control margin-input"
+            class="form-control spacing-input"
             placeholder="上"
             min="0"
             @change="saveConfig"
           >
-        </div>
-        <div class="margin-row middle">
-          <input
-            v-model.number="cellConfig.padding.left"
-            type="number"
-            class="form-control margin-input"
-            placeholder="左"
-            min="0"
-            @change="saveConfig"
-          >
-          <div class="margin-center" />
           <input
             v-model.number="cellConfig.padding.right"
             type="number"
-            class="form-control margin-input"
+            class="form-control spacing-input"
             placeholder="右"
             min="0"
             @change="saveConfig"
           >
-        </div>
-        <div class="margin-row">
           <input
             v-model.number="cellConfig.padding.bottom"
             type="number"
-            class="form-control margin-input"
+            class="form-control spacing-input"
             placeholder="下"
+            min="0"
+            @change="saveConfig"
+          >
+          <input
+            v-model.number="cellConfig.padding.left"
+            type="number"
+            class="form-control spacing-input"
+            placeholder="左"
             min="0"
             @change="saveConfig"
           >
@@ -154,6 +144,93 @@
         </div>
       </div>
     </div>
+    
+    <div class="form-group">
+      <label>网格显示</label>
+      <div class="grid-config">
+        <div class="checkbox-group">
+          <label class="checkbox-label">
+            <input
+              v-model="gridConfig.enabled"
+              type="checkbox"
+              @change="saveConfig"
+            >
+            显示网格
+          </label>
+        </div>
+        
+        <div class="checkbox-group">
+          <label class="checkbox-label">
+            <input
+              v-model="gridConfig.cellBorder"
+              type="checkbox"
+              @change="saveConfig"
+            >
+            显示单元格边框
+          </label>
+        </div>
+        
+        <div class="checkbox-group">
+          <label class="checkbox-label">
+            <input
+              v-model="gridConfig.marginLines"
+              type="checkbox"
+              @change="saveConfig"
+            >
+            显示 margin 线
+          </label>
+        </div>
+        
+        <div class="checkbox-group">
+          <label class="checkbox-label">
+            <input
+              v-model="gridConfig.paddingLines"
+              type="checkbox"
+              @change="saveConfig"
+            >
+            显示 padding 线
+          </label>
+        </div>
+        
+        <div class="form-group sub-group">
+          <label>边框颜色</label>
+          <input
+            v-model="gridConfig.cellBorderColor"
+            type="color"
+            class="form-control color-input"
+            @change="saveConfig"
+          >
+        </div>
+        
+        <div class="form-group sub-group">
+          <label>边框宽度</label>
+          <input
+            v-model.number="gridConfig.cellBorderWidth"
+            type="number"
+            class="form-control"
+            min="1"
+            max="5"
+            @change="saveConfig"
+          >
+        </div>
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <label>插入点模式</label>
+      <select
+        v-model="insertPointConfig.mode"
+        class="form-control"
+        @change="saveConfig"
+      >
+        <option value="auto">
+          自动检测
+        </option>
+        <option value="manual">
+          手动选择
+        </option>
+      </select>
+    </div>
   </div>
 </template>
 
@@ -174,6 +251,20 @@ const cellAlignment = computed({
   get: () => editorStore.cellAlignment,
   set: (value) => {
     editorStore.cellAlignment = value
+  }
+})
+
+const gridConfig = computed({
+  get: () => editorStore.gridConfig,
+  set: (value) => {
+    editorStore.gridConfig = value
+  }
+})
+
+const insertPointConfig = computed({
+  get: () => editorStore.insertPointConfig,
+  set: (value) => {
+    editorStore.insertPointConfig = value
   }
 })
 
@@ -212,41 +303,38 @@ function saveConfig() {
   color: #6c757d;
 }
 
-.margin-inputs {
+.spacing-inputs {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: 0.5rem;
 }
 
-.margin-row {
+.spacing-row {
   display: flex;
-  justify-content: center;
-  gap: 0.25rem;
+  gap: 0.375rem;
 }
 
-.margin-row.middle {
-  align-items: center;
-}
-
-.margin-input {
-  width: 60px !important;
+.spacing-input {
+  flex: 1;
+  min-width: 0;
   text-align: center;
+  font-size: 0.8125rem;
+  padding: 0.375rem 0.25rem;
 }
 
-.margin-center {
-  width: 60px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #e9ecef;
-  border-radius: 4px;
+.spacing-input::placeholder {
   font-size: 0.75rem;
   color: #6c757d;
 }
 
+/* 移除旧的样式 */
+.margin-inputs,
+.margin-row,
+.margin-row.middle,
+.margin-input,
+.margin-center,
 .margin-center::before {
-  content: '□';
+  display: none;
 }
 
 .alignment-controls {
@@ -280,5 +368,48 @@ function saveConfig() {
   outline: none;
   border-color: #80bdff;
   box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.grid-config {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+.checkbox-group {
+  display: flex;
+  align-items: center;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #495057;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  margin: 0;
+}
+
+.sub-group {
+  margin-left: 1.5rem;
+  margin-bottom: 0 !important;
+}
+
+.color-input {
+  width: 50px !important;
+  height: 32px;
+  padding: 2px !important;
+  border: none !important;
+}
+
+.color-input:focus {
+  box-shadow: none !important;
 }
 </style>

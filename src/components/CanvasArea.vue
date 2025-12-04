@@ -1,5 +1,8 @@
 <template>
-  <div class="canvas-area">
+  <div 
+    ref="canvasArea"
+    class="canvas-area"
+  >
     <div
       v-if="!hasImage"
       class="upload-placeholder"
@@ -12,6 +15,7 @@
 
     <div
       v-else
+      ref="canvasContainer"
       class="canvas-container"
       :style="containerStyle"
     >
@@ -30,36 +34,62 @@
         :style="uiLayerStyle"
         @click="handleCellClick"
       >
-        <!-- 网格单元格 -->
+        <!-- 网格容器 -->
         <div
-          v-for="cell in gridCells"
-          :key="cell.index"
-          class="grid-cell"
-          :style="cell.style"
-        />
+          v-if="editorStore.gridConfig.enabled"
+          class="grid-container"
+        >
+          <!-- 网格单元格 -->
+          <div
+            v-for="cell in gridCells"
+            :key="cell.index"
+            class="grid-cell"
+            :style="cell.style"
+          />
 
-        <!-- 高亮单元格 -->
-        <div
-          v-if="highlightedCell"
-          class="cell-highlight"
-          :style="highlightedCell.style"
-        />
+          <!-- Margin 线条（可选）-->
+          <div
+            v-if="editorStore.gridConfig.marginLines"
+            class="margin-lines"
+            :style="marginLinesStyle"
+          />
+
+          <!-- Padding 线条（可选）-->
+          <div
+            v-if="editorStore.gridConfig.paddingLines"
+            class="padding-lines"
+            :style="paddingLinesStyle"
+          />
+
+          <!-- 高亮单元格 -->
+          <div
+            v-for="(cell, index) in highlightedCells"
+            :key="`highlight-${index}`"
+            class="cell-highlight"
+            :style="cell.style"
+          />
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { CanvasSpace } from '@/utils/canvas'
 
 const editorStore = useEditorStore()
 
+const canvasArea = ref<HTMLDivElement>()  // .canvas-area 容器
+const canvasContainer = ref<HTMLDivElement>()  // .canvas-container
 const canvasLayer = ref<HTMLCanvasElement>()
 const uiLayer = ref<HTMLDivElement>()
 
 const highlightedCellIndex = ref<number>(0)
+
+// 存储容器的最大可用尺寸
+const containerMaxSize = ref({ width: 0, height: 0 })
 
 const hasImage = computed(() => editorStore.baseImage !== null)
 
@@ -111,6 +141,9 @@ const gridCells = computed(() => {
           top: `${position.y}px`,
           width: `${editorStore.cellConfig.width}px`,
           height: `${editorStore.cellConfig.height}px`,
+          border: editorStore.gridConfig.cellBorder 
+            ? `${editorStore.gridConfig.cellBorderWidth}px solid ${editorStore.gridConfig.cellBorderColor}`
+            : 'none',
         },
       })
     }
@@ -119,21 +152,135 @@ const gridCells = computed(() => {
   return cells
 })
 
-const highlightedCell = computed(() => {
-  if (!canvasSpace.value) return null
+const highlightedCells = computed(() => {
+  if (!canvasSpace.value) return []
 
-  const rowCol = canvasSpace.value.indexToRowCol(highlightedCellIndex.value)
-  const position = canvasSpace.value.getCellPosition(rowCol.row, rowCol.col)
+  const cells = []
 
+  // 1. 显示检测到的所有插入点（弱化显示）
+  if (editorStore.insertPointConfig.mode === 'auto' && editorStore.detectedInsertPoints.length > 0) {
+    editorStore.detectedInsertPoints.forEach((index) => {
+      const rowCol = canvasSpace.value!.indexToRowCol(index)
+      const position = canvasSpace.value!.getCellPosition(rowCol.row, rowCol.col)
+      
+      cells.push({
+        type: 'insert-point',
+        style: {
+          left: `${position.x - 1}px`,
+          top: `${position.y - 1}px`,
+          width: `${editorStore.cellConfig.width + 2}px`,
+          height: `${editorStore.cellConfig.height + 2}px`,
+          border: '2px dashed rgba(0, 255, 255, 0.6)',
+          backgroundColor: 'rgba(0, 255, 255, 0.1)',
+        },
+      })
+    })
+  }
+
+  // 2. 高亮当前选中的单元格（强显示）
+  const activeIndex = editorStore.insertPointConfig.mode === 'manual' 
+    ? highlightedCellIndex.value 
+    : editorStore.insertPointConfig.startCellIndex || 0
+    
+  if (activeIndex !== undefined) {
+    const rowCol = canvasSpace.value.indexToRowCol(activeIndex)
+    const position = canvasSpace.value.getCellPosition(rowCol.row, rowCol.col)
+    
+    cells.push({
+      type: 'active',
+      style: {
+        left: `${position.x - 2}px`,
+        top: `${position.y - 2}px`,
+        width: `${editorStore.cellConfig.width + 4}px`,
+        height: `${editorStore.cellConfig.height + 4}px`,
+        border: '3px solid #ff0000',
+        backgroundColor: 'rgba(255, 0, 0, 0.1)',
+      },
+    })
+  }
+
+  return cells
+})
+
+const marginLinesStyle = computed(() => {
+  const margin = editorStore.imageConfig.margin
   return {
-    style: {
-      left: `${position.x - 2}px`,
-      top: `${position.y - 2}px`,
-      width: `${editorStore.cellConfig.width + 4}px`,
-      height: `${editorStore.cellConfig.height + 4}px`,
-    },
+    position: 'absolute' as const,
+    left: `${margin.left}px`,
+    top: `${margin.top}px`,
+    right: `${margin.right}px`,
+    bottom: `${margin.bottom}px`,
+    border: `1px dashed ${editorStore.gridConfig.marginLineColor}`,
+    pointerEvents: 'none' as const,
   }
 })
+
+const paddingLinesStyle = computed(() => {
+  const margin = editorStore.imageConfig.margin
+  const padding = editorStore.imageConfig.padding
+  return {
+    position: 'absolute' as const,
+    left: `${margin.left + padding.left}px`,
+    top: `${margin.top + padding.top}px`,
+    right: `${margin.right + padding.right}px`,
+    bottom: `${margin.bottom + padding.bottom}px`,
+    border: `1px dashed ${editorStore.gridConfig.paddingLineColor}`,
+    pointerEvents: 'none' as const,
+  }
+})
+
+// 根据容器尺寸和图片宽高比计算最大画布尺寸
+function computeMaxCanvasSize(containerWidth: number, containerHeight: number, imageWidth: number, imageHeight: number) {
+  if (containerWidth <= 0 || containerHeight <= 0 || imageWidth <= 0 || imageHeight <= 0) {
+    return { width: 800, height: 600 }
+  }
+
+  // 留出边距，避免贴边
+  const margin = 32 // 16px * 2
+  const maxWidth = containerWidth - margin
+  const maxHeight = containerHeight - margin
+
+  // 计算适配比例
+  const widthRatio = maxWidth / imageWidth
+  const heightRatio = maxHeight / imageHeight
+  const scale = Math.min(widthRatio, heightRatio, 1) // 最大不超过原始尺寸
+
+  return {
+    width: Math.floor(imageWidth * scale),
+    height: Math.floor(imageHeight * scale),
+  }
+}
+
+// 处理窗口大小变化
+function handleResize() {
+  if (!canvasArea.value || !editorStore.baseImage) return
+
+  // 获取容器实际尺寸
+  const rect = canvasArea.value.getBoundingClientRect()
+  
+  // 存储容器最大尺寸
+  containerMaxSize.value = {
+    width: Math.floor(rect.width),
+    height: Math.floor(rect.height),
+  }
+
+  // 重新计算图片缩放
+  const maxSize = computeMaxCanvasSize(
+    containerMaxSize.value.width,
+    containerMaxSize.value.height,
+    editorStore.originalImageWidth,
+    editorStore.originalImageHeight
+  )
+
+  // 更新 store 中的最大尺寸限制（用于后续图片上传）
+  editorStore.maxCanvasWidth = maxSize.width
+  editorStore.maxCanvasHeight = maxSize.height
+
+  // 如果已有图片，重新调整
+  if (editorStore.baseImage) {
+    editorStore.setBaseImage(editorStore.baseImage)
+  }
+}
 
 // 监听底图变化
 watch(() => editorStore.baseImage, async (newImage) => {
@@ -142,6 +289,15 @@ watch(() => editorStore.baseImage, async (newImage) => {
   if (newImage && canvasLayer.value) {
     await nextTick()
     drawBaseImage()
+    
+    // 如果是自动模式，检测插入点
+    if (editorStore.insertPointConfig.mode === 'auto') {
+      setTimeout(() => {
+        if (canvasLayer.value) {
+          editorStore.detectInsertPoints(canvasLayer.value)
+        }
+      }, 100) // 延迟确保画布渲染完成
+    }
   }
 })
 
@@ -156,7 +312,8 @@ function drawBaseImage() {
   // 清除画布
   ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-  // 绘制底图
+  // 绘制底图，保持缩放比例
+  // 注意：canvas.width/height 已经是缩放后的尺寸
   ctx.drawImage(editorStore.baseImage, 0, 0, canvas.width, canvas.height)
 }
 
@@ -169,22 +326,29 @@ function handleCellClick(event: MouseEvent) {
   const x = event.clientX - rect.left
   const y = event.clientY - rect.top
 
-  // 找到点击的单元格
-  const cellWidth = editorStore.cellConfig.width + editorStore.cellConfig.margin.left + editorStore.cellConfig.margin.right
-  const cellHeight = editorStore.cellConfig.height + editorStore.cellConfig.margin.top + editorStore.cellConfig.margin.bottom
-
-  const offsetX = x - editorStore.imageConfig.margin.left - editorStore.imageConfig.padding.left
-  const offsetY = y - editorStore.imageConfig.margin.top - editorStore.imageConfig.padding.top
-
-  const col = Math.floor(offsetX / cellWidth)
-  const row = Math.floor(offsetY / cellHeight)
-
-  if (col >= 0 && row >= 0 && col < canvasSpace.value.columns && row < canvasSpace.value.rows) {
-    highlightedCellIndex.value = canvasSpace.value.rowColToIndex(row, col)
+  // 使用 CanvasSpace 的坐标转换功能
+  const cellPos = canvasSpace.value.positionToCell(x, y)
+  
+  if (cellPos) {
+    highlightedCellIndex.value = canvasSpace.value.rowColToIndex(cellPos.row, cellPos.col)
     editorStore.insertPointConfig.startCellIndex = highlightedCellIndex.value
     editorStore.saveToLocalStorage()
   }
 }
+
+// 生命周期
+onMounted(() => {
+  // 初始计算容器尺寸
+  handleResize()
+  
+  // 监听窗口大小变化
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  // 清理事件监听
+  window.removeEventListener('resize', handleResize)
+})
 </script>
 
 <style scoped>

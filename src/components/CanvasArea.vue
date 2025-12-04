@@ -1,6 +1,6 @@
 <template>
   <div class="canvas-area">
-    <div 
+    <div
       v-if="!hasImage"
       class="upload-placeholder"
     >
@@ -9,8 +9,8 @@
         <p>支持 PNG, JPG, GIF, WebP 格式</p>
       </div>
     </div>
-    
-    <div 
+
+    <div
       v-else
       class="canvas-container"
       :style="containerStyle"
@@ -22,7 +22,7 @@
         :width="canvasWidth"
         :height="canvasHeight"
       />
-      
+
       <!-- UI 层（上层）-->
       <div
         ref="uiLayer"
@@ -37,7 +37,7 @@
           class="grid-cell"
           :style="cell.style"
         />
-        
+
         <!-- 高亮单元格 -->
         <div
           v-if="highlightedCell"
@@ -78,7 +78,7 @@ const uiLayerStyle = computed(() => ({
 
 const canvasSpace = computed(() => {
   if (!hasImage.value) return null
-  
+
   return new CanvasSpace(
     canvasWidth.value,
     canvasHeight.value,
@@ -92,16 +92,16 @@ const canvasSpace = computed(() => {
 
 const gridCells = computed(() => {
   if (!canvasSpace.value) return []
-  
+
   const cells = []
   const rows = canvasSpace.value.rows
   const cols = canvasSpace.value.columns
-  
+
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
       const index = canvasSpace.value.rowColToIndex(row, col)
       const position = canvasSpace.value.getCellPosition(row, col)
-      
+
       cells.push({
         index,
         row,
@@ -115,16 +115,16 @@ const gridCells = computed(() => {
       })
     }
   }
-  
+
   return cells
 })
 
 const highlightedCell = computed(() => {
   if (!canvasSpace.value) return null
-  
+
   const rowCol = canvasSpace.value.indexToRowCol(highlightedCellIndex.value)
   const position = canvasSpace.value.getCellPosition(rowCol.row, rowCol.col)
-  
+
   return {
     style: {
       left: `${position.x - 2}px`,
@@ -137,6 +137,8 @@ const highlightedCell = computed(() => {
 
 // 监听底图变化
 watch(() => editorStore.baseImage, async (newImage) => {
+  await nextTick()
+  console.log('Base image changed:', newImage, canvasLayer.value);
   if (newImage && canvasLayer.value) {
     await nextTick()
     drawBaseImage()
@@ -144,38 +146,39 @@ watch(() => editorStore.baseImage, async (newImage) => {
 })
 
 function drawBaseImage() {
+  console.log('drawBaseImage', canvasLayer.value, editorStore.baseImage);
   if (!canvasLayer.value || !editorStore.baseImage) return
-  
+
   const canvas = canvasLayer.value
   const ctx = canvas.getContext('2d')
   if (!ctx) return
-  
+
   // 清除画布
   ctx.clearRect(0, 0, canvas.width, canvas.height)
-  
+
   // 绘制底图
   ctx.drawImage(editorStore.baseImage, 0, 0, canvas.width, canvas.height)
 }
 
 function handleCellClick(event: MouseEvent) {
   if (editorStore.insertPointConfig.mode !== 'manual') return
-  
+
   const rect = uiLayer.value?.getBoundingClientRect()
   if (!rect || !canvasSpace.value) return
-  
+
   const x = event.clientX - rect.left
   const y = event.clientY - rect.top
-  
+
   // 找到点击的单元格
   const cellWidth = editorStore.cellConfig.width + editorStore.cellConfig.margin.left + editorStore.cellConfig.margin.right
   const cellHeight = editorStore.cellConfig.height + editorStore.cellConfig.margin.top + editorStore.cellConfig.margin.bottom
-  
+
   const offsetX = x - editorStore.imageConfig.margin.left - editorStore.imageConfig.padding.left
   const offsetY = y - editorStore.imageConfig.margin.top - editorStore.imageConfig.padding.top
-  
+
   const col = Math.floor(offsetX / cellWidth)
   const row = Math.floor(offsetY / cellHeight)
-  
+
   if (col >= 0 && row >= 0 && col < canvasSpace.value.columns && row < canvasSpace.value.rows) {
     highlightedCellIndex.value = canvasSpace.value.rowColToIndex(row, col)
     editorStore.insertPointConfig.startCellIndex = highlightedCellIndex.value

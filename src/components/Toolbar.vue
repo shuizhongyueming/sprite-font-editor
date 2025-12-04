@@ -13,44 +13,44 @@
       >
         上传字体
       </button>
-      <button 
-        class="btn btn-success" 
+      <button
+        class="btn btn-success"
         :disabled="!canRender"
         @click="renderCharacters"
       >
         渲染文字
       </button>
-      <button 
-        class="btn btn-info" 
+      <button
+        class="btn btn-info"
         :disabled="!canExport"
         @click="exportImage"
       >
         导出PNG
       </button>
     </div>
-    
+
     <div class="toolbar-center">
       <div class="insert-point-control">
         <span>插入点:</span>
         <label class="radio-label">
-          <input 
-            v-model="insertPointMode" 
-            type="radio" 
+          <input
+            v-model="insertPointMode"
+            type="radio"
             value="auto"
           >
           自动
         </label>
         <label class="radio-label">
-          <input 
-            v-model="insertPointMode" 
-            type="radio" 
+          <input
+            v-model="insertPointMode"
+            type="radio"
             value="manual"
           >
           手动
         </label>
       </div>
     </div>
-    
+
     <div class="toolbar-right">
       <button
         class="btn btn-danger"
@@ -59,18 +59,18 @@
         清空
       </button>
     </div>
-    
+
     <!-- 隐藏的文件输入 -->
-    <input 
+    <input
       ref="imageInput"
-      type="file" 
+      type="file"
       accept="image/*"
       style="display: none"
       @change="handleImageUpload"
     >
-    <input 
+    <input
       ref="fontInput"
-      type="file" 
+      type="file"
       accept=".ttf,.otf,.woff,.woff2"
       style="display: none"
       @change="handleFontUpload"
@@ -98,8 +98,8 @@ const insertPointMode = computed({
 })
 
 const canRender = computed(() => {
-  return editorStore.baseImage && 
-         editorStore.currentFont && 
+  return editorStore.baseImage &&
+         editorStore.currentFont &&
          editorStore.characterEntries.length > 0
 })
 
@@ -118,21 +118,27 @@ function uploadFont() {
 async function handleImageUpload(event: Event) {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
-  
+
+  console.log('handleImageUpload', file);
   if (!file) return
-  
+
   if (!isValidImageFile(file)) {
     alert('请选择有效的图片文件 (PNG, JPG, GIF, WebP)')
     return
   }
-  
+
   try {
     const image = new Image()
     image.onload = () => {
+      console.log('Image loaded successfully');
       editorStore.setBaseImage(image)
       editorStore.saveToLocalStorage()
-    }
+    };
+    image.onerror = (error) => {
+      console.error('Failed to load image:', error)
+    };
     image.src = URL.createObjectURL(file)
+    console.log('start image load with url', image.src);
   } catch (error) {
     console.error('Failed to load image:', error)
     alert('图片加载失败')
@@ -142,25 +148,25 @@ async function handleImageUpload(event: Event) {
 async function handleFontUpload(event: Event) {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
-  
+
   if (!file) return
-  
+
   if (!isValidFontFile(file)) {
     alert('请选择有效的字体文件 (TTF, OTF, WOFF)')
     return
   }
-  
+
   try {
     const buffer = await file.arrayBuffer()
     const fontFace = new FontFace(file.name, buffer)
     await fontFace.load()
-    
+
     // 注册字体
     document.fonts.add(fontFace)
-    
+
     editorStore.setFont(fontFace)
     editorStore.saveToLocalStorage()
-    
+
     alert('字体上传成功！')
   } catch (error) {
     console.error('Failed to load font:', error)

@@ -2,92 +2,20 @@
   <div class="image-config">
     <div class="form-group">
       <label>外边距 (margin)</label>
-      <div class="margin-inputs">
-        <div class="margin-row">
-          <input
-            v-model.number="margin.top"
-            type="number"
-            class="form-control margin-input"
-            placeholder="上"
-            min="0"
-            @change="saveConfig"
-          >
-        </div>
-        <div class="margin-row middle">
-          <input
-            v-model.number="margin.left"
-            type="number"
-            class="form-control margin-input"
-            placeholder="左"
-            min="0"
-            @change="saveConfig"
-          >
-          <div class="margin-center" />
-          <input
-            v-model.number="margin.right"
-            type="number"
-            class="form-control margin-input"
-            placeholder="右"
-            min="0"
-            @change="saveConfig"
-          >
-        </div>
-        <div class="margin-row">
-          <input
-            v-model.number="margin.bottom"
-            type="number"
-            class="form-control margin-input"
-            placeholder="下"
-            min="0"
-            @change="saveConfig"
-          >
-        </div>
-      </div>
+      <SpacingInput
+        v-model="margin"
+        label="margin"
+        @change="saveConfig"
+      />
     </div>
     
     <div class="form-group">
       <label>内边距 (padding)</label>
-      <div class="margin-inputs">
-        <div class="margin-row">
-          <input
-            v-model.number="padding.top"
-            type="number"
-            class="form-control margin-input"
-            placeholder="上"
-            min="0"
-            @change="saveConfig"
-          >
-        </div>
-        <div class="margin-row middle">
-          <input
-            v-model.number="padding.left"
-            type="number"
-            class="form-control margin-input"
-            placeholder="左"
-            min="0"
-            @change="saveConfig"
-          >
-          <div class="margin-center" />
-          <input
-            v-model.number="padding.right"
-            type="number"
-            class="form-control margin-input"
-            placeholder="右"
-            min="0"
-            @change="saveConfig"
-          >
-        </div>
-        <div class="margin-row">
-          <input
-            v-model.number="padding.bottom"
-            type="number"
-            class="form-control margin-input"
-            placeholder="下"
-            min="0"
-            @change="saveConfig"
-          >
-        </div>
-      </div>
+      <SpacingInput
+        v-model="padding"
+        label="padding"
+        @change="saveConfig"
+      />
     </div>
     
     <div class="form-group">
@@ -118,6 +46,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useEditorStore } from '@/stores/editor'
+import SpacingInput from './SpacingInput.vue'
 
 const editorStore = useEditorStore()
 
@@ -171,43 +100,6 @@ function saveConfig() {
   font-weight: 500;
   font-size: 0.875rem;
   color: #495057;
-}
-
-.margin-inputs {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.margin-row {
-  display: flex;
-  justify-content: center;
-  gap: 0.25rem;
-}
-
-.margin-row.middle {
-  align-items: center;
-}
-
-.margin-input {
-  width: 60px !important;
-  text-align: center;
-}
-
-.margin-center {
-  width: 60px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #e9ecef;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  color: #6c757d;
-}
-
-.margin-center::before {
-  content: '□';
 }
 
 .dimension-inputs {

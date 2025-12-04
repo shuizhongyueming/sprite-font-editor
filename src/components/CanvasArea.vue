@@ -1,5 +1,5 @@
 <template>
-  <div 
+  <div
     ref="canvasArea"
     class="canvas-area"
   >
@@ -141,7 +141,7 @@ const gridCells = computed(() => {
           top: `${position.y}px`,
           width: `${editorStore.cellConfig.width}px`,
           height: `${editorStore.cellConfig.height}px`,
-          border: editorStore.gridConfig.cellBorder 
+          border: editorStore.gridConfig.cellBorder
             ? `${editorStore.gridConfig.cellBorderWidth}px solid ${editorStore.gridConfig.cellBorderColor}`
             : 'none',
         },
@@ -162,7 +162,7 @@ const highlightedCells = computed(() => {
     editorStore.detectedInsertPoints.forEach((index) => {
       const rowCol = canvasSpace.value!.indexToRowCol(index)
       const position = canvasSpace.value!.getCellPosition(rowCol.row, rowCol.col)
-      
+
       cells.push({
         type: 'insert-point',
         style: {
@@ -178,14 +178,14 @@ const highlightedCells = computed(() => {
   }
 
   // 2. 高亮当前选中的单元格（强显示）
-  const activeIndex = editorStore.insertPointConfig.mode === 'manual' 
-    ? highlightedCellIndex.value 
+  const activeIndex = editorStore.insertPointConfig.mode === 'manual'
+    ? highlightedCellIndex.value
     : editorStore.insertPointConfig.startCellIndex || 0
-    
+
   if (activeIndex !== undefined) {
     const rowCol = canvasSpace.value.indexToRowCol(activeIndex)
     const position = canvasSpace.value.getCellPosition(rowCol.row, rowCol.col)
-    
+
     cells.push({
       type: 'active',
       style: {
@@ -231,6 +231,7 @@ const paddingLinesStyle = computed(() => {
 
 // 根据容器尺寸和图片宽高比计算最大画布尺寸
 function computeMaxCanvasSize(containerWidth: number, containerHeight: number, imageWidth: number, imageHeight: number) {
+  console.log('computeMaxCanvasSize', { containerWidth, containerHeight, imageWidth, imageHeight });
   if (containerWidth <= 0 || containerHeight <= 0 || imageWidth <= 0 || imageHeight <= 0) {
     return { width: 800, height: 600 }
   }
@@ -245,10 +246,13 @@ function computeMaxCanvasSize(containerWidth: number, containerHeight: number, i
   const heightRatio = maxHeight / imageHeight
   const scale = Math.min(widthRatio, heightRatio, 1) // 最大不超过原始尺寸
 
-  return {
+  const res = {
     width: Math.floor(imageWidth * scale),
     height: Math.floor(imageHeight * scale),
-  }
+  };
+  console.log('computeMaxCanvasSize: result: ', res);
+
+  return res;
 }
 
 // 处理窗口大小变化
@@ -257,7 +261,7 @@ function handleResize() {
 
   // 获取容器实际尺寸
   const rect = canvasArea.value.getBoundingClientRect()
-  
+
   // 存储容器最大尺寸
   containerMaxSize.value = {
     width: Math.floor(rect.width),
@@ -286,10 +290,28 @@ function handleResize() {
 watch(() => editorStore.baseImage, async (newImage) => {
   await nextTick()
   console.log('Base image changed:', newImage, canvasLayer.value);
+  
   if (newImage && canvasLayer.value) {
+    // 当有新图片加载时，重新计算最大画布尺寸
+    if (canvasArea.value && editorStore.originalImageWidth && editorStore.originalImageHeight) {
+      const maxSize = computeMaxCanvasSize(
+        canvasArea.value.clientWidth,
+        canvasArea.value.clientHeight,
+        editorStore.originalImageWidth,
+        editorStore.originalImageHeight
+      )
+      
+      // 更新 store 中的最大尺寸，触发重新缩放
+      editorStore.maxCanvasWidth = maxSize.width
+      editorStore.maxCanvasHeight = maxSize.height
+      
+      // 重新应用图片（使用新的最大尺寸进行缩放）
+      editorStore.setBaseImage(newImage)
+    }
+    
     await nextTick()
     drawBaseImage()
-    
+
     // 如果是自动模式，检测插入点
     if (editorStore.insertPointConfig.mode === 'auto') {
       setTimeout(() => {
@@ -328,7 +350,7 @@ function handleCellClick(event: MouseEvent) {
 
   // 使用 CanvasSpace 的坐标转换功能
   const cellPos = canvasSpace.value.positionToCell(x, y)
-  
+
   if (cellPos) {
     highlightedCellIndex.value = canvasSpace.value.rowColToIndex(cellPos.row, cellPos.col)
     editorStore.insertPointConfig.startCellIndex = highlightedCellIndex.value
@@ -340,7 +362,7 @@ function handleCellClick(event: MouseEvent) {
 onMounted(() => {
   // 初始计算容器尺寸
   handleResize()
-  
+
   // 监听窗口大小变化
   window.addEventListener('resize', handleResize)
 })

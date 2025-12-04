@@ -25,82 +25,20 @@
     
     <div class="form-group">
       <label>单元格间距 (margin)</label>
-      <div class="spacing-inputs">
-        <div class="spacing-row">
-          <input
-            v-model.number="cellConfig.margin.top"
-            type="number"
-            class="form-control spacing-input"
-            placeholder="上"
-            min="0"
-            @change="saveConfig"
-          >
-          <input
-            v-model.number="cellConfig.margin.right"
-            type="number"
-            class="form-control spacing-input"
-            placeholder="右"
-            min="0"
-            @change="saveConfig"
-          >
-          <input
-            v-model.number="cellConfig.margin.bottom"
-            type="number"
-            class="form-control spacing-input"
-            placeholder="下"
-            min="0"
-            @change="saveConfig"
-          >
-          <input
-            v-model.number="cellConfig.margin.left"
-            type="number"
-            class="form-control spacing-input"
-            placeholder="左"
-            min="0"
-            @change="saveConfig"
-          >
-        </div>
-      </div>
+      <SpacingInput
+        v-model="cellConfig.margin"
+        label="margin"
+        @change="saveConfig"
+      />
     </div>
     
     <div class="form-group">
       <label>字符内边距 (padding)</label>
-      <div class="spacing-inputs">
-        <div class="spacing-row">
-          <input
-            v-model.number="cellConfig.padding.top"
-            type="number"
-            class="form-control spacing-input"
-            placeholder="上"
-            min="0"
-            @change="saveConfig"
-          >
-          <input
-            v-model.number="cellConfig.padding.right"
-            type="number"
-            class="form-control spacing-input"
-            placeholder="右"
-            min="0"
-            @change="saveConfig"
-          >
-          <input
-            v-model.number="cellConfig.padding.bottom"
-            type="number"
-            class="form-control spacing-input"
-            placeholder="下"
-            min="0"
-            @change="saveConfig"
-          >
-          <input
-            v-model.number="cellConfig.padding.left"
-            type="number"
-            class="form-control spacing-input"
-            placeholder="左"
-            min="0"
-            @change="saveConfig"
-          >
-        </div>
-      </div>
+      <SpacingInput
+        v-model="cellConfig.padding"
+        label="padding"
+        @change="saveConfig"
+      />
     </div>
     
     <div class="form-group">
@@ -237,6 +175,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useEditorStore } from '@/stores/editor'
+import SpacingInput from './SpacingInput.vue'
 
 const editorStore = useEditorStore()
 
@@ -301,40 +240,6 @@ function saveConfig() {
 .dimension-separator {
   font-weight: 500;
   color: #6c757d;
-}
-
-.spacing-inputs {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.spacing-row {
-  display: flex;
-  gap: 0.375rem;
-}
-
-.spacing-input {
-  flex: 1;
-  min-width: 0;
-  text-align: center;
-  font-size: 0.8125rem;
-  padding: 0.375rem 0.25rem;
-}
-
-.spacing-input::placeholder {
-  font-size: 0.75rem;
-  color: #6c757d;
-}
-
-/* 移除旧的样式 */
-.margin-inputs,
-.margin-row,
-.margin-row.middle,
-.margin-input,
-.margin-center,
-.margin-center::before {
-  display: none;
 }
 
 .alignment-controls {

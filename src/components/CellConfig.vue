@@ -2,45 +2,34 @@
   <div class="cell-config">
     <div class="form-group">
       <label>单元格尺寸</label>
-      <div class="dimension-inputs">
-        <input
-          v-model.number="cellConfig.width"
-          type="number"
-          class="form-control"
-          placeholder="宽度"
-          min="8"
-          @change="saveConfig"
-        >
-        <span class="dimension-separator">×</span>
-        <input
-          v-model.number="cellConfig.height"
-          type="number"
-          class="form-control"
-          placeholder="高度"
-          min="8"
-          @change="saveConfig"
-        >
-      </div>
+      <DimensionsInput
+        v-model:width="editorStore.cellConfig.width"
+        v-model:height="editorStore.cellConfig.height"
+        :min="8"
+        width-placeholder="宽度"
+        height-placeholder="高度"
+        @change="saveConfig"
+      />
     </div>
-    
+
     <div class="form-group">
       <label>单元格间距 (margin)</label>
       <SpacingInput
-        v-model="cellConfig.margin"
+        v-model="editorStore.cellConfig.margin"
         label="margin"
         @change="saveConfig"
       />
     </div>
-    
+
     <div class="form-group">
       <label>字符内边距 (padding)</label>
       <SpacingInput
-        v-model="cellConfig.padding"
+        v-model="editorStore.cellConfig.padding"
         label="padding"
         @change="saveConfig"
       />
     </div>
-    
+
     <div class="form-group">
       <label>对齐方式</label>
       <div class="alignment-controls">
@@ -82,7 +71,7 @@
         </div>
       </div>
     </div>
-    
+
     <div class="form-group">
       <label>网格显示</label>
       <div class="grid-config">
@@ -96,7 +85,7 @@
             显示网格
           </label>
         </div>
-        
+
         <div class="checkbox-group">
           <label class="checkbox-label">
             <input
@@ -107,7 +96,7 @@
             显示单元格边框
           </label>
         </div>
-        
+
         <div class="checkbox-group">
           <label class="checkbox-label">
             <input
@@ -118,7 +107,7 @@
             显示 margin 线
           </label>
         </div>
-        
+
         <div class="checkbox-group">
           <label class="checkbox-label">
             <input
@@ -129,7 +118,7 @@
             显示 padding 线
           </label>
         </div>
-        
+
         <div class="form-group sub-group">
           <label>边框颜色</label>
           <input
@@ -139,7 +128,7 @@
             @change="saveConfig"
           >
         </div>
-        
+
         <div class="form-group sub-group">
           <label>边框宽度</label>
           <input
@@ -153,7 +142,7 @@
         </div>
       </div>
     </div>
-    
+
     <div class="form-group">
       <label>插入点模式</label>
       <select
@@ -176,15 +165,9 @@
 import { computed } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import SpacingInput from './SpacingInput.vue'
+import DimensionsInput from './DimensionsInput.vue'
 
 const editorStore = useEditorStore()
-
-const cellConfig = computed({
-  get: () => editorStore.cellConfig,
-  set: (value) => {
-    editorStore.cellConfig = value
-  }
-})
 
 const cellAlignment = computed({
   get: () => editorStore.cellAlignment,
@@ -229,17 +212,6 @@ function saveConfig() {
   font-weight: 500;
   font-size: 0.875rem;
   color: #495057;
-}
-
-.dimension-inputs {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.dimension-separator {
-  font-weight: 500;
-  color: #6c757d;
 }
 
 .alignment-controls {

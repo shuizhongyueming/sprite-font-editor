@@ -3,7 +3,7 @@
     <div class="form-group">
       <label>外边距 (margin)</label>
       <SpacingInput
-        v-model="margin"
+        v-model="editorStore.imageConfig.margin"
         label="margin"
         @change="saveConfig"
       />
@@ -12,7 +12,7 @@
     <div class="form-group">
       <label>内边距 (padding)</label>
       <SpacingInput
-        v-model="padding"
+        v-model="editorStore.imageConfig.padding"
         label="padding"
         @change="saveConfig"
       />
@@ -20,25 +20,14 @@
     
     <div class="form-group">
       <label>限制尺寸 (可选)</label>
-      <div class="dimension-inputs">
-        <input
-          v-model.number="width"
-          type="number"
-          class="form-control"
-          placeholder="宽度"
-          min="1"
-          @change="saveConfig"
-        >
-        <span class="dimension-separator">×</span>
-        <input
-          v-model.number="height"
-          type="number"
-          class="form-control"
-          placeholder="高度"
-          min="1"
-          @change="saveConfig"
-        >
-      </div>
+      <DimensionsInput
+        v-model:width="editorStore.imageConfig.width"
+        v-model:height="editorStore.imageConfig.height"
+        :min="1"
+        width-placeholder="宽度"
+        height-placeholder="高度"
+        @change="saveConfig"
+      />
     </div>
   </div>
 </template>
@@ -47,36 +36,9 @@
 import { computed } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import SpacingInput from './SpacingInput.vue'
+import DimensionsInput from './DimensionsInput.vue'
 
 const editorStore = useEditorStore()
-
-const margin = computed({
-  get: () => editorStore.imageConfig.margin,
-  set: (value) => {
-    editorStore.imageConfig.margin = value
-  }
-})
-
-const padding = computed({
-  get: () => editorStore.imageConfig.padding,
-  set: (value) => {
-    editorStore.imageConfig.padding = value
-  }
-})
-
-const width = computed({
-  get: () => editorStore.imageConfig.width || '',
-  set: (value) => {
-    editorStore.imageConfig.width = value || undefined
-  }
-})
-
-const height = computed({
-  get: () => editorStore.imageConfig.height || '',
-  set: (value) => {
-    editorStore.imageConfig.height = value || undefined
-  }
-})
 
 function saveConfig() {
   editorStore.saveToLocalStorage()
@@ -100,17 +62,6 @@ function saveConfig() {
   font-weight: 500;
   font-size: 0.875rem;
   color: #495057;
-}
-
-.dimension-inputs {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.dimension-separator {
-  font-weight: 500;
-  color: #6c757d;
 }
 
 .form-control {

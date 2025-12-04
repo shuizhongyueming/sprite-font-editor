@@ -1,69 +1,43 @@
 <template>
   <div class="dimensions-inputs">
     <input
-      :value="widthValue"
+      v-model.number="width"
       type="number"
       class="form-control dimension-input"
       :placeholder="widthPlaceholder"
       :min="min"
       :step="step"
-      @input="updateWidth(($event.target as HTMLInputElement).value)"
     >
     <span class="dimension-separator">×</span>
     <input
-      :value="heightValue"
+      v-model.number="height"
       type="number"
       class="form-control dimension-input"
       :placeholder="heightPlaceholder"
       :min="min"
       :step="step"
-      @input="updateHeight(($event.target as HTMLInputElement).value)"
     >
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-
 interface Props {
-  width?: number
-  height?: number
   min?: number
   step?: number
   widthPlaceholder?: string
   heightPlaceholder?: string
 }
 
-interface Emits {
-  (e: 'update:width', value: number | undefined): void
-  (e: 'update:height', value: number | undefined): void
-  (e: 'change'): void
-}
-
-const props = withDefaults(defineProps<Props>(), {
+withDefaults(defineProps<Props>(), {
   min: 1,
   step: 1,
   widthPlaceholder: '宽度',
   heightPlaceholder: '高度',
 })
 
-const emit = defineEmits<Emits>()
-
-// 使用 computed 代理 props，使其响应式
-const widthValue = computed(() => props.width ?? '')
-const heightValue = computed(() => props.height ?? '')
-
-function updateWidth(rawValue: string) {
-  const numValue = rawValue ? parseInt(rawValue, 10) : undefined
-  emit('update:width', numValue)
-  emit('change')
-}
-
-function updateHeight(rawValue: string) {
-  const numValue = rawValue ? parseInt(rawValue, 10) : undefined
-  emit('update:height', numValue)
-  emit('change')
-}
+// defineModel 的 type: Number 会自动处理字符串到数字的转换
+const width = defineModel<number | undefined>('width', { type: Number })
+const height = defineModel<number | undefined>('height', { type: Number })
 </script>
 
 <style scoped>

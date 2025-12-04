@@ -2,36 +2,32 @@
   <div class="spacing-inputs">
     <div class="spacing-row">
       <input
-        :value="modelValue.top"
+        v-model.number="modelValue.top"
         type="number"
         class="form-control spacing-input"
         :placeholder="`${label}上`"
         min="0"
-        @input="updateValue('top', ($event.target as HTMLInputElement).value)"
       >
       <input
-        :value="modelValue.right"
+        v-model.number="modelValue.right"
         type="number"
         class="form-control spacing-input"
         :placeholder="`${label}右`"
         min="0"
-        @input="updateValue('right', ($event.target as HTMLInputElement).value)"
       >
       <input
-        :value="modelValue.bottom"
+        v-model.number="modelValue.bottom"
         type="number"
         class="form-control spacing-input"
         :placeholder="`${label}下`"
         min="0"
-        @input="updateValue('bottom', ($event.target as HTMLInputElement).value)"
       >
       <input
-        :value="modelValue.left"
+        v-model.number="modelValue.left"
         type="number"
         class="form-control spacing-input"
         :placeholder="`${label}左`"
         min="0"
-        @input="updateValue('left', ($event.target as HTMLInputElement).value)"
       >
     </div>
   </div>
@@ -46,25 +42,16 @@ interface SpacingValue {
 }
 
 interface Props {
-  modelValue: SpacingValue
   label?: string
 }
 
-interface Emits {
-  (e: 'update:modelValue', value: SpacingValue): void
-  (e: 'change'): void
-}
+defineProps<Props>()
 
-const props = defineProps<Props>()
-const emit = defineEmits<Emits>()
-
-function updateValue(key: keyof SpacingValue, rawValue: string) {
-  const value = parseInt(rawValue || '0', 10)
-  const newValue = { ...props.modelValue, [key]: isNaN(value) ? 0 : value }
-  
-  emit('update:modelValue', newValue)
-  emit('change')
-}
+// defineModel 自动创建 v-model 绑定，type 自动转换
+const modelValue = defineModel<SpacingValue>({
+  required: true,
+  type: Object  // 告诉 Vue 这是一个对象类型
+})
 </script>
 
 <style scoped>

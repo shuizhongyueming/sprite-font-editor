@@ -242,6 +242,7 @@ export function renderCharacters(
 
 /**
  * 将字符 Canvas 渲染到目标位置（考虑 cell margin）
+ * 修改说明：字符渲染时使用完整的 cell 尺寸，margin 只参与定位调整
  */
 export function renderCharacterToCell(
   character: string,
@@ -253,22 +254,28 @@ export function renderCharacterToCell(
   charMargin: { top: number; right: number; bottom: number; left: number },
   options: Omit<RenderCharacterOptions, 'text' | 'cellWidth' | 'cellHeight' | 'margin'>
 ): void {
-  // 渲染字符到离屏 Canvas（使用 cell 内部尺寸）
+  // 步骤 1: 在完整的 cell 尺寸内渲染字符（margin 不参与渲染尺寸计算）
   const charCanvas = renderCharacterOnCanvas({
     ...options,
     text: character,
-    cellWidth: cellWidth - charMargin.left - charMargin.right,
-    cellHeight: cellHeight - charMargin.top - charMargin.bottom,
-    margin: { top: 0, right: 0, bottom: 0, left: 0 } // margin 在外部处理
+    cellWidth: cellWidth,      // 不减去 margin
+    cellHeight: cellHeight,     // 不减去 margin
+    margin: { top: 0, right: 0, bottom: 0, left: 0 } // 渲染时忽略 margin
   })
 
-  // 将离屏 Canvas 绘制到目标位置（考虑 cell margin）
+  // 步骤 2: 通过 margin 调整字符在单元格内的位置（只改位置，不改尺寸）
+  const targetX = cellX + charMargin.left
+  const targetY = cellY + charMargin.top
+  const targetWidth = cellWidth     // ✅ 保持完整尺寸，不减 margin
+  const targetHeight = cellHeight   // ✅ 保持完整尺寸，不减 margin
+
+  // 步骤 3: 将渲染好的字符绘制到目标位置
   drawCharacterToCanvas(
     charCanvas,
     targetCtx,
-    cellX + charMargin.left,
-    cellY + charMargin.top,
-    cellWidth - charMargin.left - charMargin.right,
-    cellHeight - charMargin.top - charMargin.bottom
+    targetX,
+    targetY,
+    targetWidth,
+    targetHeight
   )
 }

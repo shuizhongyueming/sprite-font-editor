@@ -3,6 +3,14 @@
  * 提供离屏 Canvas 字符渲染功能
  */
 
+export interface RenderedCharacter {
+  canvas: HTMLCanvasElement;
+  sourceX: number;
+  sourceY: number;
+  sourceWidth: number;
+  sourceHeight: number;
+}
+
 export interface RenderCharacterOptions {
   text: string;
   fontFamily: string;
@@ -30,6 +38,14 @@ export function calculateCharRenderSize(
   availableWidth: number,
   availableHeight: number,
 ): { width: number; height: number; scale: number } {
+  if (textWidth <= availableWidth && textHeight <= availableHeight) {
+    return {
+      width: textWidth,
+      height: textHeight,
+      scale: 1,
+    };
+  }
+
   // 计算缩放比例（保持宽高比）
   const widthRatio = availableWidth / textWidth;
   const heightRatio = availableHeight / textHeight;
@@ -92,6 +108,59 @@ export function calculateAlignment(
 }
 
 /**
+ * 扫描 Canvas 确定文本边界（基于透明度）
+ */
+export interface TextBounds {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export function scanTextBoundsOptimized(
+  canvasWidth: number,
+  canvasHeight: number,
+  imageData: ImageData,
+  threshold: number = 0,
+): TextBounds {
+  const { data } = imageData;
+  const width = canvasWidth;
+  const height = canvasHeight;
+
+  // 初始化边界
+  let minX = width;
+  let minY = height;
+  let maxX = 0;
+  let maxY = 0;
+
+  // 全扫描（Canvas 通常不大，性能可接受）
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const alpha = data[(y * width + x) * 4 + 3];
+      if (alpha > threshold) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+  }
+
+  // 如果没找到文本，返回整个区域
+  if (maxX < minX || maxY < minY) {
+    return { x: 0, y: 0, width, height };
+  }
+
+  // 返回边界框（包含最后一个像素）
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX + 1,
+    height: maxY - minY + 1,
+  };
+}
+
+/**
  * 测量文本尺寸
  */
 export function measureText(
@@ -125,7 +194,7 @@ export function measureText(
  */
 export function renderCharacterOnCanvas(
   options: RenderCharacterOptions,
-): HTMLCanvasElement {
+): RenderedCharacter {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas 2D context not available");
@@ -143,8 +212,10 @@ export function renderCharacterOnCanvas(
   ctx.textBaseline = "top";
   ctx.imageSmoothingEnabled = true;
 
-  let drawX = 0;
-  let drawY = 0;
+  // 默认做一些偏移量去渲染文本
+  // 有些文本，在某些字体下，可能是会有一些溢出的
+  let drawX = 2;
+  let drawY = 2;
 
   // 如果有描边
   if (options.outline?.enabled) {
@@ -154,7 +225,8 @@ export function renderCharacterOnCanvas(
 
     // 有描边的实话，开始绘制的节点需要考虑到描边的宽度
     // 如果还是紧贴左上角绘制，会导致左边和顶部的描边被裁剪掉
-    drawX = drawY = options.outline.width;
+    drawX += options.outline.width;
+    drawY += options.outline.width;
 
     // 描边文本
     ctx.strokeText(options.text, drawX, drawX);
@@ -164,7 +236,23 @@ export function renderCharacterOnCanvas(
   ctx.fillStyle = options.color;
   ctx.fillText(options.text, drawX, drawY);
 
-  return canvas;
+  // ============ 新增扫描逻辑 ============
+  // 在文本绘制完成后，扫描确定文本边界
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const bounds = scanTextBoundsOptimized(
+    canvas.width,
+    canvas.height,
+    imageData,
+  );
+
+  // 返回 canvas 和边界信息
+  return {
+    canvas,
+    sourceX: bounds.x,
+    sourceY: bounds.y,
+    sourceWidth: bounds.width,
+    sourceHeight: bounds.height,
+  };
 }
 
 /**
@@ -173,14 +261,18 @@ export function renderCharacterOnCanvas(
 export function drawCharacterToCanvas(
   charCanvas: HTMLCanvasElement,
   targetCtx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
+  sx: number,
+  sy: number,
+  sw: number,
+  sh: number,
+  dx: number,
+  dy: number,
+  dw: number,
+  dh: number,
 ): void {
   if (!charCanvas || !targetCtx) return;
 
-  targetCtx.drawImage(charCanvas, x, y, width, height);
+  targetCtx.drawImage(charCanvas, sx, sy, sw, sh, dx, dy, dw, dh);
 }
 
 /**
@@ -190,19 +282,19 @@ export function renderCharacters(
   characters: string[],
   startIndex: number,
   options: Omit<RenderCharacterOptions, "text">,
-): HTMLCanvasElement[] {
-  const canvases: HTMLCanvasElement[] = [];
+): RenderedCharacter[] {
+  const results: RenderedCharacter[] = [];
   const remainingChars = characters.slice(startIndex);
 
   for (const char of remainingChars) {
-    const canvas = renderCharacterOnCanvas({
+    const rendered = renderCharacterOnCanvas({
       ...options,
       text: char,
     });
-    canvases.push(canvas);
+    results.push(rendered);
   }
 
-  return canvases;
+  return results;
 }
 
 /**
@@ -223,25 +315,25 @@ export function renderCharacterToCell(
   cellPadding: { top: number; right: number; bottom: number; left: number },
   options: Omit<
     RenderCharacterOptions,
-    "text" | "cellWidth" | "cellHeight" | "margin" | "cellPadding"
+    "text" | "contentWidth" | "contentHeight"
   >,
 ): void {
   // 计算内容区域尺寸（减去 cell padding）
   const contentWidth = cellWidth - cellPadding.left - cellPadding.right;
   const contentHeight = cellHeight - cellPadding.top - cellPadding.bottom;
 
-  // 步骤 1: 离屏 Canvas 使用完整的 cell 尺寸
-  const charCanvas = renderCharacterOnCanvas({
+  // 步骤 1: 离屏渲染字符，获取 canvas 和真实边界
+  const rendered = renderCharacterOnCanvas({
     ...options,
     text: character,
-    contentWidth: cellWidth, // 内容尺寸
-    contentHeight: cellHeight, // 内容尺寸
+    contentWidth: cellWidth, // 完整尺寸
+    contentHeight: cellHeight, // 完整尺寸
   });
 
-  // 计算渲染尺寸（在内容区域内应用 object-fit）
+  // 基于真实文本尺寸计算缩放（object-fit）
   const renderSize = calculateCharRenderSize(
-    charCanvas.width,
-    charCanvas.height,
+    rendered.sourceWidth, // ✅ 使用实际文本宽度
+    rendered.sourceHeight, // ✅ 使用实际文本高度
     contentWidth,
     contentHeight,
   );
@@ -258,13 +350,17 @@ export function renderCharacterToCell(
 
   const targetX = cellX + cellPadding.left + position.x + charMargin.left;
   const targetY = cellY + cellPadding.top + position.y + charMargin.top;
-  const targetWidth = renderSize.width; // ✅ 绘制尺寸 = 完整 cell 尺寸
-  const targetHeight = renderSize.height; // ✅ 绘制尺寸 = 完整 cell 尺寸
+  const targetWidth = renderSize.width;
+  const targetHeight = renderSize.height;
 
   if (character === "你") {
     console.log({
       cellWidth,
       cellHeight,
+      sourceX: rendered.sourceX,
+      sourceY: rendered.sourceY,
+      sourceWidth: rendered.sourceWidth,
+      sourceHeight: rendered.sourceHeight,
       contentWidth,
       contentHeight,
       targetWidth,
@@ -275,8 +371,12 @@ export function renderCharacterToCell(
 
   // 步骤 3: 将渲染好的字符绘制到目标位置
   drawCharacterToCanvas(
-    charCanvas,
+    rendered.canvas,
     targetCtx,
+    rendered.sourceX,
+    rendered.sourceY,
+    rendered.sourceWidth,
+    rendered.sourceHeight,
     targetX,
     targetY,
     targetWidth,

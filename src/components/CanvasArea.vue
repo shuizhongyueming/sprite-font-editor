@@ -291,7 +291,7 @@ function handleResize() {
 watch(() => editorStore.baseImage, async (newImage) => {
   await nextTick()
   console.log('Base image changed:', newImage, canvasLayer.value);
-  
+
   if (newImage && canvasLayer.value) {
     // 当有新图片加载时，重新计算最大画布尺寸
     if (canvasArea.value && editorStore.originalImageWidth && editorStore.originalImageHeight) {
@@ -301,15 +301,15 @@ watch(() => editorStore.baseImage, async (newImage) => {
         editorStore.originalImageWidth,
         editorStore.originalImageHeight
       )
-      
+
       // 更新 store 中的最大尺寸，触发重新缩放
       editorStore.maxCanvasWidth = maxSize.width
       editorStore.maxCanvasHeight = maxSize.height
-      
+
       // 重新应用图片（使用新的最大尺寸进行缩放）
       editorStore.setBaseImage(newImage)
     }
-    
+
     await nextTick()
     drawBaseImage()
 
@@ -325,7 +325,7 @@ watch(() => editorStore.baseImage, async (newImage) => {
 })
 
 // 监听字符变化，自动重新渲染
-watch(() => [editorStore.characterEntries, editorStore.characterStyle, editorStore.cellAlignment, editorStore.cellConfig], 
+watch(() => [editorStore.characterEntries, editorStore.characterStyle, editorStore.cellAlignment, editorStore.cellConfig],
   () => {
     // 延迟执行，等待状态更新完成
     nextTick(() => {
@@ -417,7 +417,7 @@ function renderCharacters() {
         fontSize: editorStore.characterStyle.fontSize,
         color: editorStore.characterStyle.color,
         outline: editorStore.characterStyle.outline,
-        alignment: editorStore.cellAlignment
+        alignment: editorStore.cellAlignment,
       }
     )
 

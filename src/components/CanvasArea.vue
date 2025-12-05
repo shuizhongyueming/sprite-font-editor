@@ -402,7 +402,7 @@ function renderCharacters() {
     const rowCol = canvasSpace.value.indexToRowCol(currentIndex)
     const cellPosition = canvasSpace.value.getCellPosition(rowCol.row, rowCol.col)
 
-    // 渲染字符到单元格
+    // 渲染字符到单元格（传入 cellPadding）
     renderCharacterToCell(
       charEntry.char,
       ctx,
@@ -411,6 +411,7 @@ function renderCharacters() {
       editorStore.cellConfig.width,
       editorStore.cellConfig.height,
       charEntry.margin || { top: 0, right: 0, bottom: 0, left: 0 },
+      editorStore.cellConfig.padding,  // ✅ 添加 cellPadding 参数
       {
         fontFamily: editorStore.characterStyle.fontFamily,
         fontSize: editorStore.characterStyle.fontSize,

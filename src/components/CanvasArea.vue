@@ -78,6 +78,7 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { CanvasSpace } from '@/utils/canvas'
+import { renderCharacterToCell } from '@/utils/char-renderer'
 
 const editorStore = useEditorStore()
 
@@ -323,6 +324,19 @@ watch(() => editorStore.baseImage, async (newImage) => {
   }
 })
 
+// 监听字符变化，自动重新渲染
+watch(() => [editorStore.characterEntries, editorStore.characterStyle, editorStore.cellAlignment, editorStore.cellConfig], 
+  () => {
+    // 延迟执行，等待状态更新完成
+    nextTick(() => {
+      if (canvasLayer.value && editorStore.baseImage) {
+        drawBaseImage()
+      }
+    })
+  },
+  { deep: true }
+)
+
 function drawBaseImage() {
   console.log('drawBaseImage', canvasLayer.value, editorStore.baseImage);
   if (!canvasLayer.value || !editorStore.baseImage) return
@@ -337,6 +351,9 @@ function drawBaseImage() {
   // 绘制底图，保持缩放比例
   // 注意：canvas.width/height 已经是缩放后的尺寸
   ctx.drawImage(editorStore.baseImage, 0, 0, canvas.width, canvas.height)
+
+  // 渲染字符（如果有的话）
+  renderCharacters()
 }
 
 function handleCellClick(event: MouseEvent) {
@@ -355,6 +372,55 @@ function handleCellClick(event: MouseEvent) {
     highlightedCellIndex.value = canvasSpace.value.rowColToIndex(cellPos.row, cellPos.col)
     editorStore.insertPointConfig.startCellIndex = highlightedCellIndex.value
     editorStore.saveToLocalStorage()
+  }
+}
+
+/**
+ * 渲染所有字符到画布
+ */
+function renderCharacters() {
+  if (!canvasLayer.value || !editorStore.baseImage || !canvasSpace.value) return
+
+  const canvas = canvasLayer.value
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  // 如果有字符需要渲染
+  if (editorStore.characterEntries.length === 0) return
+
+  // 确定起始单元格
+  const startIndex = editorStore.insertPointConfig.startCellIndex || 0
+  if (startIndex === undefined) return
+
+  let currentIndex = startIndex
+
+  // 遍历所有字符
+  for (const charEntry of editorStore.characterEntries) {
+    if (currentIndex >= canvasSpace.value.rows * canvasSpace.value.columns) break
+
+    // 获取单元格位置
+    const rowCol = canvasSpace.value.indexToRowCol(currentIndex)
+    const cellPosition = canvasSpace.value.getCellPosition(rowCol.row, rowCol.col)
+
+    // 渲染字符到单元格
+    renderCharacterToCell(
+      charEntry.char,
+      ctx,
+      cellPosition.x,
+      cellPosition.y,
+      editorStore.cellConfig.width,
+      editorStore.cellConfig.height,
+      charEntry.margin || { top: 0, right: 0, bottom: 0, left: 0 },
+      {
+        fontFamily: editorStore.characterStyle.fontFamily,
+        fontSize: editorStore.characterStyle.fontSize,
+        color: editorStore.characterStyle.color,
+        outline: editorStore.characterStyle.outline,
+        alignment: editorStore.cellAlignment
+      }
+    )
+
+    currentIndex++
   }
 }
 

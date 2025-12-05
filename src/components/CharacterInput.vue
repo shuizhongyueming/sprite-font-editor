@@ -38,51 +38,11 @@
           
           <div class="character-margin">
             <label class="margin-label">边距调整</label>
-            <div class="margin-inputs">
-              <div class="margin-row">
-                <input
-                  v-model.number="entry.margin.top"
-                  type="number"
-                  class="form-control margin-input"
-                  placeholder="上"
-                  min="-10"
-                  max="10"
-                  @change="saveConfig"
-                >
-              </div>
-              <div class="margin-row middle">
-                <input
-                  v-model.number="entry.margin.left"
-                  type="number"
-                  class="form-control margin-input"
-                  placeholder="左"
-                  min="-10"
-                  max="10"
-                  @change="saveConfig"
-                >
-                <div class="margin-center" />
-                <input
-                  v-model.number="entry.margin.right"
-                  type="number"
-                  class="form-control margin-input"
-                  placeholder="右"
-                  min="-10"
-                  max="10"
-                  @change="saveConfig"
-                >
-              </div>
-              <div class="margin-row">
-                <input
-                  v-model.number="entry.margin.bottom"
-                  type="number"
-                  class="form-control margin-input"
-                  placeholder="下"
-                  min="-10"
-                  max="10"
-                  @change="saveConfig"
-                >
-              </div>
-            </div>
+            <SpacingInput
+              v-model="entry.margin"
+              label="margin"
+              @change="saveConfig"
+            />
           </div>
         </div>
       </div>
@@ -93,6 +53,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useEditorStore } from '@/stores/editor'
+import SpacingInput from './SpacingInput.vue'
 
 const editorStore = useEditorStore()
 
@@ -170,8 +131,8 @@ function saveConfig() {
 
 .character-item {
   display: flex;
-  align-items: flex-start;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.75rem;
   padding: 0.75rem;
   border: 1px solid #dee2e6;
   border-radius: 4px;
@@ -182,7 +143,7 @@ function saveConfig() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-width: 60px;
+  min-width: 40px;
 }
 
 .character-char {
@@ -199,7 +160,7 @@ function saveConfig() {
 }
 
 .character-margin {
-  flex: 1;
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -211,81 +172,4 @@ function saveConfig() {
   font-weight: 500;
 }
 
-.margin-inputs {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-}
-
-.margin-row {
-  display: flex;
-  justify-content: center;
-  gap: 0.125rem;
-}
-
-.margin-row.middle {
-  align-items: center;
-}
-
-.margin-input {
-  width: 40px !important;
-  text-align: center;
-  padding: 0.25rem 0.125rem !important;
-  font-size: 0.75rem;
-}
-
-.margin-center {
-  width: 40px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #e9ecef;
-  border-radius: 3px;
-  font-size: 0.625rem;
-  color: #6c757d;
-}
-
-.margin-center::before {
-  content: '□';
-}
-
-.form-control {
-  padding: 0.375rem 0.75rem;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  transition: border-color 0.15s ease-in-out;
-}
-
-.form-control:focus {
-  outline: none;
-  border-color: #80bdff;
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-}
-
-.btn {
-  padding: 0.25rem 0.5rem;
-  border: 1px solid transparent;
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 0.75rem;
-  transition: all 0.2s;
-}
-
-.btn-sm {
-  padding: 0.125rem 0.375rem;
-  font-size: 0.6875rem;
-}
-
-.btn-outline-danger {
-  color: #dc3545;
-  border-color: #dc3545;
-  background-color: transparent;
-}
-
-.btn-outline-danger:hover {
-  color: white;
-  background-color: #dc3545;
-}
 </style>

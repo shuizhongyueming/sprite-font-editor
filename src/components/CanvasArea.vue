@@ -151,7 +151,7 @@ const gridCells = computed(() => {
           width: `${editorStore.cellConfig.width}px`,
           height: `${editorStore.cellConfig.height}px`,
           border: editorStore.gridConfig.cellBorder
-            ? `${editorStore.gridConfig.cellBorderWidth}px solid ${editorStore.gridConfig.cellBorderColor}`
+            ? `${editorStore.gridConfig.cellBorderWidth}px dashed ${editorStore.gridConfig.cellBorderColor}`
             : 'none',
         },
       })
@@ -175,11 +175,11 @@ const highlightedCells = computed(() => {
       cells.push({
         type: 'insert-point',
         style: {
-          left: `${position.x - 1}px`,
-          top: `${position.y - 1}px`,
-          width: `${editorStore.cellConfig.width + 2}px`,
-          height: `${editorStore.cellConfig.height + 2}px`,
-          border: '2px dashed rgba(0, 255, 255, 0.6)',
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          width: `${editorStore.cellConfig.width}px`,
+          height: `${editorStore.cellConfig.height}px`,
+          border: '1px dashed rgba(0, 255, 255, 0.6)',
           backgroundColor: 'rgba(0, 255, 255, 0.1)',
         },
       })
@@ -198,11 +198,11 @@ const highlightedCells = computed(() => {
     cells.push({
       type: 'active',
       style: {
-        left: `${position.x - 2}px`,
-        top: `${position.y - 2}px`,
-        width: `${editorStore.cellConfig.width + 4}px`,
-        height: `${editorStore.cellConfig.height + 4}px`,
-        border: '3px solid #ff0000',
+        left: `${position.x}px`,
+        top: `${position.y}px`,
+        width: `${editorStore.cellConfig.width}px`,
+        height: `${editorStore.cellConfig.height}px`,
+        border: '1px solid #ff0000',
         backgroundColor: 'rgba(255, 0, 0, 0.1)',
       },
     })

@@ -82,6 +82,8 @@
 import { ref, computed } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { isValidImageFile, isValidFontFile } from '@/utils/file'
+import { exportCanvasToPNG } from '@/utils/download'
+import { notify } from '@/utils/notification'
 
 
 const editorStore = useEditorStore()
@@ -123,7 +125,7 @@ async function handleImageUpload(event: Event) {
   if (!file) return
 
   if (!isValidImageFile(file)) {
-    alert('请选择有效的图片文件 (PNG, JPG, GIF, WebP)')
+    notify.warning('请选择有效的图片文件 (PNG, JPG, GIF, WebP)')
     return
   }
 
@@ -141,7 +143,7 @@ async function handleImageUpload(event: Event) {
     console.log('start image load with url', image.src);
   } catch (error) {
     console.error('Failed to load image:', error)
-    alert('图片加载失败')
+    notify.error('图片加载失败')
   }
 }
 
@@ -152,7 +154,7 @@ async function handleFontUpload(event: Event) {
   if (!file) return
 
   if (!isValidFontFile(file)) {
-    alert('请选择有效的字体文件 (TTF, OTF, WOFF)')
+    notify.warning('请选择有效的字体文件 (TTF, OTF, WOFF)')
     return
   }
 
@@ -167,10 +169,10 @@ async function handleFontUpload(event: Event) {
     editorStore.setFont(fontFace)
     editorStore.saveToLocalStorage()
 
-    alert('字体上传成功！')
+    notify.success('字体上传成功！')
   } catch (error) {
     console.error('Failed to load font:', error)
-    alert('字体加载失败')
+    notify.error('字体加载失败')
   }
 }
 
@@ -180,14 +182,33 @@ function renderCharacters() {
 }
 
 function exportImage() {
-  // TODO: 实现导出逻辑
-  console.log('Exporting image...')
-  alert('导出功能开发中...')
+  try {
+    if (!editorStore.canvasLayer) {
+      notify.warning('请先上传图片')
+      return
+    }
+    
+    if (!editorStore.baseImage) {
+      notify.warning('请先上传图片')
+      return
+    }
+
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-')
+    const filename = `sprite-font-${timestamp}.png`
+    
+    exportCanvasToPNG(editorStore.canvasLayer, filename)
+    notify.success('图片导出成功！')
+    console.log('Image exported successfully', filename)
+  } catch (error) {
+    console.error('Export failed:', error)
+    notify.error('导出失败，请重试')
+  }
 }
 
 function clearAll() {
   if (confirm('确定要清空所有内容吗？')) {
     editorStore.clearState()
+    notify.info('已清空所有内容')
   }
 }
 </script>

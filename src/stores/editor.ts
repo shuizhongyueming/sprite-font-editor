@@ -130,6 +130,7 @@ export const useEditorStore = defineStore('editor', () => {
   const maxCanvasWidth = ref(1000)
   const maxCanvasHeight = ref(700)
   const currentFont = ref<FontFace | null>(null)
+  const canvasLayer = ref<HTMLCanvasElement | null>(null)
 
   // 插入点检测结果
   const detectedInsertPoints = ref<number[]>([])
@@ -160,6 +161,11 @@ export const useEditorStore = defineStore('editor', () => {
   function setFont(font: FontFace) {
     currentFont.value = font
     characterStyle.value.fontFamily = font.family
+  }
+
+  // 设置 Canvas 引用
+  function setCanvas(canvas: HTMLCanvasElement | null) {
+    canvasLayer.value = canvas
   }
 
   // 更新字符输入
@@ -353,10 +359,13 @@ export const useEditorStore = defineStore('editor', () => {
     // actions
     setBaseImage,
     setFont,
+    setCanvas,
     updateCharacters,
     saveToLocalStorage,
     loadFromLocalStorage,
     clearState,
     detectInsertPoints,
+    // canvas ref
+    canvasLayer,
   }
 })

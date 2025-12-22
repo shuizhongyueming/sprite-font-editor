@@ -75,10 +75,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted, watchEffect } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { CanvasSpace } from '@/utils/canvas'
 import { renderCharacterToCell } from '@/utils/char-renderer'
+import { notify } from '@/utils/notification'
 
 const editorStore = useEditorStore()
 
@@ -88,6 +89,13 @@ const canvasLayer = ref<HTMLCanvasElement>()
 const uiLayer = ref<HTMLDivElement>()
 
 const highlightedCellIndex = ref<number>(0)
+
+// 监听 canvasLayer 变化，设置到 store
+watchEffect(() => {
+  if (canvasLayer.value) {
+    editorStore.setCanvas(canvasLayer.value)
+  }
+})
 
 // 存储容器的最大可用尺寸
 const containerMaxSize = ref({ width: 0, height: 0 })
@@ -338,22 +346,30 @@ watch(() => [editorStore.characterEntries, editorStore.characterStyle, editorSto
 )
 
 function drawBaseImage() {
-  console.log('drawBaseImage', canvasLayer.value, editorStore.baseImage);
-  if (!canvasLayer.value || !editorStore.baseImage) return
+  try {
+    console.log('drawBaseImage', canvasLayer.value, editorStore.baseImage);
+    if (!canvasLayer.value || !editorStore.baseImage) return
 
-  const canvas = canvasLayer.value
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
+    const canvas = canvasLayer.value
+    const ctx = canvas.getContext('2d')
+    if (!ctx) {
+      notify.error('无法获取 Canvas 上下文')
+      return
+    }
 
-  // 清除画布
-  ctx.clearRect(0, 0, canvas.width, canvas.height)
+    // 清除画布
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-  // 绘制底图，保持缩放比例
-  // 注意：canvas.width/height 已经是缩放后的尺寸
-  ctx.drawImage(editorStore.baseImage, 0, 0, canvas.width, canvas.height)
+    // 绘制底图，保持缩放比例
+    // 注意：canvas.width/height 已经是缩放后的尺寸
+    ctx.drawImage(editorStore.baseImage, 0, 0, canvas.width, canvas.height)
 
-  // 渲染字符（如果有的话）
-  renderCharacters()
+    // 渲染字符（如果有的话）
+    renderCharacters()
+  } catch (error) {
+    console.error('Failed to draw base image:', error)
+    notify.error('绘制图片失败')
+  }
 }
 
 function handleCellClick(event: MouseEvent) {
@@ -379,49 +395,57 @@ function handleCellClick(event: MouseEvent) {
  * 渲染所有字符到画布
  */
 function renderCharacters() {
-  if (!canvasLayer.value || !editorStore.baseImage || !canvasSpace.value) return
+  try {
+    if (!canvasLayer.value || !editorStore.baseImage || !canvasSpace.value) return
 
-  const canvas = canvasLayer.value
-  const ctx = canvas.getContext('2d')
-  if (!ctx) return
+    const canvas = canvasLayer.value
+    const ctx = canvas.getContext('2d')
+    if (!ctx) {
+      notify.error('无法获取 Canvas 上下文')
+      return
+    }
 
-  // 如果有字符需要渲染
-  if (editorStore.characterEntries.length === 0) return
+    // 如果有字符需要渲染
+    if (editorStore.characterEntries.length === 0) return
 
-  // 确定起始单元格
-  const startIndex = editorStore.insertPointConfig.startCellIndex || 0
-  if (startIndex === undefined) return
+    // 确定起始单元格
+    const startIndex = editorStore.insertPointConfig.startCellIndex || 0
+    if (startIndex === undefined) return
 
-  let currentIndex = startIndex
+    let currentIndex = startIndex
 
-  // 遍历所有字符
-  for (const charEntry of editorStore.characterEntries) {
-    if (currentIndex >= canvasSpace.value.rows * canvasSpace.value.columns) break
+    // 遍历所有字符
+    for (const charEntry of editorStore.characterEntries) {
+      if (currentIndex >= canvasSpace.value.rows * canvasSpace.value.columns) break
 
-    // 获取单元格位置
-    const rowCol = canvasSpace.value.indexToRowCol(currentIndex)
-    const cellPosition = canvasSpace.value.getCellPosition(rowCol.row, rowCol.col)
+      // 获取单元格位置
+      const rowCol = canvasSpace.value.indexToRowCol(currentIndex)
+      const cellPosition = canvasSpace.value.getCellPosition(rowCol.row, rowCol.col)
 
-    // 渲染字符到单元格（传入 cellPadding）
-    renderCharacterToCell(
-      charEntry.char,
-      ctx,
-      cellPosition.x,
-      cellPosition.y,
-      editorStore.cellConfig.width,
-      editorStore.cellConfig.height,
-      charEntry.margin || { top: 0, right: 0, bottom: 0, left: 0 },
-      editorStore.cellConfig.padding,  // ✅ 添加 cellPadding 参数
-      {
-        fontFamily: editorStore.characterStyle.fontFamily,
-        fontSize: editorStore.characterStyle.fontSize,
-        color: editorStore.characterStyle.color,
-        outline: editorStore.characterStyle.outline,
-        alignment: editorStore.cellAlignment,
-      }
-    )
+      // 渲染字符到单元格（传入 cellPadding）
+      renderCharacterToCell(
+        charEntry.char,
+        ctx,
+        cellPosition.x,
+        cellPosition.y,
+        editorStore.cellConfig.width,
+        editorStore.cellConfig.height,
+        charEntry.margin || { top: 0, right: 0, bottom: 0, left: 0 },
+        editorStore.cellConfig.padding,  // ✅ 添加 cellPadding 参数
+        {
+          fontFamily: editorStore.characterStyle.fontFamily,
+          fontSize: editorStore.characterStyle.fontSize,
+          color: editorStore.characterStyle.color,
+          outline: editorStore.characterStyle.outline,
+          alignment: editorStore.cellAlignment,
+        }
+      )
 
-    currentIndex++
+      currentIndex++
+    }
+  } catch (error) {
+    console.error('Failed to render characters:', error)
+    notify.error('字符渲染失败')
   }
 }
 

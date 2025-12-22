@@ -14,13 +14,6 @@
         上传字体
       </button>
       <button
-        class="btn btn-success"
-        :disabled="!canRender"
-        @click="renderCharacters"
-      >
-        渲染文字
-      </button>
-      <button
         class="btn btn-info"
         :disabled="!canExport"
         @click="exportImage"
@@ -184,17 +177,6 @@ async function handleFontUpload(event: Event) {
     console.error('Failed to load font:', error)
     notify.error('字体加载失败')
   }
-}
-
-function renderCharacters() {
-  // 触发字符渲染，使用当前插入点开始排版
-  console.log('Rendering characters from insert point:', editorStore.insertPointConfig.startCellIndex)
-  
-  // 触发渲染
-  editorStore.renderTrigger++
-  editorStore.saveToLocalStorage()
-  
-  notify.success('字符渲染完成')
 }
 
 function exportImage() {

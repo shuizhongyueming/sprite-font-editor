@@ -17,7 +17,7 @@
     
     <div class="panel-section">
       <h3>字符输入</h3>
-      <CharacterInput />
+      <CharacterInput ref="characterInputRef" />
     </div>
     
     <div class="panel-section">
@@ -28,11 +28,18 @@
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import ImageConfig from './ImageConfig.vue'
 import CellConfig from './CellConfig.vue'
 import CharStyle from './CharStyle.vue'
 import CharacterInput from './CharacterInput.vue'
 import InsertPointInfo from './InsertPointInfo.vue'
+
+const characterInputRef = ref()
+
+defineExpose({
+  characterInputRef
+})
 </script>
 
 <style scoped>

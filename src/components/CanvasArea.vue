@@ -19,6 +19,51 @@
       class="canvas-container"
       :style="containerStyle"
     >
+      <!-- 标尺容器 -->
+      <div class="ruler-container">
+        <!-- 标尺角落 -->
+        <Ruler
+          position="corner"
+          :width="0"
+          :height="0"
+          :cell-width="editorStore.cellConfig.width"
+          :cell-height="editorStore.cellConfig.height"
+          :cell-margin="editorStore.cellConfig.margin"
+          :highlight-row="highlightedRow"
+          :highlight-col="highlightedCol"
+          :insert-point-row="insertPointRow"
+          :insert-point-col="insertPointCol"
+        />
+        
+        <!-- 顶部横向标尺 -->
+        <Ruler
+          position="top"
+          :width="canvasWidth"
+          :height="0"
+          :cell-width="editorStore.cellConfig.width"
+          :cell-height="editorStore.cellConfig.height"
+          :cell-margin="editorStore.cellConfig.margin"
+          :highlight-row="highlightedRow"
+          :highlight-col="highlightedCol"
+          :insert-point-row="insertPointRow"
+          :insert-point-col="insertPointCol"
+        />
+        
+        <!-- 左侧纵向标尺 -->
+        <Ruler
+          position="left"
+          :width="0"
+          :height="canvasHeight"
+          :cell-width="editorStore.cellConfig.width"
+          :cell-height="editorStore.cellConfig.height"
+          :cell-margin="editorStore.cellConfig.margin"
+          :highlight-row="highlightedRow"
+          :highlight-col="highlightedCol"
+          :insert-point-row="insertPointRow"
+          :insert-point-col="insertPointCol"
+        />
+      </div>
+
       <!-- Canvas 层（底层）-->
       <canvas
         ref="canvasLayer"
@@ -80,6 +125,7 @@ import { useEditorStore } from '@/stores/editor'
 import { CanvasSpace } from '@/utils/canvas'
 import { renderCharacterToCell } from '@/utils/char-renderer'
 import { notify } from '@/utils/notification'
+import Ruler from './Ruler.vue'
 
 const editorStore = useEditorStore()
 
@@ -206,6 +252,31 @@ const highlightedCells = computed(() => {
         backgroundColor: 'rgba(255, 0, 0, 0.1)',
       },
     })
+  }
+  
+  // 3. 高亮选中的字符所在的单元格
+  if (editorStore.selectedCharIndex !== null && editorStore.characterEntries.length > 0) {
+    const startIndex = editorStore.insertPointConfig.startCellIndex || 0
+    const charCellIndex = startIndex + editorStore.selectedCharIndex
+    
+    if (charCellIndex < canvasSpace.value.rows * canvasSpace.value.columns) {
+      const rowCol = canvasSpace.value.indexToRowCol(charCellIndex)
+      const position = canvasSpace.value.getCellPosition(rowCol.row, rowCol.col)
+      
+      cells.push({
+        type: 'selected-char',
+        style: {
+          left: `${position.x}px`,
+          top: `${position.y}px`,
+          width: `${editorStore.cellConfig.width}px`,
+          height: `${editorStore.cellConfig.height}px`,
+          border: '2px solid #28a745',
+          backgroundColor: 'rgba(40, 167, 69, 0.2)',
+          boxShadow: '0 0 12px rgba(40, 167, 69, 0.4)',
+          zIndex: 20,
+        },
+      })
+    }
   }
 
   return cells
@@ -403,8 +474,6 @@ function drawBaseImage() {
 }
 
 function handleCellClick(event: MouseEvent) {
-  if (editorStore.insertPointConfig.mode !== 'manual') return
-
   const rect = uiLayer.value?.getBoundingClientRect()
   if (!rect || !canvasSpace.value) return
 
@@ -415,11 +484,102 @@ function handleCellClick(event: MouseEvent) {
   const cellPos = canvasSpace.value.positionToCell(x, y)
 
   if (cellPos) {
-    highlightedCellIndex.value = canvasSpace.value.rowColToIndex(cellPos.row, cellPos.col)
-    editorStore.insertPointConfig.startCellIndex = highlightedCellIndex.value
-    editorStore.saveToLocalStorage()
+    const clickedIndex = canvasSpace.value.rowColToIndex(cellPos.row, cellPos.col)
+    
+    // 如果是手动模式，更新插入点
+    if (editorStore.insertPointConfig.mode === 'manual') {
+      highlightedCellIndex.value = clickedIndex
+      editorStore.insertPointConfig.startCellIndex = highlightedCellIndex.value
+      editorStore.saveToLocalStorage()
+    }
+    
+    // 检查是否点击了已渲染的字符
+    if (editorStore.characterEntries.length > 0) {
+      const startIndex = editorStore.insertPointConfig.startCellIndex || 0
+      
+      for (let i = 0; i < editorStore.characterEntries.length; i++) {
+        const charCellIndex = startIndex + i
+        
+        if (charCellIndex === clickedIndex) {
+          // 点击了字符，触发边距编辑
+          editorStore.selectedCharIndex = i
+          
+          // 获取该字符的单元格位置（屏幕坐标）
+          const charRowCol = canvasSpace.value.indexToRowCol(charCellIndex)
+          const cellPosition = canvasSpace.value.getCellPosition(charRowCol.row, charRowCol.col)
+          
+          // 计算弹窗位置（相对于viewport）
+          const popupLeft = rect.left + cellPosition.x + editorStore.cellConfig.width - 50
+          const popupTop = rect.top + cellPosition.y - 50
+          
+          // 发射事件给父组件
+          emit('showMarginPopup', {
+            index: i,
+            left: popupLeft,
+            top: popupTop
+          })
+          
+          return
+        }
+      }
+    }
   }
 }
+
+// 定义事件
+const emit = defineEmits(['showMarginPopup'])
+
+// 高亮行和列（用于标尺）
+const highlightedRow = computed(() => {
+  if (editorStore.selectedCharIndex === null || !canvasSpace.value) return null
+  
+  const startIndex = editorStore.insertPointConfig.startCellIndex || 0
+  const charCellIndex = startIndex + editorStore.selectedCharIndex
+  
+  if (charCellIndex >= canvasSpace.value.rows * canvasSpace.value.columns) return null
+  
+  const rowCol = canvasSpace.value.indexToRowCol(charCellIndex)
+  return rowCol.row
+})
+
+const highlightedCol = computed(() => {
+  if (editorStore.selectedCharIndex === null || !canvasSpace.value) return null
+  
+  const startIndex = editorStore.insertPointConfig.startCellIndex || 0
+  const charCellIndex = startIndex + editorStore.selectedCharIndex
+  
+  if (charCellIndex >= canvasSpace.value.rows * canvasSpace.value.columns) return null
+  
+  const rowCol = canvasSpace.value.indexToRowCol(charCellIndex)
+  return rowCol.col
+})
+
+// 插入点高亮（用于标尺）
+const insertPointRow = computed(() => {
+  if (!canvasSpace.value) return null
+  
+  const activeIndex = editorStore.insertPointConfig.mode === 'manual'
+    ? highlightedCellIndex.value
+    : editorStore.insertPointConfig.startCellIndex || 0
+    
+  if (activeIndex === undefined || activeIndex === null) return null
+  
+  const rowCol = canvasSpace.value.indexToRowCol(activeIndex)
+  return rowCol.row
+})
+
+const insertPointCol = computed(() => {
+  if (!canvasSpace.value) return null
+  
+  const activeIndex = editorStore.insertPointConfig.mode === 'manual'
+    ? highlightedCellIndex.value
+    : editorStore.insertPointConfig.startCellIndex || 0
+    
+  if (activeIndex === undefined || activeIndex === null) return null
+  
+  const rowCol = canvasSpace.value.indexToRowCol(activeIndex)
+  return rowCol.col
+})
 
 /**
  * 渲染所有字符到画布
@@ -492,6 +652,15 @@ onUnmounted(() => {
   // 清理事件监听
   window.removeEventListener('resize', handleResize)
 })
+
+// 暴露方法，让父组件可以设置选中的字符
+function setSelectedCharIndex(index: number | null) {
+  editorStore.selectedCharIndex = index
+}
+
+defineExpose({
+  setSelectedCharIndex
+})
 </script>
 
 <style scoped>
@@ -536,16 +705,28 @@ onUnmounted(() => {
 
 .canvas-layer {
   position: absolute;
-  top: 0;
-  left: 0;
+  top: 20px;
+  left: 20px;
 }
 
 .ui-layer {
   position: absolute;
-  top: 0;
-  left: 0;
+  top: 20px;
+  left: 20px;
+  width: calc(100% - 40px);
+  height: calc(100% - 40px);
   pointer-events: auto;
   cursor: crosshair;
+}
+
+.ruler-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 45;
 }
 
 .grid-cell {

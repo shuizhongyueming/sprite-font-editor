@@ -323,21 +323,51 @@ watch(() => editorStore.baseImage, async (newImage) => {
 
     // 如果是自动模式，检测插入点
     if (editorStore.insertPointConfig.mode === 'auto') {
+      console.log('[CanvasArea] 图片加载完成，将在自动模式下检测插入点')
       setTimeout(() => {
         if (canvasLayer.value) {
+          console.log('[CanvasArea] 开始检测插入点...')
           editorStore.detectInsertPoints(canvasLayer.value)
+        } else {
+          console.log('[CanvasArea] 错误：canvasLayer为null')
         }
       }, 100) // 延迟确保画布渲染完成
+    } else {
+      console.log('[CanvasArea] 图片加载完成，当前为手动模式，跳过自动检测')
     }
   }
 })
 
-// 监听字符变化，自动重新渲染
-watch(() => [editorStore.characterEntries, editorStore.characterStyle, editorStore.cellAlignment, editorStore.cellConfig],
+// 监听样式变化（不改变插入点时自动渲染）
+watch(() => [editorStore.characterStyle, editorStore.cellAlignment, editorStore.cellConfig],
   () => {
     // 延迟执行，等待状态更新完成
     nextTick(() => {
-      if (canvasLayer.value && editorStore.baseImage) {
+      if (canvasLayer.value && editorStore.baseImage && editorStore.characterEntries.length > 0) {
+        drawBaseImage()
+      }
+    })
+  },
+  { deep: true }
+)
+
+// 监听渲染触发器（从Toolbar触发）
+watch(() => editorStore.renderTrigger,
+  () => {
+    nextTick(() => {
+      if (canvasLayer.value && editorStore.baseImage && editorStore.characterEntries.length > 0) {
+        drawBaseImage()
+      }
+    })
+  }
+)
+
+// 监听插入点变化，重新渲染
+watch(() => editorStore.insertPointConfig,
+  () => {
+    nextTick(() => {
+      // 只要底图存在且字符条目已保存（即使没有渲染到画布），也重新渲染
+      if (canvasLayer.value && editorStore.baseImage && editorStore.characterEntries.length > 0) {
         drawBaseImage()
       }
     })
@@ -514,11 +544,8 @@ onUnmounted(() => {
   position: absolute;
   top: 0;
   left: 0;
-  pointer-events: none;
-}
-
-.ui-layer > * {
   pointer-events: auto;
+  cursor: crosshair;
 }
 
 .grid-cell {

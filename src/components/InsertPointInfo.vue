@@ -67,6 +67,7 @@ const autoDetectionEnabled = ref(true)
 
 const mode = computed(() => editorStore.insertPointConfig.mode)
 const currentCellIndex = computed(() => editorStore.insertPointConfig.startCellIndex || 0)
+const detectedInsertPoints = computed(() => editorStore.detectedInsertPoints)
 
 const modeText = computed(() => {
   return mode.value === 'auto' ? '自动检测' : '手动选择'
@@ -102,25 +103,31 @@ const nextEmptyCell = computed(() => {
     return null
   }
   
-  // TODO: 实现实际的空单元格检测逻辑
-  // 这里需要访问 Canvas 上下文来获取图像数据
+  // 使用store中检测到的结果
+  if (detectedInsertPoints.value.length > 0) {
+    return detectedInsertPoints.value[0]
+  }
+  
   return null
 })
 
 const nextEmptyCellText = computed(() => {
-  if (nextEmptyCell.value === null) return '检测中...'
+  if (nextEmptyCell.value === null) {
+    return detectedInsertPoints.value.length === 0 ? '未找到' : '检测中...'
+  }
   const rowCol = canvasSpace.value?.indexToRowCol(nextEmptyCell.value)
-  return `第 ${rowCol?.row ? rowCol.row + 1 : 0} 行, 第 ${rowCol?.col ? rowCol.col + 1 : 0} 列`
+  return `第 ${rowCol?.row ? rowCol.row + 1 : 0} 行, 第 ${rowCol?.col ? rowCol.col + 1 : 0} 列 (索引: ${nextEmptyCell.value})`
 })
 
 const detectionStatusText = computed(() => {
   if (!autoDetectionEnabled.value) return '已禁用'
-  return nextEmptyCell.value !== null ? '已找到' : '搜索中...'
+  if (detectedInsertPoints.value.length > 0) return `已找到 ${detectedInsertPoints.value.length} 个`
+  return '未找到空单元格'
 })
 
 const detectionStatusClass = computed(() => {
   if (!autoDetectionEnabled.value) return 'text-muted'
-  return nextEmptyCell.value !== null ? 'text-success' : 'text-warning'
+  return detectedInsertPoints.value.length > 0 ? 'text-success' : 'text-warning'
 })
 
 function saveConfig() {
@@ -129,10 +136,15 @@ function saveConfig() {
 
 // 监听模式变化，更新插入点
 watch(mode, (newMode) => {
-  if (newMode === 'auto' && canvasSpace.value) {
-    // TODO: 实现自动寻找空单元格的逻辑
-    console.log('切换到自动模式，开始寻找空单元格...')
+  if (newMode === 'auto' && canvasSpace.value && editorStore.canvasLayer) {
+    console.log('[InsertPointInfo] 切换到自动模式，触发插入点检测')
+    editorStore.detectInsertPoints(editorStore.canvasLayer)
   }
+})
+
+// 监听检测结果变化，更新显示
+watch(detectedInsertPoints, (newPoints) => {
+  console.log(`[InsertPointInfo] 检测结果更新: 找到 ${newPoints.length} 个空单元格`)
 })
 </script>
 

@@ -96,6 +96,16 @@ const insertPointMode = computed({
   set: (value: 'auto' | 'manual') => {
     editorStore.insertPointConfig.mode = value
     editorStore.saveToLocalStorage()
+    
+    // 如果切换到自动模式，触发插入点检测
+    if (value === 'auto' && editorStore.canvasLayer) {
+      console.log('[Toolbar] 切换到自动模式，开始检测插入点')
+      setTimeout(() => {
+        if (editorStore.canvasLayer) {
+          editorStore.detectInsertPoints(editorStore.canvasLayer)
+        }
+      }, 50)
+    }
   }
 })
 
@@ -177,8 +187,14 @@ async function handleFontUpload(event: Event) {
 }
 
 function renderCharacters() {
-  // TODO: 实现字符渲染逻辑
-  console.log('Rendering characters...')
+  // 触发字符渲染，使用当前插入点开始排版
+  console.log('Rendering characters from insert point:', editorStore.insertPointConfig.startCellIndex)
+  
+  // 触发渲染
+  editorStore.renderTrigger++
+  editorStore.saveToLocalStorage()
+  
+  notify.success('字符渲染完成')
 }
 
 function exportImage() {

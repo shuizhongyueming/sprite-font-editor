@@ -120,6 +120,9 @@ export const useEditorStore = defineStore('editor', () => {
   // 字符输入
   const characterEntries = ref<CharacterEntry[]>([])
 
+  // 渲染触发器（用于从Toolbar触发Canvas重绘）
+  const renderTrigger = ref(0)
+
   // Canvas 和底图相关
   const baseImage = ref<HTMLImageElement | null>(null)
   const originalImageWidth = ref(0)
@@ -178,17 +181,22 @@ export const useEditorStore = defineStore('editor', () => {
 
   // 检测插入点（基于透明度）
   function detectInsertPoints(canvas: HTMLCanvasElement) {
+    console.log('[detectInsertPoints] 开始检测插入点...')
+    
     if (!baseImage.value) {
+      console.log('[detectInsertPoints] 没有底图，清空检测结果')
       detectedInsertPoints.value = []
       return
     }
 
     const ctx = canvas.getContext('2d')
     if (!ctx) {
+      console.log('[detectInsertPoints] 无法获取Canvas上下文')
       detectedInsertPoints.value = []
       return
     }
 
+    console.log(`[detectInsertPoints] Canvas尺寸: ${canvas.width}x${canvas.height}`)
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
     const emptyCells: number[] = []
 
@@ -202,27 +210,43 @@ export const useEditorStore = defineStore('editor', () => {
     const cols = Math.floor((displayedCanvasWidth.value - imageConfig.value.padding.left - imageConfig.value.padding.right) / cellTotalWidth)
     const rows = Math.floor((displayedCanvasHeight.value - imageConfig.value.padding.top - imageConfig.value.padding.bottom) / cellTotalHeight)
 
+    console.log(`[detectInsertPoints] 网格配置: ${rows}行 × ${cols}列`)
+    console.log(`[detectInsertPoints] 单元格大小: ${cellConfig.value.width}x${cellConfig.value.height}, 边距: ${JSON.stringify(cellConfig.value.margin)}`)
+    console.log(`[detectInsertPoints] 图片边距: ${JSON.stringify(imageConfig.value.margin)}, 内边距: ${JSON.stringify(imageConfig.value.padding)}`)
+    console.log(`[detectInsertPoints] 起始位置: (${startX}, ${startY})`)
+
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const cellX = startX + col * cellTotalWidth + cellConfig.value.margin.left
         const cellY = startY + row * cellTotalHeight + cellConfig.value.margin.top
         const cellWidth = cellConfig.value.width
         const cellHeight = cellConfig.value.height
+        const index = row * cols + col
+        
+        console.log(`[detectInsertPoints] 检测单元格 [${index}] 第${row}行第${col}列: 坐标(${cellX}, ${cellY}), 尺寸${cellWidth}x${cellHeight}`)
         
         // 检查单元格是否为空（透明）
-        if (isCellEmpty(imageData, cellX, cellY, cellWidth, cellHeight)) {
-          const index = row * cols + col
+        const isEmpty = isCellEmpty(imageData, cellX, cellY, cellWidth, cellHeight)
+        if (isEmpty) {
+          console.log(`[detectInsertPoints] ✓ 单元格 [${index}] 是空的（透明）`)
           emptyCells.push(index)
+        } else {
+          console.log(`[detectInsertPoints] ✗ 单元格 [${index}] 不是空的（有内容）`)
         }
       }
     }
 
+    console.log(`[detectInsertPoints] 检测完成！找到 ${emptyCells.length} 个空单元格: [${emptyCells.join(', ')}]`)
+    
     detectedInsertPoints.value = emptyCells
     
     // 如果当前有插入点配置，确保它在检测到的列表中
     if (insertPointConfig.value.mode === 'auto' && emptyCells.length > 0) {
       insertPointConfig.value.startCellIndex = emptyCells[0]
       currentInsertPoint.value = 0
+      console.log(`[detectInsertPoints] 设置起始插入点为: ${emptyCells[0]}`)
+    } else if (emptyCells.length === 0) {
+      console.log('[detectInsertPoints] 没有找到空单元格')
     }
   }
 
@@ -239,16 +263,24 @@ export const useEditorStore = defineStore('editor', () => {
     
     // 边界检查
     if (cellX + cellWidth > width || cellY + cellHeight > imageData.height) {
+      console.log(`[isCellEmpty] 单元格超出边界: (${cellX}, ${cellY}) ${cellWidth}x${cellHeight} > ${width}x${imageData.height}`)
       return false
     }
     
+    let nonTransparentPixels = 0
     for (let y = cellY; y < cellY + cellHeight; y++) {
       for (let x = cellX; x < cellX + cellWidth; x++) {
         const alpha = data[(y * width + x) * 4 + 3]
-        if (alpha > threshold) return false
+        if (alpha > threshold) {
+          nonTransparentPixels++
+        }
       }
     }
-    return true
+    
+    const totalPixels = cellWidth * cellHeight
+    const isEmpty = nonTransparentPixels === 0
+    
+    return isEmpty
   }
 
   // 保存到 localStorage
@@ -343,6 +375,7 @@ export const useEditorStore = defineStore('editor', () => {
     characterStyle,
     insertPointConfig,
     characterEntries,
+    renderTrigger,
     baseImage,
     // Canvas 尺寸相关（使用缩放后的尺寸）
     canvasWidth: displayedCanvasWidth,

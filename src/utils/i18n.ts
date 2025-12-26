@@ -3,6 +3,8 @@
  * 支持中文和英文，便于扩展其他语言
  */
 
+import { ref, computed } from "vue";
+
 export type Locale = "zh-CN" | "en-US";
 
 export interface Translations {
@@ -89,6 +91,9 @@ export interface Translations {
   charStyle: string;
   charInput: string;
   insertPointInfo: string;
+
+  // Language Switcher
+  switchLanguage: string;
 
   // Notifications
   invalidImageFile: string;
@@ -199,6 +204,9 @@ export const translations: Record<Locale, Translations> = {
     charInput: "字符输入",
     insertPointInfo: "插入点信息",
 
+    // Language Switcher
+    switchLanguage: "切换语言",
+
     // Notifications
     invalidImageFile: "请选择有效的图片文件 (PNG, JPG, GIF, WebP)",
     invalidFontFile: "请选择有效的字体文件 (TTF, OTF, WOFF)",
@@ -306,6 +314,9 @@ export const translations: Record<Locale, Translations> = {
     charInput: "Character Input",
     insertPointInfo: "Insert Point Info",
 
+    // Language Switcher
+    switchLanguage: "Switch Language",
+
     // Notifications
     invalidImageFile: "Please select a valid image file (PNG, JPG, GIF, WebP)",
     invalidFontFile: "Please select a valid font file (TTF, OTF, WOFF)",
@@ -330,23 +341,28 @@ export const translations: Record<Locale, Translations> = {
   },
 };
 
-// 单例模式导出
-let currentLocale: Locale = "en-US";
+// 响应式语言状态
+const localeState = ref<Locale>("en-US");
 
 /**
  * 获取当前语言设置
  */
 export function getLocale(): Locale {
-  return currentLocale;
+  return localeState.value;
 }
 
 /**
  * 设置当前语言
  */
 export function setLocale(locale: Locale): void {
-  currentLocale = locale;
+  localeState.value = locale;
   document.documentElement.lang = locale;
 }
+
+/**
+ * 当前语言是否为中文
+ */
+export const isChinese = computed(() => localeState.value === "zh-CN");
 
 /**
  * 翻译函数
@@ -356,7 +372,7 @@ export function t<K extends keyof Translations>(
   key: K,
   params?: Record<string, string | number>,
 ): string {
-  let text = translations[currentLocale][key];
+  let text = translations[localeState.value][key];
 
   if (params) {
     for (const [key, value] of Object.entries(params)) {
@@ -399,9 +415,16 @@ export function initLocale(): Locale {
 /**
  * 切换语言并保存
  */
-export function toggleLocale(): Locale {
-  const newLocale = currentLocale === "zh-CN" ? "en-US" : "zh-CN";
+export function toggleLocale(): void {
+  const newLocale = localeState.value === "zh-CN" ? "en-US" : "zh-CN";
   setLocale(newLocale);
   localStorage.setItem("locale", newLocale);
-  return newLocale;
+}
+
+/**
+ * 设置语言并保存
+ */
+export function setLanguage(locale: Locale): void {
+  setLocale(locale);
+  localStorage.setItem("locale", locale);
 }

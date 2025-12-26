@@ -45,13 +45,38 @@
     </div>
 
     <div class="toolbar-right">
-      <button
-        class="btn btn-language"
-        @click="toggleLanguage"
-        :title="currentLocale === 'zh-CN' ? 'Switch to English' : '切换到中文'"
-      >
-        {{ currentLocale === 'zh-CN' ? 'EN' : '中文' }}
-      </button>
+      <!-- 语言切换下拉框 -->
+      <div class="language-dropdown">
+        <button
+          class="btn btn-language"
+          @click="toggleDropdown"
+        >
+          {{ t('switchLanguage') }}
+          <span class="dropdown-arrow">▼</span>
+        </button>
+        <div
+          v-show="showDropdown"
+          class="dropdown-menu"
+        >
+          <div
+            class="dropdown-item"
+            :class="{ active: currentLocale === 'zh-CN' }"
+            @click="selectLanguage('zh-CN')"
+          >
+            <span class="lang-name">中文</span>
+            <span class="lang-check" v-if="currentLocale === 'zh-CN'">✓</span>
+          </div>
+          <div
+            class="dropdown-item"
+            :class="{ active: currentLocale === 'en-US' }"
+            @click="selectLanguage('en-US')"
+          >
+            <span class="lang-name">English</span>
+            <span class="lang-check" v-if="currentLocale === 'en-US'">✓</span>
+          </div>
+        </div>
+      </div>
+
       <button
         class="btn btn-danger"
         @click="clearAll"
@@ -79,17 +104,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { isValidImageFile, isValidFontFile } from '@/utils/file'
 import { exportWithOriginalSize } from '@/utils/download'
 import { notify } from '@/utils/notification'
-import { t, getLocale, toggleLocale } from '@/utils/i18n'
+import { t, getLocale, setLanguage } from '@/utils/i18n'
+
+type Locale = 'zh-CN' | 'en-US'
 
 const editorStore = useEditorStore()
 
 const imageInput = ref<HTMLInputElement>()
 const fontInput = ref<HTMLInputElement>()
+const showDropdown = ref(false)
 const currentLocale = computed(() => getLocale())
 
 const insertPointMode = computed({
@@ -97,7 +125,7 @@ const insertPointMode = computed({
   set: (value: 'auto' | 'manual') => {
     editorStore.insertPointConfig.mode = value
     editorStore.saveToLocalStorage()
-    
+
     // 如果切换到自动模式，触发插入点检测
     if (value === 'auto' && editorStore.canvasLayer) {
       console.log('[Toolbar] 切换到自动模式，开始检测插入点')
@@ -128,9 +156,29 @@ function uploadFont() {
   fontInput.value?.click()
 }
 
-function toggleLanguage() {
-  toggleLocale()
+function toggleDropdown() {
+  showDropdown.value = !showDropdown.value
 }
+
+function selectLanguage(locale: Locale) {
+  setLanguage(locale)
+  showDropdown.value = false
+}
+
+function handleClickOutside(event: MouseEvent) {
+  const target = event.target as HTMLElement
+  if (!target.closest('.language-dropdown')) {
+    showDropdown.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
 
 async function handleImageUpload(event: Event) {
   const target = event.target as HTMLInputElement
@@ -295,12 +343,19 @@ function clearAll() {
   background-color: #6c757d;
   color: white;
   border-color: #6c757d;
-  min-width: 60px;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
 .btn-language:hover {
   background-color: #545b62;
   border-color: #545b62;
+}
+
+.dropdown-arrow {
+  font-size: 0.625rem;
+  margin-left: 0.25rem;
 }
 
 .btn-success {
@@ -347,5 +402,50 @@ function clearAll() {
   align-items: center;
   gap: 0.25rem;
   cursor: pointer;
+}
+
+/* 语言下拉框样式 */
+.language-dropdown {
+  position: relative;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.25rem;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  min-width: 120px;
+  z-index: 1000;
+  overflow: hidden;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.15s;
+}
+
+.dropdown-item:hover {
+  background-color: #f8f9fa;
+}
+
+.dropdown-item.active {
+  background-color: #007bff;
+  color: white;
+}
+
+.lang-name {
+  font-size: 0.875rem;
+}
+
+.lang-check {
+  font-size: 0.75rem;
 }
 </style>

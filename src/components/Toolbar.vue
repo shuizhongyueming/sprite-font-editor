@@ -163,7 +163,9 @@ async function handleFontUpload(event: Event) {
 
   try {
     const buffer = await file.arrayBuffer()
-    const fontFace = new FontFace(file.name, buffer)
+    // 使用不带扩展名的名称作为 font family
+    const fontName = file.name.replace(/\.(ttf|otf|woff|woff2)$/i, '')
+    const fontFace = new FontFace(fontName, buffer)
     await fontFace.load()
 
     // 注册字体

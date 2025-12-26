@@ -123,7 +123,7 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted, watchEffect } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { CanvasSpace } from '@/utils/canvas'
-import { renderCharacterToCell } from '@/utils/char-renderer'
+import { renderCharacterToCellScaled } from '@/utils/char-renderer'
 import { notify } from '@/utils/notification'
 import Ruler from './Ruler.vue'
 
@@ -554,7 +554,7 @@ const insertPointCol = computed(() => {
   return rowCol.col
 })
 
-// 渲染所有字符
+// 渲染所有字符（使用原始 fontSize 渲染，然后缩放绘制）
 function renderCharacters() {
   try {
     if (!canvasLayer.value || !editorStore.baseImage) return
@@ -568,27 +568,46 @@ function renderCharacters() {
 
     if (editorStore.characterEntries.length === 0) return
 
+    const scale = editorStore.canvasScale
+    const baseCell = editorStore.baseCellConfig
+    const baseImage = editorStore.baseImageConfig
+
+    // 使用 base 配置计算位置
+    const cellTotalWidth = baseCell.width + baseCell.margin.left + baseCell.margin.right
+    const cellTotalHeight = baseCell.height + baseCell.margin.top + baseCell.margin.bottom
+    const startX = baseImage.margin.left + baseImage.padding.left + baseCell.margin.left
+    const startY = baseImage.margin.top + baseImage.padding.top + baseCell.margin.top
+
+    const cols = Math.floor(
+      (editorStore.originalImageWidth - baseImage.padding.left - baseImage.padding.right) / cellTotalWidth
+    )
+
     const startIndex = editorStore.insertPointConfig.startCellIndex || 0
     if (startIndex === undefined) return
 
     let currentIndex = startIndex
 
     for (const charEntry of editorStore.characterEntries) {
-      if (currentIndex >= canvasSpace.value!.rows * canvasSpace.value!.columns) break
+      if (currentIndex >= cols * 100) break
 
-      const rowCol = canvasSpace.value!.indexToRowCol(currentIndex)
-      const position = canvasSpace.value!.getCellPosition(rowCol.row, rowCol.col)
+      const row = Math.floor((currentIndex - startIndex) / cols) + Math.floor(startIndex / cols)
+      const col = (currentIndex - startIndex) % cols + (startIndex % cols)
 
-      // 渲染字符到单元格
-      renderCharacterToCell(
+      // 计算位置（原始尺寸）
+      const baseX = startX + col * cellTotalWidth
+      const baseY = startY + row * cellTotalHeight
+
+      // 使用原始 fontSize，渲染后缩放绘制
+      renderCharacterToCellScaled(
         charEntry.char,
         ctx,
-        position.x,
-        position.y,
-        cellConfig.value.width,
-        cellConfig.value.height,
+        baseX,
+        baseY,
+        baseCell.width,
+        baseCell.height,
+        scale,
         charEntry.margin || { top: 0, right: 0, bottom: 0, left: 0 },
-        cellConfig.value.padding,
+        baseCell.padding,
         {
           fontFamily: editorStore.characterStyle.fontFamily,
           fontSize: editorStore.characterStyle.fontSize,

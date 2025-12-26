@@ -1,7 +1,7 @@
 <template>
   <div class="image-config">
     <div class="form-group">
-      <label>外边距 (margin)</label>
+      <label>{{ t('imageMargin') }}</label>
       <SpacingInput
         :model-value="editorStore.baseImageConfig.margin"
         label="margin"
@@ -10,7 +10,7 @@
     </div>
 
     <div class="form-group">
-      <label>内边距 (padding)</label>
+      <label>{{ t('imagePadding') }}</label>
       <SpacingInput
         :model-value="editorStore.baseImageConfig.padding"
         label="padding"
@@ -23,6 +23,7 @@
 <script setup lang="ts">
 import { useEditorStore } from '@/stores/editor'
 import SpacingInput from './SpacingInput.vue'
+import { t } from '@/utils/i18n'
 
 const editorStore = useEditorStore()
 

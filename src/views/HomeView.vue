@@ -15,11 +15,14 @@ import CanvasArea from '@/components/CanvasArea.vue'
 import ControlPanel from '@/components/ControlPanel.vue'
 import { onMounted } from 'vue'
 import { useEditorStore } from '@/stores/editor'
+import { initLocale } from '@/utils/i18n'
 
 const editorStore = useEditorStore()
 const controlPanelRef = ref()
 
 onMounted(() => {
+  // 初始化语言设置（从 localStorage 恢复或使用浏览器推荐语言）
+  initLocale()
   // 从 localStorage 恢复状态
   editorStore.loadFromLocalStorage()
   // 从 IndexedDB 恢复图片和字体

@@ -1,27 +1,27 @@
 <template>
   <div class="control-panel">
     <div class="panel-section">
-      <h3>图片设置</h3>
+      <h3>{{ t('imageSettings') }}</h3>
       <ImageConfig />
     </div>
     
     <div class="panel-section">
-      <h3>网格设置</h3>
+      <h3>{{ t('gridSettings') }}</h3>
       <CellConfig />
     </div>
     
     <div class="panel-section">
-      <h3>字符样式</h3>
+      <h3>{{ t('charStyle') }}</h3>
       <CharStyle />
     </div>
     
     <div class="panel-section">
-      <h3>字符输入</h3>
+      <h3>{{ t('charInput') }}</h3>
       <CharacterInput ref="characterInputRef" />
     </div>
     
     <div class="panel-section">
-      <h3>插入点信息</h3>
+      <h3>{{ t('insertPointInfo') }}</h3>
       <InsertPointInfo />
     </div>
   </div>
@@ -34,6 +34,7 @@ import CellConfig from './CellConfig.vue'
 import CharStyle from './CharStyle.vue'
 import CharacterInput from './CharacterInput.vue'
 import InsertPointInfo from './InsertPointInfo.vue'
+import { t } from '@/utils/i18n'
 
 const characterInputRef = ref()
 

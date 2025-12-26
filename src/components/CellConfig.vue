@@ -1,20 +1,20 @@
 <template>
   <div class="cell-config">
     <div class="form-group">
-      <label>单元格尺寸</label>
+      <label>{{ t('cellSize') }}</label>
       <DimensionsInput
         :width="editorStore.baseCellConfig.width"
         :height="editorStore.baseCellConfig.height"
         :min="8"
-        width-placeholder="宽度"
-        height-placeholder="高度"
+        :width-placeholder="t('width')"
+        :height-placeholder="t('height')"
         @update:width="updateWidth"
         @update:height="updateHeight"
       />
     </div>
 
     <div class="form-group">
-      <label>单元格间距 (margin)</label>
+      <label>{{ t('cellMargin') }}</label>
       <SpacingInput
         :model-value="editorStore.baseCellConfig.margin"
         label="margin"
@@ -23,7 +23,7 @@
     </div>
 
     <div class="form-group">
-      <label>字符内边距 (padding)</label>
+      <label>{{ t('cellPadding') }}</label>
       <SpacingInput
         :model-value="editorStore.baseCellConfig.padding"
         label="padding"
@@ -32,41 +32,41 @@
     </div>
 
     <div class="form-group">
-      <label>对齐方式</label>
+      <label>{{ t('alignment') }}</label>
       <div class="alignment-controls">
         <div class="alignment-row">
-          <span class="alignment-label">水平:</span>
+          <span class="alignment-label">{{ t('horizontal') }}</span>
           <select
             v-model="cellAlignment.horizontal"
             class="form-control"
             @change="saveConfig"
           >
             <option value="left">
-              左对齐
+              {{ t('leftAlign') }}
             </option>
             <option value="center">
-              居中
+              {{ t('centerAlign') }}
             </option>
             <option value="right">
-              右对齐
+              {{ t('rightAlign') }}
             </option>
           </select>
         </div>
         <div class="alignment-row">
-          <span class="alignment-label">垂直:</span>
+          <span class="alignment-label">{{ t('vertical') }}</span>
           <select
             v-model="cellAlignment.vertical"
             class="form-control"
             @change="saveConfig"
           >
             <option value="top">
-              顶部
+              {{ t('topAlign') }}
             </option>
             <option value="middle">
-              居中
+              {{ t('middleAlign') }}
             </option>
             <option value="bottom">
-              底部
+              {{ t('bottomAlign') }}
             </option>
           </select>
         </div>
@@ -74,7 +74,7 @@
     </div>
 
     <div class="form-group">
-      <label>网格显示</label>
+      <label>{{ t('gridDisplay') }}</label>
       <div class="grid-config">
         <div class="checkbox-group">
           <label class="checkbox-label">
@@ -83,7 +83,8 @@
               type="checkbox"
               @change="saveConfig"
             >
-            显示网格
+            <span class="checkmark" />
+            {{ t('showGrid') }}
           </label>
         </div>
 
@@ -94,7 +95,8 @@
               type="checkbox"
               @change="saveConfig"
             >
-            显示单元格边框
+            <span class="checkmark" />
+            {{ t('showCellBorder') }}
           </label>
         </div>
 
@@ -105,7 +107,8 @@
               type="checkbox"
               @change="saveConfig"
             >
-            显示 margin 线
+            <span class="checkmark" />
+            {{ t('showMarginLines') }}
           </label>
         </div>
 
@@ -116,12 +119,13 @@
               type="checkbox"
               @change="saveConfig"
             >
-            显示 padding 线
+            <span class="checkmark" />
+            {{ t('showPaddingLines') }}
           </label>
         </div>
 
         <div class="form-group sub-group">
-          <label>边框颜色</label>
+          <label>{{ t('borderColor') }}</label>
           <input
             v-model="gridConfig.cellBorderColor"
             type="color"
@@ -131,7 +135,7 @@
         </div>
 
         <div class="form-group sub-group">
-          <label>边框宽度</label>
+          <label>{{ t('borderWidth') }}</label>
           <input
             v-model.number="gridConfig.cellBorderWidth"
             type="number"
@@ -145,17 +149,17 @@
     </div>
 
     <div class="form-group">
-      <label>插入点模式</label>
+      <label>{{ t('insertPointMode') }}</label>
       <select
         v-model="insertPointConfig.mode"
         class="form-control"
         @change="saveConfig"
       >
         <option value="auto">
-          自动检测
+          {{ t('autoDetect') }}
         </option>
         <option value="manual">
-          手动选择
+          {{ t('manualSelect') }}
         </option>
       </select>
     </div>
@@ -167,6 +171,7 @@ import { computed } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import SpacingInput from './SpacingInput.vue'
 import DimensionsInput from './DimensionsInput.vue'
+import { t } from '@/utils/i18n'
 
 const editorStore = useEditorStore()
 

@@ -1,22 +1,22 @@
 <template>
   <div class="char-style">
     <div class="form-group">
-      <label>字体</label>
+      <label>{{ t('font') }}</label>
       <div class="font-display">
         <span class="font-name">{{ characterStyle.fontFamily }}</span>
         <span
           v-if="!currentFont"
           class="font-status error"
-        >未加载</span>
+        >{{ t('fontNotLoaded') }}</span>
         <span
           v-else
           class="font-status success"
-        >已加载</span>
+        >{{ t('fontLoaded') }}</span>
       </div>
     </div>
     
     <div class="form-group">
-      <label>字体大小</label>
+      <label>{{ t('fontSize') }}</label>
       <input
         v-model.number="characterStyle.fontSize"
         type="number"
@@ -28,7 +28,7 @@
     </div>
     
     <div class="form-group">
-      <label>文字颜色</label>
+      <label>{{ t('textColor') }}</label>
       <div class="color-input-group">
         <input
           v-model="characterStyle.color"
@@ -55,7 +55,7 @@
             @change="saveConfig"
           >
           <span class="checkmark" />
-          启用描边
+          {{ t('enableOutline') }}
         </label>
       </div>
     </div>
@@ -65,7 +65,7 @@
       class="outline-settings"
     >
       <div class="form-group">
-        <label>描边颜色</label>
+        <label>{{ t('outlineColor') }}</label>
         <div class="color-input-group">
           <input
             v-model="characterStyle.outline.color"
@@ -84,7 +84,7 @@
       </div>
       
       <div class="form-group">
-        <label>描边宽度</label>
+        <label>{{ t('outlineWidth') }}</label>
         <input
           v-model.number="characterStyle.outline.width"
           type="number"
@@ -101,6 +101,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useEditorStore } from '@/stores/editor'
+import { t } from '@/utils/i18n'
 
 const editorStore = useEditorStore()
 

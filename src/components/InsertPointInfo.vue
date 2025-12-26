@@ -1,12 +1,12 @@
 <template>
   <div class="insert-point-info">
     <div class="info-item">
-      <span class="info-label">当前模式:</span>
+      <span class="info-label">{{ t('currentMode') }}</span>
       <span class="info-value">{{ modeText }}</span>
     </div>
     
     <div class="info-item">
-      <span class="info-label">高亮单元格:</span>
+      <span class="info-label">{{ t('highlightedCell') }}</span>
       <span class="info-value">{{ currentCellText }}</span>
     </div>
     
@@ -14,7 +14,7 @@
       v-if="canvasSpace"
       class="info-item"
     >
-      <span class="info-label">网格尺寸:</span>
+      <span class="info-label">{{ t('gridSize') }}</span>
       <span class="info-value">{{ gridSizeText }}</span>
     </div>
     
@@ -22,7 +22,7 @@
       v-if="nextEmptyCell !== null"
       class="info-item"
     >
-      <span class="info-label">下一个空单元格:</span>
+      <span class="info-label">{{ t('nextEmptyCell') }}</span>
       <span class="info-value">{{ nextEmptyCellText }}</span>
     </div>
     
@@ -31,7 +31,7 @@
       class="auto-info"
     >
       <div class="info-item">
-        <span class="info-label">检测阈值:</span>
+        <span class="info-label">{{ t('detectionThreshold') }}</span>
         <input
           v-model.number="transparencyThreshold"
           type="number"
@@ -42,7 +42,7 @@
         >
       </div>
       <div class="info-item">
-        <span class="info-label">检测状态:</span>
+        <span class="info-label">{{ t('detectionStatus') }}</span>
         <span
           class="info-value"
           :class="detectionStatusClass"
@@ -58,7 +58,7 @@
 import { ref, computed, watch } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { CanvasSpace } from '@/utils/canvas'
-
+import { t } from '@/utils/i18n'
 
 const editorStore = useEditorStore()
 
@@ -70,13 +70,13 @@ const currentCellIndex = computed(() => editorStore.insertPointConfig.startCellI
 const detectedInsertPoints = computed(() => editorStore.detectedInsertPoints)
 
 const modeText = computed(() => {
-  return mode.value === 'auto' ? '自动检测' : '手动选择'
+  return mode.value === 'auto' ? t('autoMode') : t('manualMode')
 })
 
 const currentCellText = computed(() => {
-  if (!canvasSpace.value) return 'N/A'
+  if (!canvasSpace.value) return t('N_A')
   const rowCol = canvasSpace.value.indexToRowCol(currentCellIndex.value)
-  return `第 ${rowCol.row + 1} 行, 第 ${rowCol.col + 1} 列 (索引: ${currentCellIndex.value})`
+  return `${t('row')} ${rowCol.row + 1}, ${t('col')} ${rowCol.col + 1} (${t('index')}: ${currentCellIndex.value})`
 })
 
 const canvasSpace = computed(() => {
@@ -94,8 +94,8 @@ const canvasSpace = computed(() => {
 })
 
 const gridSizeText = computed(() => {
-  if (!canvasSpace.value) return 'N/A'
-  return `${canvasSpace.value.rows} 行 × ${canvasSpace.value.columns} 列`
+  if (!canvasSpace.value) return t('N_A')
+  return `${canvasSpace.value.rows} ${t('rows')} × ${canvasSpace.value.columns} ${t('cols')}`
 })
 
 const nextEmptyCell = computed(() => {
@@ -113,16 +113,16 @@ const nextEmptyCell = computed(() => {
 
 const nextEmptyCellText = computed(() => {
   if (nextEmptyCell.value === null) {
-    return detectedInsertPoints.value.length === 0 ? '未找到' : '检测中...'
+    return detectedInsertPoints.value.length === 0 ? t('notFound') : t('detecting')
   }
   const rowCol = canvasSpace.value?.indexToRowCol(nextEmptyCell.value)
-  return `第 ${rowCol?.row ? rowCol.row + 1 : 0} 行, 第 ${rowCol?.col ? rowCol.col + 1 : 0} 列 (索引: ${nextEmptyCell.value})`
+  return `${t('row')} ${rowCol?.row ? rowCol.row + 1 : 0}, ${t('col')} ${rowCol?.col ? rowCol.col + 1 : 0} (${t('index')}: ${nextEmptyCell.value})`
 })
 
 const detectionStatusText = computed(() => {
-  if (!autoDetectionEnabled.value) return '已禁用'
-  if (detectedInsertPoints.value.length > 0) return `已找到 ${detectedInsertPoints.value.length} 个`
-  return '未找到空单元格'
+  if (!autoDetectionEnabled.value) return t('disabled')
+  if (detectedInsertPoints.value.length > 0) return t('foundCount', { count: detectedInsertPoints.value.length })
+  return t('notFound')
 })
 
 const detectionStatusClass = computed(() => {

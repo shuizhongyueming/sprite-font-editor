@@ -5,33 +5,33 @@
         class="btn btn-primary"
         @click="uploadImage"
       >
-        上传图片
+        {{ t('uploadImage') }}
       </button>
       <button
         class="btn btn-secondary"
         @click="uploadFont"
       >
-        上传字体
+        {{ t('uploadFont') }}
       </button>
       <button
         class="btn btn-info"
         :disabled="!canExport"
         @click="exportImage"
       >
-        导出PNG
+        {{ t('exportPNG') }}
       </button>
     </div>
 
     <div class="toolbar-center">
       <div class="insert-point-control">
-        <span>插入点:</span>
+        <span>{{ t('insertPoint') }}</span>
         <label class="radio-label">
           <input
             v-model="insertPointMode"
             type="radio"
             value="auto"
           >
-          自动
+          {{ t('autoMode') }}
         </label>
         <label class="radio-label">
           <input
@@ -39,17 +39,24 @@
             type="radio"
             value="manual"
           >
-          手动
+          {{ t('manualMode') }}
         </label>
       </div>
     </div>
 
     <div class="toolbar-right">
       <button
+        class="btn btn-language"
+        @click="toggleLanguage"
+        :title="currentLocale === 'zh-CN' ? 'Switch to English' : '切换到中文'"
+      >
+        {{ currentLocale === 'zh-CN' ? 'EN' : '中文' }}
+      </button>
+      <button
         class="btn btn-danger"
         @click="clearAll"
       >
-        清空
+        {{ t('clearAll') }}
       </button>
     </div>
 
@@ -77,12 +84,13 @@ import { useEditorStore } from '@/stores/editor'
 import { isValidImageFile, isValidFontFile } from '@/utils/file'
 import { exportWithOriginalSize } from '@/utils/download'
 import { notify } from '@/utils/notification'
-
+import { t, getLocale, toggleLocale } from '@/utils/i18n'
 
 const editorStore = useEditorStore()
 
 const imageInput = ref<HTMLInputElement>()
 const fontInput = ref<HTMLInputElement>()
+const currentLocale = computed(() => getLocale())
 
 const insertPointMode = computed({
   get: () => editorStore.insertPointConfig.mode,
@@ -120,6 +128,10 @@ function uploadFont() {
   fontInput.value?.click()
 }
 
+function toggleLanguage() {
+  toggleLocale()
+}
+
 async function handleImageUpload(event: Event) {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
@@ -127,7 +139,7 @@ async function handleImageUpload(event: Event) {
   if (!file) return
 
   if (!isValidImageFile(file)) {
-    notify.warning('请选择有效的图片文件 (PNG, JPG, GIF, WebP)')
+    notify.warning(t('invalidImageFile'))
     return
   }
 
@@ -145,7 +157,7 @@ async function handleImageUpload(event: Event) {
     image.src = URL.createObjectURL(blob)
   } catch (error) {
     console.error('Failed to load image:', error)
-    notify.error('图片加载失败')
+    notify.error(t('imageLoadFailed'))
   }
 }
 
@@ -156,7 +168,7 @@ async function handleFontUpload(event: Event) {
   if (!file) return
 
   if (!isValidFontFile(file)) {
-    notify.warning('请选择有效的字体文件 (TTF, OTF, WOFF)')
+    notify.warning(t('invalidFontFile'))
     return
   }
 
@@ -174,17 +186,17 @@ async function handleFontUpload(event: Event) {
     editorStore.setFont(fontFace, data)
     editorStore.saveToLocalStorage()
 
-    notify.success('字体上传成功！')
+    notify.success(t('fontLoadSuccess'))
   } catch (error) {
     console.error('Failed to load font:', error)
-    notify.error('字体加载失败')
+    notify.error(t('fontLoadFailed'))
   }
 }
 
 async function exportImage() {
   try {
     if (!editorStore.baseImage) {
-      notify.warning('请先上传图片')
+      notify.warning(t('pleaseUploadImage'))
       return
     }
 
@@ -203,18 +215,18 @@ async function exportImage() {
       filename
     )
 
-    notify.success('图片导出成功！')
+    notify.success(t('exportSuccess'))
     console.log('Image exported successfully', filename)
   } catch (error) {
     console.error('Export failed:', error)
-    notify.error('导出失败，请重试')
+    notify.error(t('exportFailed'))
   }
 }
 
 function clearAll() {
-  if (confirm('确定要清空所有内容吗？')) {
+  if (confirm(t('confirmClear'))) {
     editorStore.clearAllData()
-    notify.info('已清空所有内容')
+    notify.info(t('cleared'))
   }
 }
 </script>
@@ -275,6 +287,18 @@ function clearAll() {
 }
 
 .btn-secondary:hover:not(:disabled) {
+  background-color: #545b62;
+  border-color: #545b62;
+}
+
+.btn-language {
+  background-color: #6c757d;
+  color: white;
+  border-color: #6c757d;
+  min-width: 60px;
+}
+
+.btn-language:hover {
   background-color: #545b62;
   border-color: #545b62;
 }

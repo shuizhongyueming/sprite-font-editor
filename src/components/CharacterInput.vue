@@ -1,11 +1,11 @@
 <template>
   <div class="character-input">
     <div class="form-group">
-      <label>输入文字</label>
+      <label>{{ t('inputText') }}</label>
       <textarea
         v-model="textInput"
         class="form-control text-input"
-        placeholder="请输入要渲染的文字..."
+        :placeholder="t('inputTextPlaceholder')"
         rows="3"
         @input="handleTextInput"
       />
@@ -25,7 +25,7 @@
             class="character-item"
             :class="{ active: editorStore.selectedCharIndex === index }"
             @click="selectCharacter(index)"
-            :title="`点击高亮字符：${entry.char}`"
+            :title="`${t('clickToHighlight')}: ${entry.char}`"
           >
             <span class="character-char">{{ entry.char }}</span>
             <span class="character-index">{{ index + 1 }}</span>
@@ -58,19 +58,19 @@
       
       <!-- 按钮组 -->
       <div class="button-group">
-        <span class="character-count">共 {{ characterEntries.length }} 个字符</span>
+        <span class="character-count">{{ t('charCount', { count: characterEntries.length }) }}</span>
         <button 
           class="btn btn-sm btn-outline-danger" 
           @click="clearCharacters"
         >
-          清空
+          {{ t('clear') }}
         </button>
         <button
           class="btn btn-sm btn-success"
           :disabled="!canRender"
           @click="renderCharacters"
         >
-          渲染文字
+          {{ t('renderText') }}
         </button>
       </div>
     </div>
@@ -83,7 +83,7 @@
       :style="popupPosition"
     >
       <div class="popup-header">
-        <span>编辑边距: "{{ selectedChar }}"</span>
+        <span>{{ t('editMargin') }} "{{ selectedChar }}"</span>
         <button
           class="close-btn"
           @click="closeMarginPopup"
@@ -93,7 +93,7 @@
       </div>
       <SpacingInput
         v-model="selectedCharMargin"
-        label="边距"
+        :label="t('marginLabel')"
         @change="saveMargin"
       />
       <div class="popup-actions">
@@ -101,7 +101,7 @@
           class="btn btn-sm btn-primary"
           @click="closeMarginPopup"
         >
-          确定
+          {{ t('confirm') }}
         </button>
       </div>
     </div>
@@ -113,6 +113,7 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import SpacingInput from './SpacingInput.vue'
 import { notify } from '@/utils/notification'
+import { t } from '@/utils/i18n'
 
 const editorStore = useEditorStore()
 
@@ -234,7 +235,7 @@ function renderCharacters() {
   editorStore.renderTrigger++
   editorStore.saveToLocalStorage()
   
-  notify.success('字符渲染完成')
+  notify.success(t('renderComplete'))
 }
 
 // 点击外部关闭弹窗

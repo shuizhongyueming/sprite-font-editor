@@ -1,6 +1,9 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { ImageStorage, FontStorage } from "@/utils/storage";
+import { detectGridFast } from "@/utils/grid-detector";
+import { notify } from "@/utils/notification";
+import { t } from "@/utils/i18n";
 
 // 基于原始图片尺寸的绝对配置（用于持久化）
 export interface BaseCellConfig {
@@ -582,6 +585,57 @@ export const useEditorStore = defineStore("editor", () => {
     localStorage.removeItem("sprite-font-editor-state");
   }
 
+  // 自动检测网格
+  function autoDetectGrid() {
+    if (!baseImage.value) {
+      notify.warning(t("noImageLoaded"));
+      return;
+    }
+
+    if (!canvasLayer.value) {
+      notify.warning(t("canvasNotReady"));
+      return;
+    }
+
+    // 使用 baseImageConfig 作为 margin 和 padding
+    const imageMargin = baseImageConfig.value.margin;
+    const imagePadding = baseImageConfig.value.padding;
+
+    const result = detectGridFast(canvasLayer.value, imageMargin, imagePadding);
+
+    if (!result) {
+      notify.warning(t("gridDetectionFailed"));
+      return;
+    }
+
+    console.log(
+      `[AutoDetect] 检测结果: ${result.cellWidth}x${result.cellHeight}, 网格: ${result.rows}行 × ${result.cols}列, 置信度: ${(result.confidence * 100).toFixed(1)}%`,
+    );
+
+    // 更新配置
+    baseCellConfig.value = {
+      ...baseCellConfig.value,
+      width: result.cellWidth,
+      height: result.cellHeight,
+      margin: result.margin,
+    };
+
+    // 触发重新渲染
+    renderTrigger.value++;
+
+    // 保存到 localStorage
+    saveToLocalStorage();
+
+    notify.success(
+      t("gridDetectionSuccess", {
+        width: String(result.cellWidth),
+        height: String(result.cellHeight),
+        rows: String(result.rows),
+        cols: String(result.cols),
+      }),
+    );
+  }
+
   return {
     // 基础配置（用于持久化，基于原始图片尺寸）
     baseCellConfig,
@@ -624,6 +678,7 @@ export const useEditorStore = defineStore("editor", () => {
     clearState,
     clearAllData,
     detectInsertPoints,
+    autoDetectGrid,
     // canvas ref
     canvasLayer,
   };

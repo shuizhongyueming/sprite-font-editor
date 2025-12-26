@@ -14,6 +14,13 @@
         {{ t('uploadFont') }}
       </button>
       <button
+        class="btn btn-success"
+        :disabled="!hasBaseImage"
+        @click="autoDetectGrid"
+      >
+        {{ t('autoDetectGrid') }}
+      </button>
+      <button
         class="btn btn-info"
         :disabled="!canExport"
         @click="exportImage"
@@ -148,12 +155,20 @@ const canExport = computed(() => {
   return editorStore.baseImage !== null
 })
 
+const hasBaseImage = computed(() => {
+  return editorStore.baseImage !== null
+})
+
 function uploadImage() {
   imageInput.value?.click()
 }
 
 function uploadFont() {
   fontInput.value?.click()
+}
+
+function autoDetectGrid() {
+  editorStore.autoDetectGrid()
 }
 
 function toggleDropdown() {

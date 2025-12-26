@@ -95,6 +95,13 @@ export interface Translations {
   // Language Switcher
   switchLanguage: string;
 
+  // Auto Detect Grid
+  autoDetectGrid: string;
+  noImageLoaded: string;
+  canvasNotReady: string;
+  gridDetectionFailed: string;
+  gridDetectionSuccess: string;
+
   // Notifications
   invalidImageFile: string;
   invalidFontFile: string;
@@ -207,6 +214,14 @@ export const translations: Record<Locale, Translations> = {
     // Language Switcher
     switchLanguage: "切换语言",
 
+    // Auto Detect Grid
+    autoDetectGrid: "自动划分网格",
+    noImageLoaded: "请先上传图片",
+    canvasNotReady: "画布未就绪",
+    gridDetectionFailed: "无法自动检测网格，请手动调整",
+    gridDetectionSuccess:
+      "网格检测成功！尺寸: {width}x{height}，网格: {rows}行×{cols}列",
+
     // Notifications
     invalidImageFile: "请选择有效的图片文件 (PNG, JPG, GIF, WebP)",
     invalidFontFile: "请选择有效的字体文件 (TTF, OTF, WOFF)",
@@ -316,6 +331,15 @@ export const translations: Record<Locale, Translations> = {
 
     // Language Switcher
     switchLanguage: "Switch Language",
+
+    // Auto Detect Grid
+    autoDetectGrid: "Auto Detect Grid",
+    noImageLoaded: "Please upload an image first",
+    canvasNotReady: "Canvas not ready",
+    gridDetectionFailed:
+      "Cannot detect grid automatically, please adjust manually",
+    gridDetectionSuccess:
+      "Grid detected! Size: {width}x{height}, Grid: {rows}×{cols}",
 
     // Notifications
     invalidImageFile: "Please select a valid image file (PNG, JPG, GIF, WebP)",

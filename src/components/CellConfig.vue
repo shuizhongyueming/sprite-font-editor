@@ -3,30 +3,31 @@
     <div class="form-group">
       <label>单元格尺寸</label>
       <DimensionsInput
-        v-model:width="editorStore.cellConfig.width"
-        v-model:height="editorStore.cellConfig.height"
+        :width="editorStore.baseCellConfig.width"
+        :height="editorStore.baseCellConfig.height"
         :min="8"
         width-placeholder="宽度"
         height-placeholder="高度"
-        @change="saveConfig"
+        @update:width="updateWidth"
+        @update:height="updateHeight"
       />
     </div>
 
     <div class="form-group">
       <label>单元格间距 (margin)</label>
       <SpacingInput
-        v-model="editorStore.cellConfig.margin"
+        :model-value="editorStore.baseCellConfig.margin"
         label="margin"
-        @change="saveConfig"
+        @update:model-value="updateMargin"
       />
     </div>
 
     <div class="form-group">
       <label>字符内边距 (padding)</label>
       <SpacingInput
-        v-model="editorStore.cellConfig.padding"
+        :model-value="editorStore.baseCellConfig.padding"
         label="padding"
-        @change="saveConfig"
+        @update:model-value="updatePadding"
       />
     </div>
 
@@ -168,6 +169,38 @@ import SpacingInput from './SpacingInput.vue'
 import DimensionsInput from './DimensionsInput.vue'
 
 const editorStore = useEditorStore()
+
+// 更新基础配置
+function updateWidth(width: number | undefined) {
+  if (width && width > 0) {
+    editorStore.baseCellConfig.width = width;
+  }
+  saveConfig();
+}
+
+function updateHeight(height: number | undefined) {
+  if (height && height > 0) {
+    editorStore.baseCellConfig.height = height;
+  }
+  saveConfig();
+}
+
+// 直接更新基础配置（整数像素值）
+function updateMargin(margin: { top: number; right: number; bottom: number; left: number }) {
+  editorStore.baseCellConfig.margin.top = Math.round(margin.top);
+  editorStore.baseCellConfig.margin.right = Math.round(margin.right);
+  editorStore.baseCellConfig.margin.bottom = Math.round(margin.bottom);
+  editorStore.baseCellConfig.margin.left = Math.round(margin.left);
+  saveConfig();
+}
+
+function updatePadding(padding: { top: number; right: number; bottom: number; left: number }) {
+  editorStore.baseCellConfig.padding.top = Math.round(padding.top);
+  editorStore.baseCellConfig.padding.right = Math.round(padding.right);
+  editorStore.baseCellConfig.padding.bottom = Math.round(padding.bottom);
+  editorStore.baseCellConfig.padding.left = Math.round(padding.left);
+  saveConfig();
+}
 
 const cellAlignment = computed({
   get: () => editorStore.cellAlignment,

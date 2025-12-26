@@ -75,7 +75,7 @@
 import { ref, computed } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { isValidImageFile, isValidFontFile } from '@/utils/file'
-import { exportCanvasToPNG } from '@/utils/download'
+import { exportWithOriginalSize } from '@/utils/download'
 import { notify } from '@/utils/notification'
 
 
@@ -179,13 +179,8 @@ async function handleFontUpload(event: Event) {
   }
 }
 
-function exportImage() {
+async function exportImage() {
   try {
-    if (!editorStore.canvasLayer) {
-      notify.warning('请先上传图片')
-      return
-    }
-    
     if (!editorStore.baseImage) {
       notify.warning('请先上传图片')
       return
@@ -193,8 +188,19 @@ function exportImage() {
 
     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-')
     const filename = `sprite-font-${timestamp}.png`
-    
-    exportCanvasToPNG(editorStore.canvasLayer, filename)
+
+    // 使用原始尺寸导出，直接使用 base 配置
+    await exportWithOriginalSize(
+      editorStore.baseImage,
+      editorStore.baseCellConfig,
+      editorStore.baseImageConfig,
+      editorStore.characterEntries,
+      editorStore.characterStyle,
+      editorStore.cellAlignment,
+      editorStore.insertPointConfig,
+      filename
+    )
+
     notify.success('图片导出成功！')
     console.log('Image exported successfully', filename)
   } catch (error) {

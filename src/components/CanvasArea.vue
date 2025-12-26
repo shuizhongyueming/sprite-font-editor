@@ -26,37 +26,37 @@
           position="corner"
           :width="0"
           :height="0"
-          :cell-width="editorStore.cellConfig.width"
-          :cell-height="editorStore.cellConfig.height"
-          :cell-margin="editorStore.cellConfig.margin"
+          :cell-width="cellConfig.width"
+          :cell-height="cellConfig.height"
+          :cell-margin="cellConfig.margin"
           :highlight-row="highlightedRow"
           :highlight-col="highlightedCol"
           :insert-point-row="insertPointRow"
           :insert-point-col="insertPointCol"
         />
-        
+
         <!-- 顶部横向标尺 -->
         <Ruler
           position="top"
           :width="canvasWidth"
           :height="0"
-          :cell-width="editorStore.cellConfig.width"
-          :cell-height="editorStore.cellConfig.height"
-          :cell-margin="editorStore.cellConfig.margin"
+          :cell-width="cellConfig.width"
+          :cell-height="cellConfig.height"
+          :cell-margin="cellConfig.margin"
           :highlight-row="highlightedRow"
           :highlight-col="highlightedCol"
           :insert-point-row="insertPointRow"
           :insert-point-col="insertPointCol"
         />
-        
+
         <!-- 左侧纵向标尺 -->
         <Ruler
           position="left"
           :width="0"
           :height="canvasHeight"
-          :cell-width="editorStore.cellConfig.width"
-          :cell-height="editorStore.cellConfig.height"
-          :cell-margin="editorStore.cellConfig.margin"
+          :cell-width="cellConfig.width"
+          :cell-height="cellConfig.height"
+          :cell-margin="cellConfig.margin"
           :highlight-row="highlightedRow"
           :highlight-col="highlightedCol"
           :insert-point-row="insertPointRow"
@@ -129,8 +129,8 @@ import Ruler from './Ruler.vue'
 
 const editorStore = useEditorStore()
 
-const canvasArea = ref<HTMLDivElement>()  // .canvas-area 容器
-const canvasContainer = ref<HTMLDivElement>()  // .canvas-container
+const canvasArea = ref<HTMLDivElement>()
+const canvasContainer = ref<HTMLDivElement>()
 const canvasLayer = ref<HTMLCanvasElement>()
 const uiLayer = ref<HTMLDivElement>()
 
@@ -151,6 +151,10 @@ const hasImage = computed(() => editorStore.baseImage !== null)
 const canvasWidth = computed(() => editorStore.canvasWidth)
 const canvasHeight = computed(() => editorStore.canvasHeight)
 
+// 已缩放的配置（用于渲染和 UI）
+const cellConfig = computed(() => editorStore.cellConfig)
+const imageConfig = computed(() => editorStore.imageConfig)
+
 const containerStyle = computed(() => ({
   width: `${canvasWidth.value}px`,
   height: `${canvasHeight.value}px`,
@@ -161,17 +165,18 @@ const uiLayerStyle = computed(() => ({
   height: `${canvasHeight.value}px`,
 }))
 
+// 使用已缩放的配置创建 CanvasSpace
 const canvasSpace = computed(() => {
   if (!hasImage.value) return null
 
   return new CanvasSpace(
     canvasWidth.value,
     canvasHeight.value,
-    editorStore.cellConfig.width,
-    editorStore.cellConfig.height,
-    editorStore.cellConfig.margin,
-    editorStore.imageConfig.margin,
-    editorStore.imageConfig.padding
+    cellConfig.value.width,
+    cellConfig.value.height,
+    cellConfig.value.margin,
+    imageConfig.value.margin,
+    imageConfig.value.padding
   )
 })
 
@@ -194,8 +199,8 @@ const gridCells = computed(() => {
         style: {
           left: `${position.x}px`,
           top: `${position.y}px`,
-          width: `${editorStore.cellConfig.width}px`,
-          height: `${editorStore.cellConfig.height}px`,
+          width: `${cellConfig.value.width}px`,
+          height: `${cellConfig.value.height}px`,
           border: editorStore.gridConfig.cellBorder
             ? `${editorStore.gridConfig.cellBorderWidth}px dashed ${editorStore.gridConfig.cellBorderColor}`
             : 'none',
@@ -223,8 +228,8 @@ const highlightedCells = computed(() => {
         style: {
           left: `${position.x}px`,
           top: `${position.y}px`,
-          width: `${editorStore.cellConfig.width}px`,
-          height: `${editorStore.cellConfig.height}px`,
+          width: `${cellConfig.value.width}px`,
+          height: `${cellConfig.value.height}px`,
           border: '1px dashed rgba(0, 255, 255, 0.6)',
           backgroundColor: 'rgba(0, 255, 255, 0.1)',
         },
@@ -246,30 +251,30 @@ const highlightedCells = computed(() => {
       style: {
         left: `${position.x}px`,
         top: `${position.y}px`,
-        width: `${editorStore.cellConfig.width}px`,
-        height: `${editorStore.cellConfig.height}px`,
+        width: `${cellConfig.value.width}px`,
+        height: `${cellConfig.value.height}px`,
         border: '1px solid #ff0000',
         backgroundColor: 'rgba(255, 0, 0, 0.1)',
       },
     })
   }
-  
+
   // 3. 高亮选中的字符所在的单元格
   if (editorStore.selectedCharIndex !== null && editorStore.characterEntries.length > 0) {
     const startIndex = editorStore.insertPointConfig.startCellIndex || 0
     const charCellIndex = startIndex + editorStore.selectedCharIndex
-    
+
     if (charCellIndex < canvasSpace.value.rows * canvasSpace.value.columns) {
       const rowCol = canvasSpace.value.indexToRowCol(charCellIndex)
       const position = canvasSpace.value.getCellPosition(rowCol.row, rowCol.col)
-      
+
       cells.push({
         type: 'selected-char',
         style: {
           left: `${position.x}px`,
           top: `${position.y}px`,
-          width: `${editorStore.cellConfig.width}px`,
-          height: `${editorStore.cellConfig.height}px`,
+          width: `${cellConfig.value.width}px`,
+          height: `${cellConfig.value.height}px`,
           border: '2px solid #28a745',
           backgroundColor: 'rgba(40, 167, 69, 0.2)',
           boxShadow: '0 0 12px rgba(40, 167, 69, 0.4)',
@@ -283,7 +288,7 @@ const highlightedCells = computed(() => {
 })
 
 const marginLinesStyle = computed(() => {
-  const margin = editorStore.imageConfig.margin
+  const margin = imageConfig.value.margin
   return {
     position: 'absolute' as const,
     left: `${margin.left}px`,
@@ -296,8 +301,8 @@ const marginLinesStyle = computed(() => {
 })
 
 const paddingLinesStyle = computed(() => {
-  const margin = editorStore.imageConfig.margin
-  const padding = editorStore.imageConfig.padding
+  const margin = imageConfig.value.margin
+  const padding = imageConfig.value.padding
   return {
     position: 'absolute' as const,
     left: `${margin.left + padding.left}px`,
@@ -311,44 +316,37 @@ const paddingLinesStyle = computed(() => {
 
 // 根据容器尺寸和图片宽高比计算最大画布尺寸
 function computeMaxCanvasSize(containerWidth: number, containerHeight: number, imageWidth: number, imageHeight: number) {
-  console.log('computeMaxCanvasSize', { containerWidth, containerHeight, imageWidth, imageHeight });
   if (containerWidth <= 0 || containerHeight <= 0 || imageWidth <= 0 || imageHeight <= 0) {
     return { width: 800, height: 600 }
   }
 
   // 留出边距，避免贴边
-  const margin = 32 // 16px * 2
+  const margin = 32
   const maxWidth = containerWidth - margin
   const maxHeight = containerHeight - margin
 
   // 计算适配比例
   const widthRatio = maxWidth / imageWidth
   const heightRatio = maxHeight / imageHeight
-  const scale = Math.min(widthRatio, heightRatio, 1) // 最大不超过原始尺寸
+  const scale = Math.min(widthRatio, heightRatio, 1)
 
-  const res = {
+  return {
     width: Math.floor(imageWidth * scale),
     height: Math.floor(imageHeight * scale),
-  };
-  console.log('computeMaxCanvasSize: result: ', res);
-
-  return res;
+  }
 }
 
 // 处理窗口大小变化
 function handleResize() {
   if (!canvasArea.value || !editorStore.baseImage) return
 
-  // 获取容器实际尺寸
   const rect = canvasArea.value.getBoundingClientRect()
 
-  // 存储容器最大尺寸
   containerMaxSize.value = {
     width: Math.floor(rect.width),
     height: Math.floor(rect.height),
   }
 
-  // 重新计算图片缩放
   const maxSize = computeMaxCanvasSize(
     containerMaxSize.value.width,
     containerMaxSize.value.height,
@@ -356,11 +354,9 @@ function handleResize() {
     editorStore.originalImageHeight
   )
 
-  // 更新 store 中的最大尺寸限制（用于后续图片上传）
   editorStore.maxCanvasWidth = maxSize.width
   editorStore.maxCanvasHeight = maxSize.height
 
-  // 如果已有图片，重新调整
   if (editorStore.baseImage) {
     editorStore.setBaseImage(editorStore.baseImage)
   }
@@ -369,10 +365,8 @@ function handleResize() {
 // 监听底图变化
 watch(() => editorStore.baseImage, async (newImage) => {
   await nextTick()
-  console.log('Base image changed:', newImage, canvasLayer.value);
 
   if (newImage && canvasLayer.value) {
-    // 当有新图片加载时，重新计算最大画布尺寸
     if (canvasArea.value && editorStore.originalImageWidth && editorStore.originalImageHeight) {
       const maxSize = computeMaxCanvasSize(
         canvasArea.value.clientWidth,
@@ -381,38 +375,28 @@ watch(() => editorStore.baseImage, async (newImage) => {
         editorStore.originalImageHeight
       )
 
-      // 更新 store 中的最大尺寸，触发重新缩放
       editorStore.maxCanvasWidth = maxSize.width
       editorStore.maxCanvasHeight = maxSize.height
 
-      // 重新应用图片（使用新的最大尺寸进行缩放）
       editorStore.setBaseImage(newImage)
     }
 
     await nextTick()
     drawBaseImage()
 
-    // 如果是自动模式，检测插入点
     if (editorStore.insertPointConfig.mode === 'auto') {
-      console.log('[CanvasArea] 图片加载完成，将在自动模式下检测插入点')
       setTimeout(() => {
         if (canvasLayer.value) {
-          console.log('[CanvasArea] 开始检测插入点...')
           editorStore.detectInsertPoints(canvasLayer.value)
-        } else {
-          console.log('[CanvasArea] 错误：canvasLayer为null')
         }
-      }, 100) // 延迟确保画布渲染完成
-    } else {
-      console.log('[CanvasArea] 图片加载完成，当前为手动模式，跳过自动检测')
+      }, 100)
     }
   }
 })
 
-// 监听样式变化（不改变插入点时自动渲染）
-watch(() => [editorStore.characterStyle, editorStore.cellAlignment, editorStore.cellConfig],
+// 监听配置变化
+watch(() => [editorStore.characterStyle, editorStore.cellAlignment, editorStore.baseCellConfig, editorStore.baseImageConfig],
   () => {
-    // 延迟执行，等待状态更新完成
     nextTick(() => {
       if (canvasLayer.value && editorStore.baseImage && editorStore.characterEntries.length > 0) {
         drawBaseImage()
@@ -422,7 +406,7 @@ watch(() => [editorStore.characterStyle, editorStore.cellAlignment, editorStore.
   { deep: true }
 )
 
-// 监听渲染触发器（从Toolbar触发）
+// 监听渲染触发器
 watch(() => editorStore.renderTrigger,
   () => {
     nextTick(() => {
@@ -433,11 +417,10 @@ watch(() => editorStore.renderTrigger,
   }
 )
 
-// 监听插入点变化，重新渲染
+// 监听插入点变化
 watch(() => editorStore.insertPointConfig,
   () => {
     nextTick(() => {
-      // 只要底图存在且字符条目已保存（即使没有渲染到画布），也重新渲染
       if (canvasLayer.value && editorStore.baseImage && editorStore.characterEntries.length > 0) {
         drawBaseImage()
       }
@@ -448,7 +431,6 @@ watch(() => editorStore.insertPointConfig,
 
 function drawBaseImage() {
   try {
-    console.log('drawBaseImage', canvasLayer.value, editorStore.baseImage);
     if (!canvasLayer.value || !editorStore.baseImage) return
 
     const canvas = canvasLayer.value
@@ -461,11 +443,10 @@ function drawBaseImage() {
     // 清除画布
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-    // 绘制底图，保持缩放比例
-    // 注意：canvas.width/height 已经是缩放后的尺寸
+    // 绘制底图
     ctx.drawImage(editorStore.baseImage, 0, 0, canvas.width, canvas.height)
 
-    // 渲染字符（如果有的话）
+    // 渲染字符
     renderCharacters()
   } catch (error) {
     console.error('Failed to draw base image:', error)
@@ -480,45 +461,38 @@ function handleCellClick(event: MouseEvent) {
   const x = event.clientX - rect.left
   const y = event.clientY - rect.top
 
-  // 使用 CanvasSpace 的坐标转换功能
   const cellPos = canvasSpace.value.positionToCell(x, y)
 
   if (cellPos) {
     const clickedIndex = canvasSpace.value.rowColToIndex(cellPos.row, cellPos.col)
-    
-    // 如果是手动模式，更新插入点
+
     if (editorStore.insertPointConfig.mode === 'manual') {
       highlightedCellIndex.value = clickedIndex
       editorStore.insertPointConfig.startCellIndex = highlightedCellIndex.value
       editorStore.saveToLocalStorage()
     }
-    
-    // 检查是否点击了已渲染的字符
+
     if (editorStore.characterEntries.length > 0) {
       const startIndex = editorStore.insertPointConfig.startCellIndex || 0
-      
+
       for (let i = 0; i < editorStore.characterEntries.length; i++) {
         const charCellIndex = startIndex + i
-        
+
         if (charCellIndex === clickedIndex) {
-          // 点击了字符，触发边距编辑
           editorStore.selectedCharIndex = i
-          
-          // 获取该字符的单元格位置（屏幕坐标）
+
           const charRowCol = canvasSpace.value.indexToRowCol(charCellIndex)
           const cellPosition = canvasSpace.value.getCellPosition(charRowCol.row, charRowCol.col)
-          
-          // 计算弹窗位置（相对于viewport）
-          const popupLeft = rect.left + cellPosition.x + editorStore.cellConfig.width - 50
+
+          const popupLeft = rect.left + cellPosition.x + cellConfig.value.width - 50
           const popupTop = rect.top + cellPosition.y - 50
-          
-          // 发射事件给父组件
+
           emit('showMarginPopup', {
             index: i,
             left: popupLeft,
             top: popupTop
           })
-          
+
           return
         }
       }
@@ -526,30 +500,29 @@ function handleCellClick(event: MouseEvent) {
   }
 }
 
-// 定义事件
 const emit = defineEmits(['showMarginPopup'])
 
 // 高亮行和列（用于标尺）
 const highlightedRow = computed(() => {
   if (editorStore.selectedCharIndex === null || !canvasSpace.value) return null
-  
+
   const startIndex = editorStore.insertPointConfig.startCellIndex || 0
   const charCellIndex = startIndex + editorStore.selectedCharIndex
-  
+
   if (charCellIndex >= canvasSpace.value.rows * canvasSpace.value.columns) return null
-  
+
   const rowCol = canvasSpace.value.indexToRowCol(charCellIndex)
   return rowCol.row
 })
 
 const highlightedCol = computed(() => {
   if (editorStore.selectedCharIndex === null || !canvasSpace.value) return null
-  
+
   const startIndex = editorStore.insertPointConfig.startCellIndex || 0
   const charCellIndex = startIndex + editorStore.selectedCharIndex
-  
+
   if (charCellIndex >= canvasSpace.value.rows * canvasSpace.value.columns) return null
-  
+
   const rowCol = canvasSpace.value.indexToRowCol(charCellIndex)
   return rowCol.col
 })
@@ -557,36 +530,34 @@ const highlightedCol = computed(() => {
 // 插入点高亮（用于标尺）
 const insertPointRow = computed(() => {
   if (!canvasSpace.value) return null
-  
+
   const activeIndex = editorStore.insertPointConfig.mode === 'manual'
     ? highlightedCellIndex.value
     : editorStore.insertPointConfig.startCellIndex || 0
-    
+
   if (activeIndex === undefined || activeIndex === null) return null
-  
+
   const rowCol = canvasSpace.value.indexToRowCol(activeIndex)
   return rowCol.row
 })
 
 const insertPointCol = computed(() => {
   if (!canvasSpace.value) return null
-  
+
   const activeIndex = editorStore.insertPointConfig.mode === 'manual'
     ? highlightedCellIndex.value
     : editorStore.insertPointConfig.startCellIndex || 0
-    
+
   if (activeIndex === undefined || activeIndex === null) return null
-  
+
   const rowCol = canvasSpace.value.indexToRowCol(activeIndex)
   return rowCol.col
 })
 
-/**
- * 渲染所有字符到画布
- */
+// 渲染所有字符
 function renderCharacters() {
   try {
-    if (!canvasLayer.value || !editorStore.baseImage || !canvasSpace.value) return
+    if (!canvasLayer.value || !editorStore.baseImage) return
 
     const canvas = canvasLayer.value
     const ctx = canvas.getContext('2d')
@@ -595,33 +566,29 @@ function renderCharacters() {
       return
     }
 
-    // 如果有字符需要渲染
     if (editorStore.characterEntries.length === 0) return
 
-    // 确定起始单元格
     const startIndex = editorStore.insertPointConfig.startCellIndex || 0
     if (startIndex === undefined) return
 
     let currentIndex = startIndex
 
-    // 遍历所有字符
     for (const charEntry of editorStore.characterEntries) {
-      if (currentIndex >= canvasSpace.value.rows * canvasSpace.value.columns) break
+      if (currentIndex >= canvasSpace.value!.rows * canvasSpace.value!.columns) break
 
-      // 获取单元格位置
-      const rowCol = canvasSpace.value.indexToRowCol(currentIndex)
-      const cellPosition = canvasSpace.value.getCellPosition(rowCol.row, rowCol.col)
+      const rowCol = canvasSpace.value!.indexToRowCol(currentIndex)
+      const position = canvasSpace.value!.getCellPosition(rowCol.row, rowCol.col)
 
-      // 渲染字符到单元格（传入 cellPadding）
+      // 渲染字符到单元格
       renderCharacterToCell(
         charEntry.char,
         ctx,
-        cellPosition.x,
-        cellPosition.y,
-        editorStore.cellConfig.width,
-        editorStore.cellConfig.height,
+        position.x,
+        position.y,
+        cellConfig.value.width,
+        cellConfig.value.height,
         charEntry.margin || { top: 0, right: 0, bottom: 0, left: 0 },
-        editorStore.cellConfig.padding,  // ✅ 添加 cellPadding 参数
+        cellConfig.value.padding,
         {
           fontFamily: editorStore.characterStyle.fontFamily,
           fontSize: editorStore.characterStyle.fontSize,
@@ -639,21 +606,15 @@ function renderCharacters() {
   }
 }
 
-// 生命周期
 onMounted(() => {
-  // 初始计算容器尺寸
   handleResize()
-
-  // 监听窗口大小变化
   window.addEventListener('resize', handleResize)
 })
 
 onUnmounted(() => {
-  // 清理事件监听
   window.removeEventListener('resize', handleResize)
 })
 
-// 暴露方法，让父组件可以设置选中的字符
 function setSelectedCharIndex(index: number | null) {
   editorStore.selectedCharIndex = index
 }
@@ -739,6 +700,6 @@ defineExpose({
   position: absolute;
   border: 2px solid #ff0000;
   pointer-events: none;
-  z-index: 10;
+  zIndex: 10;
 }
 </style>

@@ -1,6 +1,40 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
+import { ref, computed } from "vue";
 
+// 基于原始图片尺寸的绝对配置（用于持久化）
+export interface BaseCellConfig {
+  width: number;
+  height: number;
+  margin: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  };
+  padding: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  };
+}
+
+export interface BaseImageConfig {
+  margin: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  };
+  padding: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  };
+}
+
+// 显示用的配置（基于当前 canvas 尺寸，用于 UI 渲染）
 export interface ImageConfig {
   padding: {
     top: number;
@@ -67,18 +101,65 @@ export interface InsertPointConfig {
 }
 
 export const useEditorStore = defineStore("editor", () => {
-  // 图片配置
-  const imageConfig = ref<ImageConfig>({
-    padding: { top: 0, right: 0, bottom: 0, left: 0 },
-    margin: { top: 0, right: 0, bottom: 0, left: 0 },
-  });
-
-  // Cell 配置
-  const cellConfig = ref<CellConfig>({
+  // 基于原始图片尺寸的绝对配置（用于持久化）
+  const baseCellConfig = ref<BaseCellConfig>({
     width: 32,
     height: 32,
     margin: { top: 0, right: 0, bottom: 0, left: 0 },
-    padding: { top: 2, right: 2, bottom: 2, left: 2 },
+    padding: { top: 0, right: 0, bottom: 0, left: 0 },
+  });
+
+  const baseImageConfig = ref<BaseImageConfig>({
+    margin: { top: 0, right: 0, bottom: 0, left: 0 },
+    padding: { top: 0, right: 0, bottom: 0, left: 0 },
+  });
+
+  // 计算当前缩放比例
+  const canvasScale = computed(() => {
+    if (!originalImageWidth.value || !originalImageHeight.value) return 1;
+    if (displayedCanvasWidth.value === 0) return 1;
+    return displayedCanvasWidth.value / originalImageWidth.value;
+  });
+
+  // 显示用的配置（基于当前 canvas 尺寸，用于 UI 渲染）
+  const cellConfig = computed<CellConfig>(() => {
+    const scale = canvasScale.value;
+
+    return {
+      width: Math.round(baseCellConfig.value.width * scale),
+      height: Math.round(baseCellConfig.value.height * scale),
+      margin: {
+        top: Math.round(baseCellConfig.value.margin.top * scale),
+        right: Math.round(baseCellConfig.value.margin.right * scale),
+        bottom: Math.round(baseCellConfig.value.margin.bottom * scale),
+        left: Math.round(baseCellConfig.value.margin.left * scale),
+      },
+      padding: {
+        top: Math.round(baseCellConfig.value.padding.top * scale),
+        right: Math.round(baseCellConfig.value.padding.right * scale),
+        bottom: Math.round(baseCellConfig.value.padding.bottom * scale),
+        left: Math.round(baseCellConfig.value.padding.left * scale),
+      },
+    };
+  });
+
+  const imageConfig = computed<ImageConfig>(() => {
+    const scale = canvasScale.value;
+
+    return {
+      margin: {
+        top: Math.round(baseImageConfig.value.margin.top * scale),
+        right: Math.round(baseImageConfig.value.margin.right * scale),
+        bottom: Math.round(baseImageConfig.value.margin.bottom * scale),
+        left: Math.round(baseImageConfig.value.margin.left * scale),
+      },
+      padding: {
+        top: Math.round(baseImageConfig.value.padding.top * scale),
+        right: Math.round(baseImageConfig.value.padding.right * scale),
+        bottom: Math.round(baseImageConfig.value.padding.bottom * scale),
+        left: Math.round(baseImageConfig.value.padding.left * scale),
+      },
+    };
   });
 
   // 网格显示配置
@@ -129,7 +210,6 @@ export const useEditorStore = defineStore("editor", () => {
   const originalImageHeight = ref(0);
   const displayedCanvasWidth = ref(0);
   const displayedCanvasHeight = ref(0);
-  const canvasScale = ref(1);
   const maxCanvasWidth = ref(1000);
   const maxCanvasHeight = ref(700);
   const currentFont = ref<FontFace | null>(null);
@@ -141,6 +221,7 @@ export const useEditorStore = defineStore("editor", () => {
 
   // 字符选择状态
   const selectedCharIndex = ref<number | null>(null);
+
   function setBaseImage(image: HTMLImageElement) {
     baseImage.value = image;
     originalImageWidth.value = image.width;
@@ -159,7 +240,6 @@ export const useEditorStore = defineStore("editor", () => {
       scale = Math.min(widthRatio, heightRatio);
     }
 
-    canvasScale.value = scale;
     displayedCanvasWidth.value = Math.floor(image.width * scale);
     displayedCanvasHeight.value = Math.floor(image.height * scale);
   }
@@ -206,55 +286,56 @@ export const useEditorStore = defineStore("editor", () => {
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const emptyCells: number[] = [];
 
+    // 使用计算后的绝对配置
+    const currentCellConfig = cellConfig.value;
+    const currentImageConfig = imageConfig.value;
+
     // 根据当前配置检测所有单元格
     const cellTotalWidth =
-      cellConfig.value.width +
-      cellConfig.value.margin.left +
-      cellConfig.value.margin.right;
+      currentCellConfig.width +
+      currentCellConfig.margin.left +
+      currentCellConfig.margin.right;
     const cellTotalHeight =
-      cellConfig.value.height +
-      cellConfig.value.margin.top +
-      cellConfig.value.margin.bottom;
+      currentCellConfig.height +
+      currentCellConfig.margin.top +
+      currentCellConfig.margin.bottom;
 
     const startX =
-      imageConfig.value.margin.left + imageConfig.value.padding.left;
-    const startY = imageConfig.value.margin.top + imageConfig.value.padding.top;
+      currentImageConfig.margin.left + currentImageConfig.padding.left;
+    const startY =
+      currentImageConfig.margin.top + currentImageConfig.padding.top;
 
     const cols = Math.floor(
       (displayedCanvasWidth.value -
-        imageConfig.value.padding.left -
-        imageConfig.value.padding.right) /
+        currentImageConfig.padding.left -
+        currentImageConfig.padding.right) /
         cellTotalWidth,
     );
     const rows = Math.floor(
       (displayedCanvasHeight.value -
-        imageConfig.value.padding.top -
-        imageConfig.value.padding.bottom) /
+        currentImageConfig.padding.top -
+        currentImageConfig.padding.bottom) /
         cellTotalHeight,
     );
 
     console.log(`[detectInsertPoints] 网格配置: ${rows}行 × ${cols}列`);
     console.log(
-      `[detectInsertPoints] 单元格大小: ${cellConfig.value.width}x${cellConfig.value.height}, 边距: ${JSON.stringify(cellConfig.value.margin)}`,
+      `[detectInsertPoints] 单元格大小: ${currentCellConfig.width}x${currentCellConfig.height}, 边距: ${JSON.stringify(currentCellConfig.margin)}`,
     );
     console.log(
-      `[detectInsertPoints] 图片边距: ${JSON.stringify(imageConfig.value.margin)}, 内边距: ${JSON.stringify(imageConfig.value.padding)}`,
+      `[detectInsertPoints] 图片边距: ${JSON.stringify(currentImageConfig.margin)}, 内边距: ${JSON.stringify(currentImageConfig.padding)}`,
     );
     console.log(`[detectInsertPoints] 起始位置: (${startX}, ${startY})`);
 
     for (let row = 0; row < rows; row++) {
       for (let col = 0; col < cols; col++) {
         const cellX =
-          startX + col * cellTotalWidth + cellConfig.value.margin.left;
+          startX + col * cellTotalWidth + currentCellConfig.margin.left;
         const cellY =
-          startY + row * cellTotalHeight + cellConfig.value.margin.top;
-        const cellWidth = cellConfig.value.width;
-        const cellHeight = cellConfig.value.height;
+          startY + row * cellTotalHeight + currentCellConfig.margin.top;
+        const cellWidth = currentCellConfig.width;
+        const cellHeight = currentCellConfig.height;
         const index = row * cols + col;
-
-        // console.log(
-        //   `[detectInsertPoints] 检测单元格 [${index}] 第${row}行第${col}列: 坐标(${cellX}, ${cellY}), 尺寸${cellWidth}x${cellHeight}`,
-        // );
 
         // 检查单元格是否为空（透明）
         const isEmpty = isCellEmpty(
@@ -265,10 +346,7 @@ export const useEditorStore = defineStore("editor", () => {
           cellHeight,
         );
         if (isEmpty) {
-          // console.log(`[detectInsertPoints] ✓ 单元格 [${index}] 是空的（透明）`)
           emptyCells.push(index);
-        } else {
-          // console.log(`[detectInsertPoints] ✗ 单元格 [${index}] 不是空的（有内容）`)
         }
       }
     }
@@ -318,17 +396,16 @@ export const useEditorStore = defineStore("editor", () => {
       }
     }
 
-    const totalPixels = cellWidth * cellHeight;
     const isEmpty = nonTransparentPixels === 0;
 
     return isEmpty;
   }
 
-  // 保存到 localStorage
+  // 保存到 localStorage（保存基础配置）
   function saveToLocalStorage() {
     const state = {
-      imageConfig: imageConfig.value,
-      cellConfig: cellConfig.value,
+      baseCellConfig: baseCellConfig.value,
+      baseImageConfig: baseImageConfig.value,
       cellAlignment: cellAlignment.value,
       characterStyle: characterStyle.value,
       insertPointConfig: insertPointConfig.value,
@@ -344,8 +421,49 @@ export const useEditorStore = defineStore("editor", () => {
     if (saved) {
       try {
         const state = JSON.parse(saved);
-        imageConfig.value = state.imageConfig || imageConfig.value;
-        cellConfig.value = state.cellConfig || cellConfig.value;
+
+        // 兼容新格式
+        if (state.baseCellConfig) {
+          baseCellConfig.value = state.baseCellConfig;
+        } else if (state.cellConfig) {
+          // 旧格式转换为新格式
+          baseCellConfig.value = {
+            width: state.cellConfig.width,
+            height: state.cellConfig.height,
+            margin: {
+              top: state.cellConfig.margin.top,
+              right: state.cellConfig.margin.right,
+              bottom: state.cellConfig.margin.bottom,
+              left: state.cellConfig.margin.left,
+            },
+            padding: {
+              top: state.cellConfig.padding.top,
+              right: state.cellConfig.padding.right,
+              bottom: state.cellConfig.padding.bottom,
+              left: state.cellConfig.padding.left,
+            },
+          };
+        }
+
+        if (state.baseImageConfig) {
+          baseImageConfig.value = state.baseImageConfig;
+        } else if (state.imageConfig) {
+          baseImageConfig.value = {
+            margin: {
+              top: state.imageConfig.margin.top,
+              right: state.imageConfig.margin.right,
+              bottom: state.imageConfig.margin.bottom,
+              left: state.imageConfig.margin.left,
+            },
+            padding: {
+              top: state.imageConfig.padding.top,
+              right: state.imageConfig.padding.right,
+              bottom: state.imageConfig.padding.bottom,
+              left: state.imageConfig.padding.left,
+            },
+          };
+        }
+
         cellAlignment.value = state.cellAlignment || cellAlignment.value;
         characterStyle.value = state.characterStyle || characterStyle.value;
         insertPointConfig.value =
@@ -360,15 +478,15 @@ export const useEditorStore = defineStore("editor", () => {
 
   // 清空状态
   function clearState() {
-    imageConfig.value = {
-      padding: { top: 0, right: 0, bottom: 0, left: 0 },
-      margin: { top: 0, right: 0, bottom: 0, left: 0 },
-    };
-    cellConfig.value = {
+    baseCellConfig.value = {
       width: 32,
       height: 32,
       margin: { top: 0, right: 0, bottom: 0, left: 0 },
-      padding: { top: 2, right: 2, bottom: 2, left: 2 },
+      padding: { top: 0, right: 0, bottom: 0, left: 0 },
+    };
+    baseImageConfig.value = {
+      margin: { top: 0, right: 0, bottom: 0, left: 0 },
+      padding: { top: 0, right: 0, bottom: 0, left: 0 },
     };
     cellAlignment.value = {
       horizontal: "center",
@@ -405,14 +523,22 @@ export const useEditorStore = defineStore("editor", () => {
     originalImageHeight.value = 0;
     displayedCanvasWidth.value = 0;
     displayedCanvasHeight.value = 0;
-    canvasScale.value = 1;
     localStorage.removeItem("sprite-font-editor-state");
   }
 
   return {
-    // state
+    // 基础配置（用于持久化，基于原始图片尺寸）
+    baseCellConfig,
+    baseImageConfig,
+
+    // 计算后的配置（用于渲染，已缩放到当前 canvas 尺寸）
     imageConfig,
     cellConfig,
+
+    // 缩放比例
+    canvasScale,
+
+    // 其他状态
     cellAlignment,
     characterStyle,
     insertPointConfig,
@@ -425,7 +551,6 @@ export const useEditorStore = defineStore("editor", () => {
     canvasHeight: displayedCanvasHeight,
     originalImageWidth,
     originalImageHeight,
-    canvasScale,
     maxCanvasWidth,
     maxCanvasHeight,
     currentFont,

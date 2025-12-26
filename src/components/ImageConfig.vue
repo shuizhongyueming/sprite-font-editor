@@ -3,45 +3,44 @@
     <div class="form-group">
       <label>外边距 (margin)</label>
       <SpacingInput
-        v-model="editorStore.imageConfig.margin"
+        :model-value="editorStore.baseImageConfig.margin"
         label="margin"
-        @change="saveConfig"
+        @update:model-value="updateMargin"
       />
     </div>
-    
+
     <div class="form-group">
       <label>内边距 (padding)</label>
       <SpacingInput
-        v-model="editorStore.imageConfig.padding"
+        :model-value="editorStore.baseImageConfig.padding"
         label="padding"
-        @change="saveConfig"
-      />
-    </div>
-    
-    <div class="form-group">
-      <label>限制尺寸 (可选)</label>
-      <DimensionsInput
-        v-model:width="editorStore.imageConfig.width"
-        v-model:height="editorStore.imageConfig.height"
-        :min="1"
-        width-placeholder="宽度"
-        height-placeholder="高度"
-        @change="saveConfig"
+        @update:model-value="updatePadding"
       />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import SpacingInput from './SpacingInput.vue'
-import DimensionsInput from './DimensionsInput.vue'
 
 const editorStore = useEditorStore()
 
-function saveConfig() {
-  editorStore.saveToLocalStorage()
+// 直接更新基础配置（整数像素值）
+function updateMargin(margin: { top: number; right: number; bottom: number; left: number }) {
+  editorStore.baseImageConfig.margin.top = Math.round(margin.top);
+  editorStore.baseImageConfig.margin.right = Math.round(margin.right);
+  editorStore.baseImageConfig.margin.bottom = Math.round(margin.bottom);
+  editorStore.baseImageConfig.margin.left = Math.round(margin.left);
+  editorStore.saveToLocalStorage();
+}
+
+function updatePadding(padding: { top: number; right: number; bottom: number; left: number }) {
+  editorStore.baseImageConfig.padding.top = Math.round(padding.top);
+  editorStore.baseImageConfig.padding.right = Math.round(padding.right);
+  editorStore.baseImageConfig.padding.bottom = Math.round(padding.bottom);
+  editorStore.baseImageConfig.padding.left = Math.round(padding.left);
+  editorStore.saveToLocalStorage();
 }
 </script>
 

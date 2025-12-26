@@ -597,11 +597,11 @@ export const useEditorStore = defineStore("editor", () => {
       return;
     }
 
-    // 使用 baseImageConfig 作为 margin 和 padding
-    const imageMargin = baseImageConfig.value.margin;
-    const imagePadding = baseImageConfig.value.padding;
+    // 计算当前 canvas 与原始图片的缩放比例
+    const scaleX = displayedCanvasWidth.value / originalImageWidth.value;
+    const scale = scaleX; // 假设 X 和 Y 方向缩放比例相同
 
-    const result = detectGridFast(canvasLayer.value, imageMargin, imagePadding);
+    const result = detectGridFast(canvasLayer.value);
 
     if (!result) {
       notify.warning(t("gridDetectionFailed"));
@@ -609,15 +609,34 @@ export const useEditorStore = defineStore("editor", () => {
     }
 
     console.log(
-      `[AutoDetect] 检测结果: ${result.cellWidth}x${result.cellHeight}, 网格: ${result.rows}行 × ${result.cols}列, 置信度: ${(result.confidence * 100).toFixed(1)}%`,
+      `[AutoDetect] 检测结果（当前尺寸）: 单元格=${result.cellWidth}x${result.cellHeight}, 网格=${result.rows}行×${result.cols}列, padding=${JSON.stringify(result.padding)}, 置信度=${(result.confidence * 100).toFixed(1)}%`,
     );
 
-    // 更新配置
+    // 将检测结果映射回原始图片尺寸
+    const originalCellWidth = Math.round(result.cellWidth / scale);
+    const originalCellHeight = Math.round(result.cellHeight / scale);
+    const originalPadding = {
+      top: Math.round(result.padding.top / scale),
+      right: Math.round(result.padding.right / scale),
+      bottom: Math.round(result.padding.bottom / scale),
+      left: Math.round(result.padding.left / scale),
+    };
+
+    console.log(
+      `[AutoDetect] 转换结果（原始尺寸）: 单元格=${originalCellWidth}x${originalCellHeight}, padding=${JSON.stringify(originalPadding)}`,
+    );
+
+    // 更新配置（使用原始尺寸）
     baseCellConfig.value = {
       ...baseCellConfig.value,
-      width: result.cellWidth,
-      height: result.cellHeight,
-      margin: result.margin,
+      width: originalCellWidth,
+      height: originalCellHeight,
+    };
+
+    // 更新图片 padding
+    baseImageConfig.value = {
+      ...baseImageConfig.value,
+      padding: originalPadding,
     };
 
     // 触发重新渲染
@@ -628,8 +647,8 @@ export const useEditorStore = defineStore("editor", () => {
 
     notify.success(
       t("gridDetectionSuccess", {
-        width: String(result.cellWidth),
-        height: String(result.cellHeight),
+        width: String(originalCellWidth),
+        height: String(originalCellHeight),
         rows: String(result.rows),
         cols: String(result.cols),
       }),

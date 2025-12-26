@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
+import { ImageStorage, FontStorage } from "@/utils/storage";
 
 // 基于原始图片尺寸的绝对配置（用于持久化）
 export interface BaseCellConfig {
@@ -222,7 +223,8 @@ export const useEditorStore = defineStore("editor", () => {
   // 字符选择状态
   const selectedCharIndex = ref<number | null>(null);
 
-  function setBaseImage(image: HTMLImageElement) {
+  // 设置图片
+  async function setBaseImage(image: HTMLImageElement, blob?: Blob) {
     baseImage.value = image;
     originalImageWidth.value = image.width;
     originalImageHeight.value = image.height;
@@ -242,12 +244,22 @@ export const useEditorStore = defineStore("editor", () => {
 
     displayedCanvasWidth.value = Math.floor(image.width * scale);
     displayedCanvasHeight.value = Math.floor(image.height * scale);
+
+    // 保存到 IndexedDB
+    if (blob) {
+      await ImageStorage.save(blob, image.width, image.height);
+    }
   }
 
   // 设置字体
-  function setFont(font: FontFace) {
+  async function setFont(font: FontFace, data?: ArrayBuffer) {
     currentFont.value = font;
     characterStyle.value.fontFamily = font.family;
+
+    // 保存到 IndexedDB
+    if (data) {
+      await FontStorage.save(font.family, data);
+    }
   }
 
   // 设置 Canvas 引用
@@ -476,6 +488,50 @@ export const useEditorStore = defineStore("editor", () => {
     }
   }
 
+  // 从 IndexedDB 恢复图片和字体
+  async function restoreAssets() {
+    // 恢复图片
+    const imageData = await ImageStorage.load();
+    if (imageData) {
+      try {
+        const url = URL.createObjectURL(imageData.blob);
+        const img = new Image();
+        img.onload = () => {
+          setBaseImage(img, imageData.blob);
+          URL.revokeObjectURL(url);
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          ImageStorage.remove();
+        };
+        img.src = url;
+      } catch (error) {
+        console.warn("Failed to restore image:", error);
+        await ImageStorage.remove();
+      }
+    }
+
+    // 恢复字体
+    const fontData = await FontStorage.load();
+    if (fontData) {
+      try {
+        const fontFace = new FontFace(fontData.name, fontData.data);
+        await fontFace.load();
+        document.fonts.add(fontFace);
+        setFont(fontFace, fontData.data);
+      } catch (error) {
+        console.warn("Failed to restore font:", error);
+        await FontStorage.remove();
+      }
+    }
+  }
+
+  // 清除所有缓存数据
+  async function clearAllData() {
+    clearState();
+    await Promise.all([ImageStorage.remove(), FontStorage.remove()]);
+  }
+
   // 清空状态
   function clearState() {
     baseCellConfig.value = {
@@ -564,7 +620,9 @@ export const useEditorStore = defineStore("editor", () => {
     updateCharacters,
     saveToLocalStorage,
     loadFromLocalStorage,
+    restoreAssets,
     clearState,
+    clearAllData,
     detectInsertPoints,
     // canvas ref
     canvasLayer,

@@ -124,7 +124,6 @@ async function handleImageUpload(event: Event) {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
 
-  console.log('handleImageUpload', file);
   if (!file) return
 
   if (!isValidImageFile(file)) {
@@ -133,17 +132,17 @@ async function handleImageUpload(event: Event) {
   }
 
   try {
+    const blob = file.slice(0, file.size, file.type)
     const image = new Image()
     image.onload = () => {
-      console.log('Image loaded successfully');
-      editorStore.setBaseImage(image)
+      // 传递 blob 以便保存到 IndexedDB
+      editorStore.setBaseImage(image, blob)
       editorStore.saveToLocalStorage()
     };
     image.onerror = (error) => {
       console.error('Failed to load image:', error)
     };
-    image.src = URL.createObjectURL(file)
-    console.log('start image load with url', image.src);
+    image.src = URL.createObjectURL(blob)
   } catch (error) {
     console.error('Failed to load image:', error)
     notify.error('图片加载失败')
@@ -162,16 +161,17 @@ async function handleFontUpload(event: Event) {
   }
 
   try {
-    const buffer = await file.arrayBuffer()
+    const data = await file.arrayBuffer()
     // 使用不带扩展名的名称作为 font family
     const fontName = file.name.replace(/\.(ttf|otf|woff|woff2)$/i, '')
-    const fontFace = new FontFace(fontName, buffer)
+    const fontFace = new FontFace(fontName, data)
     await fontFace.load()
 
     // 注册字体
     document.fonts.add(fontFace)
 
-    editorStore.setFont(fontFace)
+    // 传递数据以便保存到 IndexedDB
+    editorStore.setFont(fontFace, data)
     editorStore.saveToLocalStorage()
 
     notify.success('字体上传成功！')
@@ -213,7 +213,7 @@ async function exportImage() {
 
 function clearAll() {
   if (confirm('确定要清空所有内容吗？')) {
-    editorStore.clearState()
+    editorStore.clearAllData()
     notify.info('已清空所有内容')
   }
 }

@@ -719,6 +719,6 @@ defineExpose({
   position: absolute;
   border: 2px solid #ff0000;
   pointer-events: none;
-  zIndex: 10;
+  z-index: 10;
 }
 </style>

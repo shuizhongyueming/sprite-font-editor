@@ -22,6 +22,8 @@ const controlPanelRef = ref()
 onMounted(() => {
   // 从 localStorage 恢复状态
   editorStore.loadFromLocalStorage()
+  // 从 IndexedDB 恢复图片和字体
+  editorStore.restoreAssets()
 })
 
 function handleShowMarginPopup(data: { index: number; left: number; top: number }) {

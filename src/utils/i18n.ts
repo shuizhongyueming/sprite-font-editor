@@ -41,7 +41,6 @@ export interface Translations {
   showPaddingLines: string;
   borderColor: string;
   borderWidth: string;
-  insertPointMode: string;
   autoDetect: string;
   manualSelect: string;
 
@@ -160,7 +159,6 @@ export const translations: Record<Locale, Translations> = {
     showPaddingLines: "显示 padding 线",
     borderColor: "边框颜色",
     borderWidth: "边框宽度",
-    insertPointMode: "插入点模式",
     autoDetect: "自动检测",
     manualSelect: "手动选择",
 
@@ -278,7 +276,6 @@ export const translations: Record<Locale, Translations> = {
     showPaddingLines: "Show Padding Lines",
     borderColor: "Border Color",
     borderWidth: "Border Width",
-    insertPointMode: "Insert Point Mode",
     autoDetect: "Auto Detect",
     manualSelect: "Manual Select",
 

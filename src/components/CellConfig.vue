@@ -147,22 +147,6 @@
         </div>
       </div>
     </div>
-
-    <div class="form-group">
-      <label>{{ t('insertPointMode') }}</label>
-      <select
-        v-model="insertPointConfig.mode"
-        class="form-control"
-        @change="saveConfig"
-      >
-        <option value="auto">
-          {{ t('autoDetect') }}
-        </option>
-        <option value="manual">
-          {{ t('manualSelect') }}
-        </option>
-      </select>
-    </div>
   </div>
 </template>
 
@@ -218,13 +202,6 @@ const gridConfig = computed({
   get: () => editorStore.gridConfig,
   set: (value) => {
     editorStore.gridConfig = value
-  }
-})
-
-const insertPointConfig = computed({
-  get: () => editorStore.insertPointConfig,
-  set: (value) => {
-    editorStore.insertPointConfig = value
   }
 })
 

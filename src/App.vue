@@ -1,10 +1,17 @@
 <template>
   <div id="app">
-    <router-view />
+    <Toolbar />
+    <div class="main-content">
+      <ControlPanel />
+      <CanvasArea />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import Toolbar from './components/Toolbar.vue'
+import ControlPanel from './components/ControlPanel.vue'
+import CanvasArea from './components/CanvasArea.vue'
 </script>
 
 <style>
@@ -24,5 +31,10 @@
 body {
   margin: 0;
   padding: 0;
+}
+
+.main-content {
+  display: flex;
+  height: calc(100vh - 64px);
 }
 </style>

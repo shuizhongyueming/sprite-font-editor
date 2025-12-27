@@ -1,7 +1,7 @@
 {
   "name": "sprite-font-editor",
   "private": false,
-  "version": "0.1.2",
+  "version": "0.2.0",
   "type": "module",
   "homepage": "https://shuizhongyueming.github.io/sprite-font-editor/",
   "scripts": {
@@ -15,8 +15,7 @@
   },
   "dependencies": {
     "pinia": "^2.1.7",
-    "vue": "^3.4.21",
-    "vue-router": "^4.3.0"
+    "vue": "^3.4.21"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

@@ -158,7 +158,21 @@ const imageConfig = computed(() => editorStore.imageConfig)
 const containerStyle = computed(() => ({
   width: `${canvasWidth.value}px`,
   height: `${canvasHeight.value}px`,
+  background: getCanvasBackground(),
 }))
+
+function getCanvasBackground(): string {
+  const bg = editorStore.canvasBg;
+  switch (bg) {
+    case 'black':
+      return '#000000';
+    case 'checkerboard':
+      return 'repeating-conic-gradient(#d2d2d2 0% 25%, #ffffff 0% 50%) 50% / 40px 40px';
+    case 'white':
+    default:
+      return 'white';
+  }
+}
 
 const uiLayerStyle = computed(() => ({
   width: `${canvasWidth.value}px`,

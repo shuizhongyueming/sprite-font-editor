@@ -16,6 +16,10 @@ export interface Translations {
   autoMode: string;
   manualMode: string;
   clearAll: string;
+  canvasBackground: string;
+  bgWhite: string;
+  bgBlack: string;
+  bgCheckerboard: string;
 
   // ImageConfig
   imageMargin: string;
@@ -134,6 +138,10 @@ export const translations: Record<Locale, Translations> = {
     autoMode: "自动",
     manualMode: "手动",
     clearAll: "清空",
+    canvasBackground: "画布背景",
+    bgWhite: "白色",
+    bgBlack: "黑色",
+    bgCheckerboard: "棋盘",
 
     // ImageConfig
     imageMargin: "外边距 (margin)",
@@ -251,6 +259,10 @@ export const translations: Record<Locale, Translations> = {
     autoMode: "Auto",
     manualMode: "Manual",
     clearAll: "Clear All",
+    canvasBackground: "Canvas Background",
+    bgWhite: "White",
+    bgBlack: "Black",
+    bgCheckerboard: "Checkerboard",
 
     // ImageConfig
     imageMargin: "Margin",

@@ -51,6 +51,35 @@
       </div>
     </div>
 
+    <div class="toolbar-center">
+      <div class="canvas-bg-control">
+        <span>{{ t('canvasBackground') }}</span>
+        <div class="segment-control">
+          <button
+            class="segment-btn"
+            :class="{ active: canvasBgValue === 'white' }"
+            @click="canvasBgValue = 'white'"
+          >
+            {{ t('bgWhite') }}
+          </button>
+          <button
+            class="segment-btn"
+            :class="{ active: canvasBgValue === 'black' }"
+            @click="canvasBgValue = 'black'"
+          >
+            {{ t('bgBlack') }}
+          </button>
+          <button
+            class="segment-btn"
+            :class="{ active: canvasBgValue === 'checkerboard' }"
+            @click="canvasBgValue = 'checkerboard'"
+          >
+            {{ t('bgCheckerboard') }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div class="toolbar-right">
       <!-- 语言切换下拉框 -->
       <div class="language-dropdown">
@@ -142,6 +171,14 @@ const insertPointMode = computed({
         }
       }, 50)
     }
+  }
+})
+
+const canvasBgValue = computed({
+  get: () => editorStore.canvasBg,
+  set: (value: 'white' | 'black' | 'checkerboard') => {
+    editorStore.canvasBg = value
+    editorStore.saveToLocalStorage()
   }
 })
 
@@ -462,5 +499,49 @@ function clearAll() {
 
 .lang-check {
   font-size: 0.75rem;
+}
+
+/* Canvas Background Control */
+.canvas-bg-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.canvas-bg-control > span {
+  font-size: 0.875rem;
+  color: #495057;
+  white-space: nowrap;
+}
+
+.segment-control {
+  display: flex;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.segment-btn {
+  padding: 0.375rem 0.75rem;
+  border: none;
+  background-color: #fff;
+  color: #495057;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  border-right: 1px solid #ced4da;
+}
+
+.segment-btn:last-child {
+  border-right: none;
+}
+
+.segment-btn:hover {
+  background-color: #f8f9fa;
+}
+
+.segment-btn.active {
+  background-color: #007bff;
+  color: white;
 }
 </style>

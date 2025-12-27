@@ -178,6 +178,10 @@ export const useEditorStore = defineStore("editor", () => {
     paddingLineColor: "rgba(0, 0, 255, 0.3)",
   });
 
+  // Canvas 背景颜色配置
+  type CanvasBgType = "white" | "black" | "checkerboard";
+  const canvasBg = ref<CanvasBgType>("white");
+
   // 对齐配置
   const cellAlignment = ref<CellAlignmentConfig>({
     horizontal: "center",
@@ -426,6 +430,7 @@ export const useEditorStore = defineStore("editor", () => {
       insertPointConfig: insertPointConfig.value,
       characterEntries: characterEntries.value,
       gridConfig: gridConfig.value,
+      canvasBg: canvasBg.value,
     };
     localStorage.setItem("sprite-font-editor-state", JSON.stringify(state));
   }
@@ -485,6 +490,7 @@ export const useEditorStore = defineStore("editor", () => {
           state.insertPointConfig || insertPointConfig.value;
         characterEntries.value = state.characterEntries || [];
         gridConfig.value = state.gridConfig || gridConfig.value;
+        canvasBg.value = state.canvasBg || "white";
       } catch (error) {
         console.warn("Failed to load state from localStorage:", error);
       }
@@ -575,6 +581,7 @@ export const useEditorStore = defineStore("editor", () => {
       paddingLines: false,
       paddingLineColor: "rgba(0, 0, 255, 0.3)",
     };
+    canvasBg.value = "white";
     characterEntries.value = [];
     baseImage.value = null;
     currentFont.value = null;
@@ -661,6 +668,7 @@ export const useEditorStore = defineStore("editor", () => {
     maxCanvasHeight,
     currentFont,
     gridConfig,
+    canvasBg,
     detectedInsertPoints,
     currentInsertPoint,
     // actions

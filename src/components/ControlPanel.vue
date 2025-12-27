@@ -45,7 +45,7 @@ defineExpose({
 
 <style scoped>
 .control-panel {
-  width: 320px;
+  width: 360px;
   background-color: #f8f9fa;
   border-left: 1px solid #dee2e6;
   overflow-y: auto;

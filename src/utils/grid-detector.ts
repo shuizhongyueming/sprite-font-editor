@@ -183,10 +183,10 @@ export function detectGrid(
     return null;
   }
 
-  // 计算单元格尺寸（包含分隔线）
+  // 计算单元格尺寸（不包含分隔线）
   // 使用第2、3条透明线计算，避免第1条可能包含 padding
-  const cellHeight = transparentRows[2].start - transparentRows[1].start;
-  const cellWidth = transparentCols[2].start - transparentCols[1].start;
+  const cellHeight = transparentRows[2].end - transparentRows[1].end;
+  const cellWidth = transparentCols[2].end - transparentCols[1].end;
 
   if (cellWidth <= 0 || cellHeight <= 0) {
     console.warn("[GridDetector] 计算出的单元格尺寸无效");
@@ -199,9 +199,7 @@ export function detectGrid(
   const firstRowContainsPadding = transparentRows[0].start === 0;
   const firstColContainsPadding = transparentCols[0].start === 0;
 
-  // 图片 padding
-  // 如果第一行/列有 padding，则 padding = 透明区域 end + 1
-  // 否则 padding = 0
+  // 目前我们自动识别网格的模式就是默认文字是在网格左上角对齐的
   const paddingTop = firstRowContainsPadding ? transparentRows[0].end + 1 : 0;
   const paddingLeft = firstColContainsPadding ? transparentCols[0].end + 1 : 0;
 

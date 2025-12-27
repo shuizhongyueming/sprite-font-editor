@@ -153,16 +153,16 @@ const canvasBgValue = computed({
   }
 })
 
-const insertPointOptions = [
+const insertPointOptions = computed(() => [
   { value: 'auto', label: t('autoMode') },
   { value: 'manual', label: t('manualMode') },
-]
+])
 
-const canvasBgOptions = [
+const canvasBgOptions = computed(() => [
   { value: 'white', label: t('bgWhite') },
   { value: 'black', label: t('bgBlack') },
   { value: 'checkerboard', label: t('bgCheckerboard') },
-]
+])
 
 const canRender = computed(() => {
   return editorStore.baseImage &&

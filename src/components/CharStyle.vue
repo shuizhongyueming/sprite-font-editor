@@ -29,21 +29,12 @@
     
     <div class="form-group">
       <label>{{ t('textColor') }}</label>
-      <div class="color-input-group">
-        <input
-          v-model="characterStyle.color"
-          type="color"
-          class="color-input"
-          @change="saveConfig"
-        >
-        <input
-          v-model="characterStyle.color"
-          type="text"
-          class="form-control color-text"
-          placeholder="#000000"
-          @change="saveConfig"
-        >
-      </div>
+      <input
+        v-model="characterStyle.color"
+        type="color"
+        class="color-input"
+        @change="saveConfig"
+      >
     </div>
     
     <div class="form-group">
@@ -66,21 +57,12 @@
     >
       <div class="form-group">
         <label>{{ t('outlineColor') }}</label>
-        <div class="color-input-group">
-          <input
-            v-model="characterStyle.outline.color"
-            type="color"
-            class="color-input"
-            @change="saveConfig"
-          >
-          <input
-            v-model="characterStyle.outline.color"
-            type="text"
-            class="form-control color-text"
-            placeholder="#ffffff"
-            @change="saveConfig"
-          >
-        </div>
+        <input
+          v-model="characterStyle.outline.color"
+          type="color"
+          class="color-input"
+          @change="saveConfig"
+        >
       </div>
       
       <div class="form-group">
@@ -128,7 +110,7 @@ function saveConfig() {
 
 .form-group {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 0.5rem;
 }
 
@@ -136,12 +118,15 @@ function saveConfig() {
   font-weight: 500;
   font-size: 0.875rem;
   color: #495057;
+  white-space: nowrap;
+  min-width: 70px;
 }
 
 .font-display {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex: 1;
   padding: 0.375rem 0.75rem;
   border: 1px solid #ced4da;
   border-radius: 4px;
@@ -170,12 +155,6 @@ function saveConfig() {
   color: #155724;
 }
 
-.color-input-group {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
 .color-input {
   width: 40px;
   height: 32px;
@@ -184,8 +163,13 @@ function saveConfig() {
   cursor: pointer;
 }
 
-.color-text {
-  flex: 1;
+.color-input::-webkit-color-swatch-wrapper {
+  padding: 1px;
+}
+
+.color-input::-webkit-color-swatch {
+  border: none;
+  border-radius: 3px;
 }
 
 .checkbox-group {
@@ -239,7 +223,7 @@ function saveConfig() {
   border-left: 2px solid #e9ecef;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .form-control {

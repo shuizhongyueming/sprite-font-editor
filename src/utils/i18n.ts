@@ -39,10 +39,10 @@ export interface Translations {
   middleAlign: string;
   bottomAlign: string;
   gridDisplay: string;
-  showGrid: string;
-  showCellBorder: string;
-  showMarginLines: string;
-  showPaddingLines: string;
+  gridLines: string;
+  cellBorder: string;
+  marginLine: string;
+  paddingLine: string;
   borderColor: string;
   borderWidth: string;
   autoDetect: string;
@@ -161,12 +161,12 @@ export const translations: Record<Locale, Translations> = {
     middleAlign: "居中",
     bottomAlign: "底部",
     gridDisplay: "网格显示",
-    showGrid: "显示网格",
-    showCellBorder: "显示单元格边框",
-    showMarginLines: "显示 margin 线",
-    showPaddingLines: "显示 padding 线",
+    gridLines: "网格线",
+    cellBorder: "边框",
+    marginLine: "margin",
+    paddingLine: "padding",
     borderColor: "边框颜色",
-    borderWidth: "边框宽度",
+    borderWidth: "宽度",
     autoDetect: "自动检测",
     manualSelect: "手动选择",
 
@@ -282,12 +282,12 @@ export const translations: Record<Locale, Translations> = {
     middleAlign: "Middle",
     bottomAlign: "Bottom",
     gridDisplay: "Grid Display",
-    showGrid: "Show Grid",
-    showCellBorder: "Show Cell Border",
-    showMarginLines: "Show Margin Lines",
-    showPaddingLines: "Show Padding Lines",
-    borderColor: "Border Color",
-    borderWidth: "Border Width",
+    gridLines: "Grid Lines",
+    cellBorder: "Border",
+    marginLine: "Margin",
+    paddingLine: "Padding",
+    borderColor: "Color",
+    borderWidth: "Width",
     autoDetect: "Auto Detect",
     manualSelect: "Manual Select",
 

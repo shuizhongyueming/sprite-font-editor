@@ -33,41 +33,29 @@
 
     <div class="form-group">
       <label>{{ t('alignment') }}</label>
-      <div class="alignment-controls">
-        <div class="alignment-row">
-          <span class="alignment-label">{{ t('horizontal') }}</span>
+      <div class="inline-controls">
+        <div class="control-item">
+          <span class="control-label">{{ t('horizontal') }}</span>
           <select
             v-model="cellAlignment.horizontal"
             class="form-control"
             @change="saveConfig"
           >
-            <option value="left">
-              {{ t('leftAlign') }}
-            </option>
-            <option value="center">
-              {{ t('centerAlign') }}
-            </option>
-            <option value="right">
-              {{ t('rightAlign') }}
-            </option>
+            <option value="left">{{ t('leftAlign') }}</option>
+            <option value="center">{{ t('centerAlign') }}</option>
+            <option value="right">{{ t('rightAlign') }}</option>
           </select>
         </div>
-        <div class="alignment-row">
-          <span class="alignment-label">{{ t('vertical') }}</span>
+        <div class="control-item">
+          <span class="control-label">{{ t('vertical') }}</span>
           <select
             v-model="cellAlignment.vertical"
             class="form-control"
             @change="saveConfig"
           >
-            <option value="top">
-              {{ t('topAlign') }}
-            </option>
-            <option value="middle">
-              {{ t('middleAlign') }}
-            </option>
-            <option value="bottom">
-              {{ t('bottomAlign') }}
-            </option>
+            <option value="top">{{ t('topAlign') }}</option>
+            <option value="middle">{{ t('middleAlign') }}</option>
+            <option value="bottom">{{ t('bottomAlign') }}</option>
           </select>
         </div>
       </div>
@@ -76,74 +64,64 @@
     <div class="form-group">
       <label>{{ t('gridDisplay') }}</label>
       <div class="grid-config">
-        <div class="checkbox-group">
+        <!-- Grid Lines Checkboxes -->
+        <div class="checkbox-grid">
           <label class="checkbox-label">
             <input
               v-model="gridConfig.enabled"
               type="checkbox"
               @change="saveConfig"
             >
-            <span class="checkmark" />
-            {{ t('showGrid') }}
+            {{ t('gridLines') }}
           </label>
-        </div>
-
-        <div class="checkbox-group">
           <label class="checkbox-label">
             <input
               v-model="gridConfig.cellBorder"
               type="checkbox"
               @change="saveConfig"
             >
-            <span class="checkmark" />
-            {{ t('showCellBorder') }}
+            {{ t('cellBorder') }}
           </label>
-        </div>
-
-        <div class="checkbox-group">
           <label class="checkbox-label">
             <input
               v-model="gridConfig.marginLines"
               type="checkbox"
               @change="saveConfig"
             >
-            <span class="checkmark" />
-            {{ t('showMarginLines') }}
+            {{ t('marginLine') }}
           </label>
-        </div>
-
-        <div class="checkbox-group">
           <label class="checkbox-label">
             <input
               v-model="gridConfig.paddingLines"
               type="checkbox"
               @change="saveConfig"
             >
-            <span class="checkmark" />
-            {{ t('showPaddingLines') }}
+            {{ t('paddingLine') }}
           </label>
         </div>
 
-        <div class="form-group sub-group">
-          <label>{{ t('borderColor') }}</label>
-          <input
-            v-model="gridConfig.cellBorderColor"
-            type="color"
-            class="form-control color-input"
-            @change="saveConfig"
-          >
-        </div>
-
-        <div class="form-group sub-group">
-          <label>{{ t('borderWidth') }}</label>
-          <input
-            v-model.number="gridConfig.cellBorderWidth"
-            type="number"
-            class="form-control"
-            min="1"
-            max="5"
-            @change="saveConfig"
-          >
+        <!-- Border Color & Width -->
+        <div class="border-config">
+          <div class="color-picker-wrapper">
+            <label>{{ t('borderColor') }}</label>
+            <input
+              v-model="gridConfig.cellBorderColor"
+              type="color"
+              class="color-input"
+              @change="saveConfig"
+            >
+          </div>
+          <div class="width-input-wrapper">
+            <label>{{ t('borderWidth') }}</label>
+            <input
+              v-model.number="gridConfig.cellBorderWidth"
+              type="number"
+              class="form-control"
+              min="1"
+              max="5"
+              @change="saveConfig"
+            >
+          </div>
         </div>
       </div>
     </div>
@@ -229,22 +207,23 @@ function saveConfig() {
   color: #495057;
 }
 
-.alignment-controls {
+.inline-controls {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
-.alignment-row {
+.control-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex: 1;
 }
 
-.alignment-label {
+.control-label {
   font-size: 0.875rem;
+  font-weight: 500;
   color: #495057;
-  min-width: 60px;
+  white-space: nowrap;
 }
 
 .form-control {
@@ -271,9 +250,10 @@ function saveConfig() {
   border-radius: 4px;
 }
 
-.checkbox-group {
-  display: flex;
-  align-items: center;
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1rem;
 }
 
 .checkbox-label {
@@ -283,25 +263,50 @@ function saveConfig() {
   font-size: 0.875rem;
   color: #495057;
   cursor: pointer;
+  white-space: nowrap;
 }
 
 .checkbox-label input[type="checkbox"] {
   margin: 0;
+  width: 14px;
+  height: 14px;
 }
 
-.sub-group {
-  margin-left: 1.5rem;
-  margin-bottom: 0 !important;
+.border-config {
+  display: flex;
+  gap: 1rem;
+}
+
+.color-picker-wrapper,
+.width-input-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.color-picker-wrapper label,
+.width-input-wrapper label {
+  font-size: 0.875rem;
+  color: #495057;
+  white-space: nowrap;
 }
 
 .color-input {
-  width: 50px !important;
-  height: 32px;
-  padding: 2px !important;
-  border: none !important;
+  width: 32px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  cursor: pointer;
 }
 
-.color-input:focus {
-  box-shadow: none !important;
+.color-input::-webkit-color-swatch-wrapper {
+  padding: 1px;
+}
+
+.color-input::-webkit-color-swatch {
+  border: none;
+  border-radius: 3px;
 }
 </style>

@@ -30,53 +30,22 @@
     </div>
 
     <div class="toolbar-center">
-      <div class="insert-point-control">
+      <div class="control-item">
         <span>{{ t('insertPoint') }}</span>
-        <label class="radio-label">
-          <input
-            v-model="insertPointMode"
-            type="radio"
-            value="auto"
-          >
-          {{ t('autoMode') }}
-        </label>
-        <label class="radio-label">
-          <input
-            v-model="insertPointMode"
-            type="radio"
-            value="manual"
-          >
-          {{ t('manualMode') }}
-        </label>
+        <SegmentControl
+          v-model="insertPointMode"
+          :options="insertPointOptions"
+        />
       </div>
     </div>
 
     <div class="toolbar-center">
-      <div class="canvas-bg-control">
+      <div class="control-item">
         <span>{{ t('canvasBackground') }}</span>
-        <div class="segment-control">
-          <button
-            class="segment-btn"
-            :class="{ active: canvasBgValue === 'white' }"
-            @click="canvasBgValue = 'white'"
-          >
-            {{ t('bgWhite') }}
-          </button>
-          <button
-            class="segment-btn"
-            :class="{ active: canvasBgValue === 'black' }"
-            @click="canvasBgValue = 'black'"
-          >
-            {{ t('bgBlack') }}
-          </button>
-          <button
-            class="segment-btn"
-            :class="{ active: canvasBgValue === 'checkerboard' }"
-            @click="canvasBgValue = 'checkerboard'"
-          >
-            {{ t('bgCheckerboard') }}
-          </button>
-        </div>
+        <SegmentControl
+          v-model="canvasBgValue"
+          :options="canvasBgOptions"
+        />
       </div>
     </div>
 
@@ -146,8 +115,10 @@ import { isValidImageFile, isValidFontFile } from '@/utils/file'
 import { exportWithOriginalSize } from '@/utils/download'
 import { notify } from '@/utils/notification'
 import { t, getLocale, setLanguage } from '@/utils/i18n'
+import SegmentControl from './SegmentControl.vue'
 
 type Locale = 'zh-CN' | 'en-US'
+type CanvasBgType = 'white' | 'black' | 'checkerboard'
 
 const editorStore = useEditorStore()
 
@@ -176,11 +147,22 @@ const insertPointMode = computed({
 
 const canvasBgValue = computed({
   get: () => editorStore.canvasBg,
-  set: (value: 'white' | 'black' | 'checkerboard') => {
+  set: (value: CanvasBgType) => {
     editorStore.canvasBg = value
     editorStore.saveToLocalStorage()
   }
 })
+
+const insertPointOptions = [
+  { value: 'auto', label: t('autoMode') },
+  { value: 'manual', label: t('manualMode') },
+]
+
+const canvasBgOptions = [
+  { value: 'white', label: t('bgWhite') },
+  { value: 'black', label: t('bgBlack') },
+  { value: 'checkerboard', label: t('bgCheckerboard') },
+]
 
 const canRender = computed(() => {
   return editorStore.baseImage &&
@@ -443,19 +425,6 @@ function clearAll() {
   border-color: #bd2130;
 }
 
-.insert-point-control {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.radio-label {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  cursor: pointer;
-}
-
 /* 语言下拉框样式 */
 .language-dropdown {
   position: relative;
@@ -501,47 +470,16 @@ function clearAll() {
   font-size: 0.75rem;
 }
 
-/* Canvas Background Control */
-.canvas-bg-control {
+/* Control Item */
+.control-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.canvas-bg-control > span {
+.control-item > span {
   font-size: 0.875rem;
   color: #495057;
   white-space: nowrap;
-}
-
-.segment-control {
-  display: flex;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.segment-btn {
-  padding: 0.375rem 0.75rem;
-  border: none;
-  background-color: #fff;
-  color: #495057;
-  font-size: 0.75rem;
-  cursor: pointer;
-  transition: all 0.15s;
-  border-right: 1px solid #ced4da;
-}
-
-.segment-btn:last-child {
-  border-right: none;
-}
-
-.segment-btn:hover {
-  background-color: #f8f9fa;
-}
-
-.segment-btn.active {
-  background-color: #007bff;
-  color: white;
 }
 </style>

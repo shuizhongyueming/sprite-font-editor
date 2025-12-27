@@ -178,23 +178,43 @@ export function detectGrid(
     `[GridDetector] 全图透明行: ${transparentRows.length}, 透明列: ${transparentCols.length}`,
   );
 
-  if (transparentRows.length < 2 || transparentCols.length < 2) {
-    console.warn("[GridDetector] 透明区域不足以推断网格");
+  if (transparentRows.length < 3 || transparentCols.length < 3) {
+    console.warn("[GridDetector] 透明区域不足以推断网格，至少需要3条透明线");
     return null;
   }
 
-  // 第一条透明线的起始位置 = 图片的 padding
-  const paddingTop = transparentRows[0].start;
-  const paddingLeft = transparentCols[0].start;
-
-  // 单元格尺寸 = 第二条透明线起始位置 - 第一条透明线起始位置
-  const cellHeight = transparentRows[1].start - transparentRows[0].start;
-  const cellWidth = transparentCols[1].start - transparentCols[0].start;
+  // 计算单元格尺寸（包含分隔线）
+  // 使用第2、3条透明线计算，避免第1条可能包含 padding
+  const cellHeight = transparentRows[2].start - transparentRows[1].start;
+  const cellWidth = transparentCols[2].start - transparentCols[1].start;
 
   if (cellWidth <= 0 || cellHeight <= 0) {
     console.warn("[GridDetector] 计算出的单元格尺寸无效");
     return null;
   }
+
+  // 判断第一个透明区域是否包含 padding
+  // transparentRows[0].start === 0：顶部有透明区域，可能包含 padding
+  // transparentRows[0].start > 0：文字贴顶，padding = 0
+  const firstRowContainsPadding = transparentRows[0].start === 0;
+  const firstColContainsPadding = transparentCols[0].start === 0;
+
+  // 图片 padding
+  // 如果第一行/列有 padding，则 padding = 透明区域 end + 1
+  // 否则 padding = 0
+  const paddingTop = firstRowContainsPadding ? transparentRows[0].end + 1 : 0;
+  const paddingLeft = firstColContainsPadding ? transparentCols[0].end + 1 : 0;
+
+  console.log({
+    cellWidth,
+    cellHeight,
+    paddingTop,
+    paddingLeft,
+    firstRowContainsPadding,
+    firstColContainsPadding,
+    transparentCols,
+    transparentRows,
+  });
 
   // 计算行数和列数
   const rows = transparentRows.length + 1;
@@ -285,66 +305,22 @@ function downsampleImage(
 }
 
 /**
- * 快速检测网格（使用降采样）
- * 适用于大图片，可以提高检测速度
+ * 检测网格结构（使用原图）
+ * 适用于一般尺寸的精灵字体图片
  */
 export function detectGridFast(
-  canvas: HTMLCanvasElement,
-  maxDimension: number = 500,
+  originalImage: HTMLImageElement,
 ): GridDetectionResult | null {
+  // 创建使用原图尺寸的 canvas
+  const canvas = document.createElement("canvas");
+  canvas.width = originalImage.width;
+  canvas.height = originalImage.height;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
 
-  const width = canvas.width;
-  const height = canvas.height;
+  // 绘制原图
+  ctx.drawImage(originalImage, 0, 0);
 
-  // 如果图片已经足够小，直接检测
-  if (width <= maxDimension && height <= maxDimension) {
-    return detectGrid(canvas);
-  }
-
-  // 计算降采样比例
-  const scale = Math.min(maxDimension / width, maxDimension / height);
-  const newWidth = Math.floor(width * scale);
-  const newHeight = Math.floor(height * scale);
-
-  console.log(
-    `[GridDetector] 降采样: ${width}x${height} -> ${newWidth}x${newHeight}`,
-  );
-
-  // 创建临时 canvas 进行降采样
-  const tempCanvas = document.createElement("canvas");
-  tempCanvas.width = newWidth;
-  tempCanvas.height = newHeight;
-  const tempCtx = tempCanvas.getContext("2d");
-  if (!tempCtx) return null;
-
-  tempCtx.drawImage(canvas, 0, 0, newWidth, newHeight);
-
-  // 在降采样后的图片上检测
-  const result = detectGrid(tempCanvas);
-
-  if (!result) return null;
-
-  // 将结果放大回原始尺寸
-  const invScale = 1 / scale;
-  return {
-    cellWidth: Math.round(result.cellWidth * invScale),
-    cellHeight: Math.round(result.cellHeight * invScale),
-    margin: {
-      top: Math.round(result.margin.top * invScale),
-      right: Math.round(result.margin.right * invScale),
-      bottom: Math.round(result.margin.bottom * invScale),
-      left: Math.round(result.margin.left * invScale),
-    },
-    padding: {
-      top: Math.round(result.padding.top * invScale),
-      right: Math.round(result.padding.right * invScale),
-      bottom: Math.round(result.padding.bottom * invScale),
-      left: Math.round(result.padding.left * invScale),
-    },
-    rows: result.rows,
-    cols: result.cols,
-    confidence: result.confidence,
-  };
+  // 在原图上检测
+  return detectGrid(canvas);
 }

@@ -33,6 +33,10 @@
           :highlight-col="highlightedCol"
           :insert-point-row="insertPointRow"
           :insert-point-col="insertPointCol"
+          :image-margin="imageConfig.margin"
+          :image-padding="imageConfig.padding"
+          :font-sprite-width="editorStore.baseImageConfig.fontSpriteWidth"
+          :font-sprite-height="editorStore.baseImageConfig.fontSpriteHeight"
         />
 
         <!-- 顶部横向标尺 -->
@@ -47,6 +51,10 @@
           :highlight-col="highlightedCol"
           :insert-point-row="insertPointRow"
           :insert-point-col="insertPointCol"
+          :image-margin="imageConfig.margin"
+          :image-padding="imageConfig.padding"
+          :font-sprite-width="editorStore.baseImageConfig.fontSpriteWidth"
+          :font-sprite-height="editorStore.baseImageConfig.fontSpriteHeight"
         />
 
         <!-- 左侧纵向标尺 -->
@@ -61,6 +69,10 @@
           :highlight-col="highlightedCol"
           :insert-point-row="insertPointRow"
           :insert-point-col="insertPointCol"
+          :image-margin="imageConfig.margin"
+          :image-padding="imageConfig.padding"
+          :font-sprite-width="editorStore.baseImageConfig.fontSpriteWidth"
+          :font-sprite-height="editorStore.baseImageConfig.fontSpriteHeight"
         />
       </div>
 

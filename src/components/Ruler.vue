@@ -93,22 +93,29 @@ interface Props {
   insertPointRow: number | null
   insertPointCol: number | null
   rulerSize?: number
+  imageMargin?: { top: number; right: number; bottom: number; left: number }
+  imagePadding?: { top: number; right: number; bottom: number; left: number }
+  fontSpriteWidth?: number
+  fontSpriteHeight?: number
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  rulerSize: 20
+  rulerSize: 20,
+  imageMargin: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+  imagePadding: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 })
 
 const horizontalTicks = computed<RulerTick[]>(() => {
   const ticks: RulerTick[] = []
   const step = props.cellWidth + props.cellMargin.left + props.cellMargin.right
-  
-  for (let i = 0; i <= props.width; i += step) {
-    const colIndex = Math.floor(i / step)
+
+  const startOffset = props.imageMargin.left + props.imagePadding.left
+
+  for (let i = startOffset; i <= props.width; i += step) {
+    const colIndex = Math.floor((i - startOffset) / step)
     const isCharHighlight = props.highlightCol !== null && colIndex === props.highlightCol
     const isInsertPointHighlight = props.insertPointCol !== null && colIndex === props.insertPointCol
-    
-    // 每个单元格边界显示主刻度
+
     ticks.push({
       position: i,
       isMajor: true,
@@ -117,20 +124,21 @@ const horizontalTicks = computed<RulerTick[]>(() => {
       isInsertPointHighlight
     })
   }
-  
+
   return ticks
 })
 
 const verticalTicks = computed<RulerTick[]>(() => {
   const ticks: RulerTick[] = []
   const step = props.cellHeight + props.cellMargin.top + props.cellMargin.bottom
-  
-  for (let i = 0; i <= props.height; i += step) {
-    const rowIndex = Math.floor(i / step)
+
+  const startOffset = props.imageMargin.top + props.imagePadding.top
+
+  for (let i = startOffset; i <= props.height; i += step) {
+    const rowIndex = Math.floor((i - startOffset) / step)
     const isCharHighlight = props.highlightRow !== null && rowIndex === props.highlightRow
     const isInsertPointHighlight = props.insertPointRow !== null && rowIndex === props.insertPointRow
-    
-    // 每个单元格边界显示主刻度
+
     ticks.push({
       position: i,
       isMajor: true,
@@ -139,7 +147,7 @@ const verticalTicks = computed<RulerTick[]>(() => {
       isInsertPointHighlight
     })
   }
-  
+
   return ticks
 })
 </script>

@@ -438,7 +438,7 @@ watch(() => editorStore.baseImage, async (newImage) => {
 })
 
 // 监听配置变化
-watch(() => [editorStore.characterStyle, editorStore.cellAlignment, editorStore.baseCellConfig, editorStore.baseImageConfig],
+watch(() => [editorStore.characterStyle, editorStore.cellAlignment, editorStore.baseCellConfig, editorStore.baseImageConfig, editorStore.characterEntries],
   () => {
     nextTick(() => {
       if (canvasLayer.value && editorStore.baseImage && editorStore.characterEntries.length > 0) {

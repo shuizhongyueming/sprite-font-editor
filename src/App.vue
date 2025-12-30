@@ -22,6 +22,12 @@ onMounted(() => {
   initLocale()
   editorStore.loadFromLocalStorage()
   editorStore.restoreAssets()
+
+  setTimeout(() => {
+    if (editorStore.characterEntries.length > 0 && editorStore.baseImage) {
+      editorStore.renderTrigger++
+    }
+  }, 100)
 })
 </script>
 

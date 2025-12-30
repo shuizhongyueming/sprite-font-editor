@@ -271,6 +271,10 @@ function handleKeydown(event: KeyboardEvent) {
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   document.addEventListener('keydown', handleKeydown)
+
+  if (editorStore.characterEntries.length > 0) {
+    textInput.value = editorStore.characterEntries.map(e => e.char).join('')
+  }
 })
 
 onUnmounted(() => {

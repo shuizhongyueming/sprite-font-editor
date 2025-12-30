@@ -41,12 +41,12 @@
       <div class="checkbox-group">
         <label class="checkbox-label">
           <input
-            v-model="characterStyle.outline.enabled"
+            v-model="characterStyle.pixelStyle"
             type="checkbox"
             @change="saveConfig"
           >
           <span class="checkmark" />
-          {{ t('enableOutline') }}
+          {{ t('pixelStyle') }}
         </label>
       </div>
     </div>
@@ -55,12 +55,12 @@
       <div class="checkbox-group">
         <label class="checkbox-label">
           <input
-            v-model="characterStyle.pixelStyle"
+            v-model="characterStyle.outline.enabled"
             type="checkbox"
             @change="saveConfig"
           >
           <span class="checkmark" />
-          {{ t('pixelStyle') }}
+          {{ t('enableOutline') }}
         </label>
       </div>
     </div>

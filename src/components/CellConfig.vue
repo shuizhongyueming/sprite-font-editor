@@ -10,6 +10,7 @@
         :height-placeholder="t('height')"
         @update:width="updateWidth"
         @update:height="updateHeight"
+        @change="saveConfig"
       />
     </div>
 

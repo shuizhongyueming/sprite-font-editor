@@ -1,21 +1,29 @@
 <template>
   <div class="dimensions-inputs">
     <input
-      v-model.number="width"
+      :value="widthModel"
       type="number"
       class="form-control dimension-input"
       :placeholder="widthPlaceholder"
       :min="min"
       :step="step"
+      @input="handleWidthInput"
+      @change="handleWidthChange"
+      @blur="handleWidthChange"
+      @keydown.enter="handleWidthChange"
     >
     <span class="dimension-separator">×</span>
     <input
-      v-model.number="height"
+      :value="heightModel"
       type="number"
       class="form-control dimension-input"
       :placeholder="heightPlaceholder"
       :min="min"
       :step="step"
+      @input="handleHeightInput"
+      @change="handleHeightChange"
+      @blur="handleHeightChange"
+      @keydown.enter="handleHeightChange"
     >
   </div>
 </template>
@@ -35,9 +43,41 @@ withDefaults(defineProps<Props>(), {
   heightPlaceholder: '高度',
 })
 
-// defineModel 的 type: Number 会自动处理字符串到数字的转换
-const width = defineModel<number | undefined>('width', { type: Number })
-const height = defineModel<number | undefined>('height', { type: Number })
+const widthModel = defineModel<number | undefined>('width', { type: Number })
+const heightModel = defineModel<number | undefined>('height', { type: Number })
+
+const emit = defineEmits<{
+  (e: 'update:width', value: number | undefined): void
+  (e: 'update:height', value: number | undefined): void
+  (e: 'change'): void
+}>()
+
+let widthValue: number | undefined = widthModel.value
+let heightValue: number | undefined = heightModel.value
+
+function handleWidthInput(event: Event) {
+  const target = event.target as HTMLInputElement
+  const val = target.value
+  widthValue = val === '' ? undefined : parseInt(val) || undefined
+}
+
+function handleHeightInput(event: Event) {
+  const target = event.target as HTMLInputElement
+  const val = target.value
+  heightValue = val === '' ? undefined : parseInt(val) || undefined
+}
+
+function handleWidthChange() {
+  widthModel.value = widthValue
+  emit('update:width', widthValue)
+  emit('change')
+}
+
+function handleHeightChange() {
+  heightModel.value = heightValue
+  emit('update:height', heightValue)
+  emit('change')
+}
 </script>
 
 <style scoped>

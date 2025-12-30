@@ -337,7 +337,7 @@ function clearAll() {
   align-items: center;
   justify-content: space-between;
   padding: 1rem;
-  background-color: #f8f9fa;
+  background-color: #e9ecef;
   border-bottom: 1px solid #dee2e6;
   gap: 1rem;
 }

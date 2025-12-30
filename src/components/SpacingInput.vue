@@ -2,32 +2,48 @@
   <div class="spacing-inputs">
     <div class="spacing-row">
       <input
-        v-model.number="modelValue.top"
+        :value="modelValue.top"
         type="number"
         class="form-control spacing-input"
         :placeholder="`${label}上`"
         min="0"
+        @input="handleTopInput"
+        @change="handleChange"
+        @blur="handleChange"
+        @keydown.enter="handleChange"
       >
       <input
-        v-model.number="modelValue.right"
+        :value="modelValue.right"
         type="number"
         class="form-control spacing-input"
         :placeholder="`${label}右`"
         min="0"
+        @input="handleRightInput"
+        @change="handleChange"
+        @blur="handleChange"
+        @keydown.enter="handleChange"
       >
       <input
-        v-model.number="modelValue.bottom"
+        :value="modelValue.bottom"
         type="number"
         class="form-control spacing-input"
         :placeholder="`${label}下`"
         min="0"
+        @input="handleBottomInput"
+        @change="handleChange"
+        @blur="handleChange"
+        @keydown.enter="handleChange"
       >
       <input
-        v-model.number="modelValue.left"
+        :value="modelValue.left"
         type="number"
         class="form-control spacing-input"
         :placeholder="`${label}左`"
         min="0"
+        @input="handleLeftInput"
+        @change="handleChange"
+        @blur="handleChange"
+        @keydown.enter="handleChange"
       >
     </div>
   </div>
@@ -47,11 +63,52 @@ interface Props {
 
 defineProps<Props>()
 
-// defineModel 自动创建 v-model 绑定，type 自动转换
 const modelValue = defineModel<SpacingValue>({
   required: true,
-  type: Object  // 告诉 Vue 这是一个对象类型
+  type: Object
 })
+
+const emit = defineEmits<{
+  (e: 'update:model-value', value: SpacingValue): void
+  (e: 'change'): void
+}>()
+
+let currentTop = modelValue.value.top
+let currentRight = modelValue.value.right
+let currentBottom = modelValue.value.bottom
+let currentLeft = modelValue.value.left
+
+function handleTopInput(event: Event) {
+  const target = event.target as HTMLInputElement
+  currentTop = parseInt(target.value) || 0
+}
+
+function handleRightInput(event: Event) {
+  const target = event.target as HTMLInputElement
+  currentRight = parseInt(target.value) || 0
+}
+
+function handleBottomInput(event: Event) {
+  const target = event.target as HTMLInputElement
+  currentBottom = parseInt(target.value) || 0
+}
+
+function handleLeftInput(event: Event) {
+  const target = event.target as HTMLInputElement
+  currentLeft = parseInt(target.value) || 0
+}
+
+function handleChange() {
+  const newValue = {
+    top: currentTop,
+    right: currentRight,
+    bottom: currentBottom,
+    left: currentLeft
+  }
+  modelValue.value = newValue
+  emit('update:model-value', newValue)
+  emit('change')
+}
 </script>
 
 <style scoped>

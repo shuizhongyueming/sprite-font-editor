@@ -9,9 +9,20 @@
 </template>
 
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import Toolbar from './components/Toolbar.vue'
 import ControlPanel from './components/ControlPanel.vue'
 import CanvasArea from './components/CanvasArea.vue'
+import { useEditorStore } from '@/stores/editor'
+import { initLocale } from '@/utils/i18n'
+
+const editorStore = useEditorStore()
+
+onMounted(() => {
+  initLocale()
+  editorStore.loadFromLocalStorage()
+  editorStore.restoreAssets()
+})
 </script>
 
 <style>

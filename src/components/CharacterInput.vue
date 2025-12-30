@@ -327,15 +327,13 @@ watch(characterEntries, () => {
 }
 
 .character-scroll-container {
-  overflow-x: auto;
-  overflow-y: hidden;
-  max-width: 100%;
+  overflow: auto;
 }
 
 .character-items {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
-  min-width: max-content;
 }
 
 .character-item {

@@ -252,25 +252,20 @@ export const useEditorStore = defineStore("editor", () => {
     originalImageWidth.value = image.width;
     originalImageHeight.value = image.height;
 
-    // 计算有效的 sprite 尺寸（fontSpriteSize 或 fallback 到原图尺寸）
-    const spriteWidth = effectiveSpriteWidth.value;
-    const spriteHeight = effectiveSpriteHeight.value;
-
-    // 计算缩放比例以适应最大尺寸限制
+    // 缩放计算使用原图尺寸（Canvas 始终显示整张图片）
     let scale = 1;
-    const widthRatio = maxCanvasWidth.value / spriteWidth;
-    const heightRatio = maxCanvasHeight.value / spriteHeight;
+    const widthRatio = maxCanvasWidth.value / image.width;
+    const heightRatio = maxCanvasHeight.value / image.height;
 
-    // 如果 sprite 尺寸超过最大尺寸限制，则按比例缩放
     if (
-      spriteWidth > maxCanvasWidth.value ||
-      spriteHeight > maxCanvasHeight.value
+      image.width > maxCanvasWidth.value ||
+      image.height > maxCanvasHeight.value
     ) {
       scale = Math.min(widthRatio, heightRatio);
     }
 
-    displayedCanvasWidth.value = Math.floor(spriteWidth * scale);
-    displayedCanvasHeight.value = Math.floor(spriteHeight * scale);
+    displayedCanvasWidth.value = Math.floor(image.width * scale);
+    displayedCanvasHeight.value = Math.floor(image.height * scale);
 
     // 保存到 IndexedDB
     if (blob) {

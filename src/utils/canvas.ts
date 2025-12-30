@@ -113,37 +113,49 @@ export class CanvasSpace {
     private cellHeight: number,
     private cellMargin: { top: number; right: number; bottom: number; left: number },
     private imageMargin: { top: number; right: number; bottom: number; left: number },
-    private imagePadding: { top: number; right: number; bottom: number; left: number }
+    private imagePadding: { top: number; right: number; bottom: number; left: number },
+    private fontSpriteWidth?: number,
+    private fontSpriteHeight?: number
   ) {}
 
   /**
    * 获取可用宽度
    */
   get usableWidth(): number {
-    return this.canvasWidth - this.imagePadding.left - this.imagePadding.right
+    const baseWidth = this.canvasWidth - this.imagePadding.left - this.imagePadding.right;
+    if (!this.fontSpriteWidth) return baseWidth;
+    return Math.min(baseWidth, this.fontSpriteWidth - this.imagePadding.left - this.imagePadding.right);
   }
 
   /**
    * 获取可用高度
    */
   get usableHeight(): number {
-    return this.canvasHeight - this.imagePadding.top - this.imagePadding.bottom
+    const baseHeight = this.canvasHeight - this.imagePadding.top - this.imagePadding.bottom;
+    if (!this.fontSpriteHeight) return baseHeight;
+    return Math.min(baseHeight, this.fontSpriteHeight - this.imagePadding.top - this.imagePadding.bottom);
   }
 
   /**
    * 计算列数
    */
   get columns(): number {
-    const cellTotalWidth = this.cellWidth + this.cellMargin.left + this.cellMargin.right
-    return Math.floor((this.usableWidth + this.cellMargin.left + this.cellMargin.right) / cellTotalWidth)
+    const cellTotalWidth = this.cellWidth + this.cellMargin.left + this.cellMargin.right;
+    const startOffset = this.imageMargin.left + this.imagePadding.left;
+    const availableWidth = this.usableWidth - startOffset;
+    if (availableWidth < cellTotalWidth) return 0;
+    return Math.floor((availableWidth - this.cellWidth) / cellTotalWidth) + 1;
   }
 
   /**
    * 计算行数
    */
   get rows(): number {
-    const cellTotalHeight = this.cellHeight + this.cellMargin.top + this.cellMargin.bottom
-    return Math.floor((this.usableHeight + this.cellMargin.top + this.cellMargin.bottom) / cellTotalHeight)
+    const cellTotalHeight = this.cellHeight + this.cellMargin.top + this.cellMargin.bottom;
+    const startOffset = this.imageMargin.top + this.imagePadding.top;
+    const availableHeight = this.usableHeight - startOffset;
+    if (availableHeight < cellTotalHeight) return 0;
+    return Math.floor((availableHeight - this.cellHeight) / cellTotalHeight) + 1;
   }
 
   /**

@@ -190,7 +190,9 @@ const canvasSpace = computed(() => {
     cellConfig.value.height,
     cellConfig.value.margin,
     imageConfig.value.margin,
-    imageConfig.value.padding
+    imageConfig.value.padding,
+    editorStore.baseImageConfig.fontSpriteWidth || undefined,
+    editorStore.baseImageConfig.fontSpriteHeight || undefined
   )
 })
 
@@ -223,6 +225,7 @@ const gridCells = computed(() => {
     }
   }
 
+  console.log('gridCells: ', cells);
   return cells
 })
 
@@ -298,6 +301,7 @@ const highlightedCells = computed(() => {
     }
   }
 
+  console.log('highlighted cells:', cells);
   return cells
 })
 
@@ -364,8 +368,8 @@ function handleResize() {
   const maxSize = computeMaxCanvasSize(
     containerMaxSize.value.width,
     containerMaxSize.value.height,
-    editorStore.effectiveSpriteWidth,
-    editorStore.effectiveSpriteHeight
+    editorStore.originalImageWidth,
+    editorStore.originalImageHeight
   )
 
   editorStore.maxCanvasWidth = maxSize.width
@@ -381,12 +385,12 @@ watch(() => editorStore.baseImage, async (newImage) => {
   await nextTick()
 
   if (newImage && canvasLayer.value) {
-    if (canvasArea.value && editorStore.effectiveSpriteWidth && editorStore.effectiveSpriteHeight) {
+    if (canvasArea.value && editorStore.originalImageWidth && editorStore.originalImageHeight) {
       const maxSize = computeMaxCanvasSize(
         canvasArea.value.clientWidth,
         canvasArea.value.clientHeight,
-        editorStore.effectiveSpriteWidth,
-        editorStore.effectiveSpriteHeight
+        editorStore.originalImageWidth,
+        editorStore.originalImageHeight
       )
 
       editorStore.maxCanvasWidth = maxSize.width
@@ -586,23 +590,16 @@ function renderCharacters() {
     const baseCell = editorStore.baseCellConfig
     const baseImage = editorStore.baseImageConfig
 
-    // 使用有效的 sprite 尺寸计算列数
-    const effectiveSpriteWidth = editorStore.effectiveSpriteWidth
-    const effectiveSpriteHeight = editorStore.effectiveSpriteHeight
+    // 使用 canvasSpace 的行列数（已经考虑了 fontSpriteSize）
+    if (!canvasSpace.value) return
+    const cols = canvasSpace.value.columns
+    const rows = canvasSpace.value.rows
 
     // 使用 base 配置计算位置
     const cellTotalWidth = baseCell.width + baseCell.margin.left + baseCell.margin.right
     const cellTotalHeight = baseCell.height + baseCell.margin.top + baseCell.margin.bottom
     const startX = baseImage.margin.left + baseImage.padding.left + baseCell.margin.left
     const startY = baseImage.margin.top + baseImage.padding.top + baseCell.margin.top
-
-    const cols = Math.floor(
-      (effectiveSpriteWidth - baseImage.padding.left - baseImage.padding.right) / cellTotalWidth
-    )
-
-    const rows = Math.floor(
-      (effectiveSpriteHeight - baseImage.padding.top - baseImage.padding.bottom) / cellTotalHeight
-    )
 
     const startIndex = editorStore.insertPointConfig.startCellIndex || 0
     if (startIndex === undefined) return

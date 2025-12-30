@@ -213,6 +213,10 @@ const gridCells = computed(() => {
         index,
         row,
         col,
+        x: position.x,
+        y: position.y,
+        width: cellConfig.value.width,
+        height: cellConfig.value.height,
         style: {
           left: `${position.x}px`,
           top: `${position.y}px`,
@@ -226,7 +230,6 @@ const gridCells = computed(() => {
     }
   }
 
-  console.log('gridCells: ', cells);
   return cells
 })
 
@@ -628,42 +631,29 @@ function renderCharacters() {
 
     const scale = editorStore.canvasScale
     const baseCell = editorStore.baseCellConfig
-    const baseImage = editorStore.baseImageConfig
-
-    // 使用 canvasSpace 的行列数（已经考虑了 fontSpriteSize）
-    if (!canvasSpace.value) return
-    const cols = canvasSpace.value.columns
-    const rows = canvasSpace.value.rows
-
-    // 使用 base 配置计算位置
-    const cellTotalWidth = baseCell.width + baseCell.margin.left + baseCell.margin.right
-    const cellTotalHeight = baseCell.height + baseCell.margin.top + baseCell.margin.bottom
-    const startX = baseImage.margin.left + baseImage.padding.left + baseCell.margin.left
-    const startY = baseImage.margin.top + baseImage.padding.top + baseCell.margin.top
 
     const startIndex = editorStore.insertPointConfig.startCellIndex || 0
     if (startIndex === undefined) return
 
-    let currentIndex = startIndex
+    for (let i = 0; i < editorStore.characterEntries.length; i++) {
+      const cell = gridCells.value[startIndex + i]
+      if (!cell) break
 
-    for (const charEntry of editorStore.characterEntries) {
-      if (currentIndex >= cols * rows) break
+      const charEntry = editorStore.characterEntries[i]
 
-      const row = Math.floor((currentIndex - startIndex) / cols) + Math.floor(startIndex / cols)
-      const col = (currentIndex - startIndex) % cols + (startIndex % cols)
+      // gridCells 是显示尺寸，需要转换为原始尺寸
+      const baseX = cell.x / scale
+      const baseY = cell.y / scale
+      const baseWidth = cell.width / scale
+      const baseHeight = cell.height / scale
 
-      // 计算位置（原始尺寸）
-      const baseX = startX + col * cellTotalWidth
-      const baseY = startY + row * cellTotalHeight
-
-      // 使用原始 fontSize，渲染后缩放绘制
       renderCharacterToCellScaled(
         charEntry.char,
         ctx,
         baseX,
         baseY,
-        baseCell.width,
-        baseCell.height,
+        baseWidth,
+        baseHeight,
         scale,
         charEntry.margin || { top: 0, right: 0, bottom: 0, left: 0 },
         baseCell.padding,
@@ -675,8 +665,6 @@ function renderCharacters() {
           alignment: editorStore.cellAlignment,
         }
       )
-
-      currentIndex++
     }
   } catch (error) {
     console.error('Failed to render characters:', error)

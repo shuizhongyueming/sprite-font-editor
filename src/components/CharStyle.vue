@@ -50,6 +50,20 @@
         </label>
       </div>
     </div>
+
+    <div class="form-group">
+      <div class="checkbox-group">
+        <label class="checkbox-label">
+          <input
+            v-model="characterStyle.pixelStyle"
+            type="checkbox"
+            @change="saveConfig"
+          >
+          <span class="checkmark" />
+          {{ t('pixelStyle') }}
+        </label>
+      </div>
+    </div>
     
     <div
       v-if="characterStyle.outline.enabled"

@@ -98,6 +98,7 @@ export interface GlobalCharacterStyle {
     color: string;
     width: number;
   };
+  pixelStyle: boolean;
 }
 
 export interface CharacterEntry {
@@ -223,6 +224,7 @@ export const useEditorStore = defineStore("editor", () => {
       color: "#ffffff",
       width: 1,
     },
+    pixelStyle: false,
   });
 
   // 插入点配置
@@ -616,6 +618,7 @@ export const useEditorStore = defineStore("editor", () => {
         color: "#ffffff",
         width: 1,
       },
+      pixelStyle: false,
     };
     insertPointConfig.value = {
       mode: "auto",
@@ -651,6 +654,7 @@ export const useEditorStore = defineStore("editor", () => {
 
     const result = detectGridFast(baseImage.value, {
       margin: baseImageConfig.value.margin,
+      padding: baseImageConfig.value.padding,
       fontSpriteWidth: baseImageConfig.value.fontSpriteWidth,
       fontSpriteHeight: baseImageConfig.value.fontSpriteHeight,
     });

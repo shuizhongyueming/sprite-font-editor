@@ -301,6 +301,7 @@ export function detectGridFast(
   originalImage: HTMLImageElement,
   imageConfig?: {
     margin: { top: number; right: number; bottom: number; left: number };
+    padding?: { top: number; right: number; bottom: number; left: number };
     fontSpriteWidth?: number;
     fontSpriteHeight?: number;
   },

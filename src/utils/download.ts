@@ -96,6 +96,7 @@ export async function exportWithOriginalSize(
     fontSize: number;
     color: string;
     outline: { enabled: boolean; color: string; width: number };
+    pixelStyle: boolean;
   },
   cellAlignment: {
     horizontal: "left" | "center" | "right";
@@ -193,6 +194,7 @@ export async function exportWithOriginalSize(
           outline: characterStyle.outline,
           alignment: cellAlignment,
         },
+        characterStyle.pixelStyle,
       );
 
       currentIndex++;

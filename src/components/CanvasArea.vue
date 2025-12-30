@@ -663,7 +663,8 @@ function renderCharacters() {
           color: editorStore.characterStyle.color,
           outline: editorStore.characterStyle.outline,
           alignment: editorStore.cellAlignment,
-        }
+        },
+        editorStore.characterStyle.pixelStyle,
       )
     }
   } catch (error) {

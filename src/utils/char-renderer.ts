@@ -258,9 +258,19 @@ export function drawCharacterToCanvas(
   dy: number,
   dw: number,
   dh: number,
+  pixelStyle: boolean = false,
 ): void {
   if (!charCanvas || !targetCtx) return;
+
+  if (pixelStyle) {
+    targetCtx.imageSmoothingEnabled = false;
+  }
+
   targetCtx.drawImage(charCanvas, sx, sy, sw, sh, dx, dy, dw, dh);
+
+  if (pixelStyle) {
+    targetCtx.imageSmoothingEnabled = true;
+  }
 }
 
 /**
@@ -280,6 +290,7 @@ export function renderCharacterToCell(
     RenderCharacterOptions,
     "text" | "contentWidth" | "contentHeight"
   >,
+  pixelStyle: boolean = false,
 ): void {
   const contentWidth = cellWidth - cellPadding.left - cellPadding.right;
   const contentHeight = cellHeight - cellPadding.top - cellPadding.bottom;
@@ -321,6 +332,7 @@ export function renderCharacterToCell(
     targetY,
     renderSize.width,
     renderSize.height,
+    pixelStyle,
   );
 }
 
@@ -342,6 +354,7 @@ export function renderCharacterToCellScaled(
     RenderCharacterOptions,
     "text" | "contentWidth" | "contentHeight"
   >,
+  pixelStyle: boolean = false,
 ): void {
   // 目标尺寸（缩放后）
   const targetX = baseCellX * renderScale;
@@ -392,5 +405,6 @@ export function renderCharacterToCellScaled(
     targetY + baseTargetY * renderScale,
     renderSize.width * renderScale,
     renderSize.height * renderScale,
+    pixelStyle,
   );
 }

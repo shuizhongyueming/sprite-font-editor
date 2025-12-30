@@ -58,6 +58,7 @@ export interface Translations {
   outlineWidth: string;
   fontNotLoaded: string;
   fontLoaded: string;
+  pixelStyle: string;
 
   // CharacterInput
   inputText: string;
@@ -181,6 +182,7 @@ export const translations: Record<Locale, Translations> = {
     outlineWidth: "描边宽度",
     fontNotLoaded: "未加载",
     fontLoaded: "已加载",
+    pixelStyle: "像素风",
 
     // CharacterInput
     inputText: "输入文字",
@@ -303,6 +305,7 @@ export const translations: Record<Locale, Translations> = {
     outlineWidth: "Outline Width",
     fontNotLoaded: "Not Loaded",
     fontLoaded: "Loaded",
+    pixelStyle: "Pixel Style",
 
     // CharacterInput
     inputText: "Input Text",

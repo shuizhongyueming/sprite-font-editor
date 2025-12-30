@@ -41,9 +41,15 @@
             class="form-control"
             @change="saveConfig"
           >
-            <option value="left">{{ t('leftAlign') }}</option>
-            <option value="center">{{ t('centerAlign') }}</option>
-            <option value="right">{{ t('rightAlign') }}</option>
+            <option value="left">
+              {{ t('leftAlign') }}
+            </option>
+            <option value="center">
+              {{ t('centerAlign') }}
+            </option>
+            <option value="right">
+              {{ t('rightAlign') }}
+            </option>
           </select>
         </div>
         <div class="control-item">
@@ -53,9 +59,15 @@
             class="form-control"
             @change="saveConfig"
           >
-            <option value="top">{{ t('topAlign') }}</option>
-            <option value="middle">{{ t('middleAlign') }}</option>
-            <option value="bottom">{{ t('bottomAlign') }}</option>
+            <option value="top">
+              {{ t('topAlign') }}
+            </option>
+            <option value="middle">
+              {{ t('middleAlign') }}
+            </option>
+            <option value="bottom">
+              {{ t('bottomAlign') }}
+            </option>
           </select>
         </div>
       </div>

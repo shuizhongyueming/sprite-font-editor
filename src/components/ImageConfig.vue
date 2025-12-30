@@ -1,6 +1,32 @@
 <template>
   <div class="image-config">
     <div class="form-group">
+      <label>{{ t('fontSpriteSize') }}</label>
+      <div class="size-inputs">
+        <div class="size-input-group">
+          <label>{{ t('width') }}</label>
+          <input
+            type="number"
+            :value="editorStore.baseImageConfig.fontSpriteWidth || ''"
+            :placeholder="String(editorStore.originalImageWidth || '')"
+            min="1"
+            @input="updateFontSpriteWidth"
+          >
+        </div>
+        <div class="size-input-group">
+          <label>{{ t('height') }}</label>
+          <input
+            type="number"
+            :value="editorStore.baseImageConfig.fontSpriteHeight || ''"
+            :placeholder="String(editorStore.originalImageHeight || '')"
+            min="1"
+            @input="updateFontSpriteHeight"
+          >
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group">
       <label>{{ t('imageMargin') }}</label>
       <SpacingInput
         :model-value="editorStore.baseImageConfig.margin"
@@ -26,6 +52,18 @@ import SpacingInput from './SpacingInput.vue'
 import { t } from '@/utils/i18n'
 
 const editorStore = useEditorStore()
+
+function updateFontSpriteWidth(event: Event) {
+  const value = parseInt((event.target as HTMLInputElement).value) || 0;
+  editorStore.baseImageConfig.fontSpriteWidth = value || undefined;
+  editorStore.saveToLocalStorage();
+}
+
+function updateFontSpriteHeight(event: Event) {
+  const value = parseInt((event.target as HTMLInputElement).value) || 0;
+  editorStore.baseImageConfig.fontSpriteHeight = value || undefined;
+  editorStore.saveToLocalStorage();
+}
 
 // 直接更新基础配置（整数像素值）
 function updateMargin(margin: { top: number; right: number; bottom: number; left: number }) {
@@ -62,6 +100,30 @@ function updatePadding(padding: { top: number; right: number; bottom: number; le
   font-weight: 500;
   font-size: 0.875rem;
   color: #495057;
+}
+
+.size-inputs {
+  display: flex;
+  gap: 1rem;
+}
+
+.size-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.size-input-group label {
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+.size-input-group input {
+  padding: 0.375rem 0.75rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.875rem;
 }
 
 .form-control {

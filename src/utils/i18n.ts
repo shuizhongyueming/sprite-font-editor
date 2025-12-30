@@ -22,6 +22,7 @@ export interface Translations {
   bgCheckerboard: string;
 
   // ImageConfig
+  fontSpriteSize: string;
   imageMargin: string;
   imagePadding: string;
 
@@ -144,6 +145,7 @@ export const translations: Record<Locale, Translations> = {
     bgCheckerboard: "棋盘",
 
     // ImageConfig
+    fontSpriteSize: "Font Sprite 尺寸",
     imageMargin: "外边距 (margin)",
     imagePadding: "内边距 (padding)",
 
@@ -265,6 +267,7 @@ export const translations: Record<Locale, Translations> = {
     bgCheckerboard: "Checkerboard",
 
     // ImageConfig
+    fontSpriteSize: "Font Sprite Size",
     imageMargin: "Margin",
     imagePadding: "Padding",
 

@@ -364,8 +364,8 @@ function handleResize() {
   const maxSize = computeMaxCanvasSize(
     containerMaxSize.value.width,
     containerMaxSize.value.height,
-    editorStore.originalImageWidth,
-    editorStore.originalImageHeight
+    editorStore.effectiveSpriteWidth,
+    editorStore.effectiveSpriteHeight
   )
 
   editorStore.maxCanvasWidth = maxSize.width
@@ -381,12 +381,12 @@ watch(() => editorStore.baseImage, async (newImage) => {
   await nextTick()
 
   if (newImage && canvasLayer.value) {
-    if (canvasArea.value && editorStore.originalImageWidth && editorStore.originalImageHeight) {
+    if (canvasArea.value && editorStore.effectiveSpriteWidth && editorStore.effectiveSpriteHeight) {
       const maxSize = computeMaxCanvasSize(
         canvasArea.value.clientWidth,
         canvasArea.value.clientHeight,
-        editorStore.originalImageWidth,
-        editorStore.originalImageHeight
+        editorStore.effectiveSpriteWidth,
+        editorStore.effectiveSpriteHeight
       )
 
       editorStore.maxCanvasWidth = maxSize.width
@@ -586,6 +586,10 @@ function renderCharacters() {
     const baseCell = editorStore.baseCellConfig
     const baseImage = editorStore.baseImageConfig
 
+    // 使用有效的 sprite 尺寸计算列数
+    const effectiveSpriteWidth = editorStore.effectiveSpriteWidth
+    const effectiveSpriteHeight = editorStore.effectiveSpriteHeight
+
     // 使用 base 配置计算位置
     const cellTotalWidth = baseCell.width + baseCell.margin.left + baseCell.margin.right
     const cellTotalHeight = baseCell.height + baseCell.margin.top + baseCell.margin.bottom
@@ -593,7 +597,11 @@ function renderCharacters() {
     const startY = baseImage.margin.top + baseImage.padding.top + baseCell.margin.top
 
     const cols = Math.floor(
-      (editorStore.originalImageWidth - baseImage.padding.left - baseImage.padding.right) / cellTotalWidth
+      (effectiveSpriteWidth - baseImage.padding.left - baseImage.padding.right) / cellTotalWidth
+    )
+
+    const rows = Math.floor(
+      (effectiveSpriteHeight - baseImage.padding.top - baseImage.padding.bottom) / cellTotalHeight
     )
 
     const startIndex = editorStore.insertPointConfig.startCellIndex || 0
@@ -602,7 +610,7 @@ function renderCharacters() {
     let currentIndex = startIndex
 
     for (const charEntry of editorStore.characterEntries) {
-      if (currentIndex >= cols * 100) break
+      if (currentIndex >= cols * rows) break
 
       const row = Math.floor((currentIndex - startIndex) / cols) + Math.floor(startIndex / cols)
       const col = (currentIndex - startIndex) % cols + (startIndex % cols)

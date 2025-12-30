@@ -36,6 +36,8 @@ export interface BaseImageConfig {
     bottom: number;
     left: number;
   };
+  fontSpriteWidth?: number;
+  fontSpriteHeight?: number;
 }
 
 // 显示用的配置（基于当前 canvas 尺寸，用于 UI 渲染）
@@ -116,6 +118,20 @@ export const useEditorStore = defineStore("editor", () => {
   const baseImageConfig = ref<BaseImageConfig>({
     margin: { top: 0, right: 0, bottom: 0, left: 0 },
     padding: { top: 0, right: 0, bottom: 0, left: 0 },
+    fontSpriteWidth: undefined,
+    fontSpriteHeight: undefined,
+  });
+
+  const effectiveSpriteWidth = computed(() => {
+    return (
+      baseImageConfig.value.fontSpriteWidth || originalImageWidth.value || 0
+    );
+  });
+
+  const effectiveSpriteHeight = computed(() => {
+    return (
+      baseImageConfig.value.fontSpriteHeight || originalImageHeight.value || 0
+    );
   });
 
   // 计算当前缩放比例
@@ -236,21 +252,25 @@ export const useEditorStore = defineStore("editor", () => {
     originalImageWidth.value = image.width;
     originalImageHeight.value = image.height;
 
+    // 计算有效的 sprite 尺寸（fontSpriteSize 或 fallback 到原图尺寸）
+    const spriteWidth = effectiveSpriteWidth.value;
+    const spriteHeight = effectiveSpriteHeight.value;
+
     // 计算缩放比例以适应最大尺寸限制
     let scale = 1;
-    const widthRatio = maxCanvasWidth.value / image.width;
-    const heightRatio = maxCanvasHeight.value / image.height;
+    const widthRatio = maxCanvasWidth.value / spriteWidth;
+    const heightRatio = maxCanvasHeight.value / spriteHeight;
 
-    // 如果图片超过最大尺寸限制，则按比例缩放
+    // 如果 sprite 尺寸超过最大尺寸限制，则按比例缩放
     if (
-      image.width > maxCanvasWidth.value ||
-      image.height > maxCanvasHeight.value
+      spriteWidth > maxCanvasWidth.value ||
+      spriteHeight > maxCanvasHeight.value
     ) {
       scale = Math.min(widthRatio, heightRatio);
     }
 
-    displayedCanvasWidth.value = Math.floor(image.width * scale);
-    displayedCanvasHeight.value = Math.floor(image.height * scale);
+    displayedCanvasWidth.value = Math.floor(spriteWidth * scale);
+    displayedCanvasHeight.value = Math.floor(spriteHeight * scale);
 
     // 保存到 IndexedDB
     if (blob) {
@@ -552,6 +572,8 @@ export const useEditorStore = defineStore("editor", () => {
     baseImageConfig.value = {
       margin: { top: 0, right: 0, bottom: 0, left: 0 },
       padding: { top: 0, right: 0, bottom: 0, left: 0 },
+      fontSpriteWidth: undefined,
+      fontSpriteHeight: undefined,
     };
     cellAlignment.value = {
       horizontal: "center",
@@ -599,7 +621,11 @@ export const useEditorStore = defineStore("editor", () => {
       return;
     }
 
-    const result = detectGridFast(baseImage.value);
+    const result = detectGridFast(baseImage.value, {
+      margin: baseImageConfig.value.margin,
+      fontSpriteWidth: baseImageConfig.value.fontSpriteWidth,
+      fontSpriteHeight: baseImageConfig.value.fontSpriteHeight,
+    });
 
     if (!result) {
       notify.warning(t("gridDetectionFailed"));
@@ -664,6 +690,8 @@ export const useEditorStore = defineStore("editor", () => {
     canvasHeight: displayedCanvasHeight,
     originalImageWidth,
     originalImageHeight,
+    effectiveSpriteWidth,
+    effectiveSpriteHeight,
     maxCanvasWidth,
     maxCanvasHeight,
     currentFont,

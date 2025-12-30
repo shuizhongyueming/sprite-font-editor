@@ -24,8 +24,8 @@
             :key="index"
             class="character-item"
             :class="{ active: editorStore.selectedCharIndex === index }"
-            @click="selectCharacter(index)"
             :title="`${t('clickToHighlight')}: ${entry.char}`"
+            @click="selectCharacter(index)"
           >
             <span class="character-char">{{ entry.char }}</span>
             <span class="character-index">{{ index + 1 }}</span>
@@ -49,7 +49,9 @@
                   class="margin-value"
                   :style="{ left: `${entry.margin.left}px` }"
                 >{{ entry.margin.left }}</span>
-                <div class="char-box">{{ entry.char }}</div>
+                <div class="char-box">
+                  {{ entry.char }}
+                </div>
               </div>
             </div>
           </div>

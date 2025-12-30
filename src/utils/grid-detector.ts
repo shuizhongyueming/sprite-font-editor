@@ -153,6 +153,7 @@ function calculateGaps(
  * 3. 第二条透明线的起始位置 - 第一条透明线的起始位置 = 单元格尺寸
  *
  * @param canvas Canvas 元素
+ * @param userPadding 用户配置的 padding（会累加到检测到的 padding 上）
  * @returns 检测结果
  */
 export function detectGrid(
@@ -169,6 +170,7 @@ export function detectGrid(
 
   // 计算全图的投影
   const { rowAlpha, colAlpha } = getAlphaProjection(imageData);
+  console.log({ rowAlpha, colAlpha });
 
   // 找到透明行和透明列
   const transparentRows = findTransparentRegions(rowAlpha);
@@ -178,15 +180,31 @@ export function detectGrid(
     `[GridDetector] 全图透明行: ${transparentRows.length}, 透明列: ${transparentCols.length}`,
   );
 
-  if (transparentRows.length < 3 || transparentCols.length < 3) {
-    console.warn("[GridDetector] 透明区域不足以推断网格，至少需要3条透明线");
+  let cellWidth = 0;
+  let cellHeight = 0;
+  if (transparentRows.length <= 1) {
+    console.warn(
+      "[GridDetector] Row 透明区域不足以推断网格，至少需要3条透明线",
+    );
     return null;
+  } else if (transparentRows.length === 2) {
+    cellHeight = transparentRows[1].end - transparentRows[0].end;
+  } else {
+    // 计算单元格尺寸（不包含分隔线）
+    // 使用第2、3条透明线计算，避免第1条可能包含 padding
+    cellHeight = transparentRows[2].end - transparentRows[1].end;
   }
 
-  // 计算单元格尺寸（不包含分隔线）
-  // 使用第2、3条透明线计算，避免第1条可能包含 padding
-  const cellHeight = transparentRows[2].end - transparentRows[1].end;
-  const cellWidth = transparentCols[2].end - transparentCols[1].end;
+  if (transparentCols.length <= 1) {
+    console.warn(
+      "[GridDetector] Column 透明区域不足以推断网格，至少需要3条透明线",
+    );
+    return null;
+  } else if (transparentCols.length === 2) {
+    cellWidth = transparentCols[1].end - transparentCols[0].end;
+  } else {
+    cellWidth = transparentCols[2].end - transparentCols[1].end;
+  }
 
   if (cellWidth <= 0 || cellHeight <= 0) {
     console.warn("[GridDetector] 计算出的单元格尺寸无效");
@@ -199,15 +217,28 @@ export function detectGrid(
   const firstRowContainsPadding = transparentRows[0].start === 0;
   const firstColContainsPadding = transparentCols[0].start === 0;
 
-  // 目前我们自动识别网格的模式就是默认文字是在网格左上角对齐的
-  const paddingTop = firstRowContainsPadding ? transparentRows[0].end + 1 : 0;
-  const paddingLeft = firstColContainsPadding ? transparentCols[0].end + 1 : 0;
+  // 只检测 top 和 left（基于透明区域）
+  const detectedPaddingTop = firstRowContainsPadding
+    ? transparentRows[0].end + 1
+    : 0;
+  const detectedPaddingLeft = firstColContainsPadding
+    ? transparentCols[0].end + 1
+    : 0;
+
+  // 最终 padding = 检测到的 + 用户设置的
+  const padding = {
+    top: detectedPaddingTop,
+    left: detectedPaddingLeft,
+    right: 0,
+    bottom: 0,
+  };
 
   console.log({
     cellWidth,
     cellHeight,
-    paddingTop,
-    paddingLeft,
+    detectedPaddingTop,
+    detectedPaddingLeft,
+    finalPadding: padding,
     firstRowContainsPadding,
     firstColContainsPadding,
     transparentCols,
@@ -244,18 +275,11 @@ export function detectGrid(
   }
 
   console.log(
-    `[GridDetector] 检测结果: 单元格=${cellWidth}x${cellHeight}, 网格=${rows}行×${cols}列, padding=(${paddingTop}, ${paddingLeft}), 置信度=${(confidence * 100).toFixed(1)}%`,
+    `[GridDetector] 检测结果: 单元格=${cellWidth}x${cellHeight}, 网格=${rows}行×${cols}列, padding=(${padding.top}, ${padding.left}, ${padding.right}, ${padding.bottom}), 置信度=${(confidence * 100).toFixed(1)}%`,
   );
 
   // margin 设为 0，由用户自行调整
   const margin = { top: 0, right: 0, bottom: 0, left: 0 };
-  // padding 直接使用检测到的值
-  const padding = {
-    top: paddingTop,
-    right: paddingTop,
-    bottom: paddingTop,
-    left: paddingLeft,
-  };
 
   return {
     cellWidth,
@@ -269,56 +293,66 @@ export function detectGrid(
 }
 
 /**
- * 对图片进行降采样（使用最近邻插值）
- */
-function downsampleImage(
-  imageData: ImageData,
-  targetWidth: number,
-  targetHeight: number,
-): ImageData {
-  const srcWidth = imageData.width;
-  const srcHeight = imageData.height;
-  const srcData = imageData.data;
-  const dstData = new Uint8ClampedArray(targetWidth * targetHeight * 4);
-
-  const xRatio = srcWidth / targetWidth;
-  const yRatio = srcHeight / targetHeight;
-
-  for (let dy = 0; dy < targetHeight; dy++) {
-    for (let dx = 0; dx < targetWidth; dx++) {
-      const sx = Math.floor(dx * xRatio);
-      const sy = Math.floor(dy * yRatio);
-
-      const srcIndex = (sy * srcWidth + sx) * 4;
-      const dstIndex = (dy * targetWidth + dx) * 4;
-
-      dstData[dstIndex] = srcData[srcIndex];
-      dstData[dstIndex + 1] = srcData[srcIndex + 1];
-      dstData[dstIndex + 2] = srcData[srcIndex + 2];
-      dstData[dstIndex + 3] = srcData[srcIndex + 3];
-    }
-  }
-
-  return new ImageData(dstData, targetWidth, targetHeight);
-}
-
-/**
- * 检测网格结构（使用原图）
- * 适用于一般尺寸的精灵字体图片
+ * 检测网格结构（支持裁剪区域）
+ * @param originalImage 原始图片
+ * @param imageConfig 图片配置（包含 margin、padding 和 font sprite 尺寸）
  */
 export function detectGridFast(
   originalImage: HTMLImageElement,
+  imageConfig?: {
+    margin: { top: number; right: number; bottom: number; left: number };
+    fontSpriteWidth?: number;
+    fontSpriteHeight?: number;
+  },
 ): GridDetectionResult | null {
-  // 创建使用原图尺寸的 canvas
+  // 创建 canvas
   const canvas = document.createElement("canvas");
-  canvas.width = originalImage.width;
-  canvas.height = originalImage.height;
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
 
-  // 绘制原图
-  ctx.drawImage(originalImage, 0, 0);
+  // 计算裁剪区域
+  const cropX = imageConfig?.margin.left || 0;
+  const cropY = imageConfig?.margin.top || 0;
 
-  // 在原图上检测
+  // 确定裁剪区域的宽高
+  let cropWidth = originalImage.width;
+  let cropHeight = originalImage.height;
+
+  if (imageConfig?.fontSpriteWidth && imageConfig?.fontSpriteHeight) {
+    // 如果有明确的 font sprite 尺寸，使用该尺寸
+    cropWidth = imageConfig.fontSpriteWidth;
+    cropHeight = imageConfig.fontSpriteHeight;
+  } else {
+    // 否则使用原图尺寸减去 margin
+    cropWidth =
+      originalImage.width -
+      (imageConfig?.margin.left || 0) -
+      (imageConfig?.margin.right || 0);
+    cropHeight =
+      originalImage.height -
+      (imageConfig?.margin.top || 0) -
+      (imageConfig?.margin.bottom || 0);
+  }
+
+  console.log({ cropX, cropY, cropWidth, cropHeight });
+
+  // 设置 canvas 尺寸为裁剪区域尺寸
+  canvas.width = cropWidth;
+  canvas.height = cropHeight;
+
+  // 裁剪并绘制图片
+  ctx.drawImage(
+    originalImage,
+    cropX,
+    cropY,
+    cropWidth,
+    cropHeight,
+    0,
+    0,
+    cropWidth,
+    cropHeight,
+  );
+
+  // 在裁剪后的图片上检测网格，传入用户配置的 padding
   return detectGrid(canvas);
 }

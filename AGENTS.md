@@ -1,57 +1,185 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance for agentic coding agents operating in this repository.
 
-## 项目概述
-Sprite Font Editor - 一个基于 Vue 3 的精灵字体编辑器。上传字体文件和底图，将字符渲染到单元格并导出为 PNG 图片。
+## Project Overview
 
-## 常用命令
+Sprite Font Editor - A Vue 3 based sprite font editor. Upload font files and base images, render characters to cells, and export as PNG images.
+
+## Build Commands
+
 ```bash
-npm run dev          # 启动开发服务器 (端口 3000)
-npm run build        # TypeScript 类型检查 + 生产构建
-npm run lint         # ESLint 自动修复
-npm run test         # 运行 vitest 单元测试
-npm run test:run     # 运行测试一次（CI 环境）
+npm run dev              # Start dev server (port 3000)
+npm run build            # TypeScript type check + production build
+npm run lint             # ESLint auto-fix
+npm run test             # Run vitest tests (watch mode)
+npm run test:run         # Run tests once (CI environment)
+npm run test:ui          # Run tests with UI
+npm run preview          # Preview production build
 ```
 
-## 架构设计
+**Running a single test:**
+```bash
+# Run specific test file
+npx vitest run src/test/canvas.test.ts
 
-### 双层 Canvas 架构
-- **Canvas 层** (底层): `CanvasArea.vue` 通过 `<canvas>` 元素渲染底图和字符
-- **UI 层** (顶层): DOM 覆盖层渲染网格、高亮、标尺 - 不涉及 Canvas 操作
-- 分离设计确保性能的同时保持视觉反馈的精确性
+# Run test with matching name
+npx vitest run -t "detectGridFast"
+```
 
-### 核心状态管理 (Pinia)
-`src/stores/editor.ts` 中管理所有状态：
-- `imageConfig`: 底图的边距和内边距
-- `cellConfig`: 网格单元格的尺寸和间距
-- `characterEntries`: 已渲染字符数组，格式为 `{ char, margin }`
-- `insertPointConfig`: `{ mode: 'auto' | 'manual', startCellIndex }`
-- `baseImage`: 上传的底图（设置时触发自动缩放）
+## Code Style Guidelines
 
-### 核心工具类
-- **`CanvasSpace`** (`src/utils/canvas.ts`): 单元格与网格坐标转换工具。关键方法：`indexToRowCol`、`rowColToIndex`、`getCellPosition`、`positionToCell`
-- **`renderCharacterToCell`** (`src/utils/char-renderer.ts`): 离屏 Canvas 渲染，支持 object-fit 缩放、对齐方式和描边效果
+### Imports
 
-### 渲染流程
-1. 用户上传底图 → `editorStore.setBaseImage()` → 自动缩放以适应容器
-2. 用户配置网格 (`cellConfig`) 和字符位置
-3. `CanvasArea.vue` 绘制底图，然后通过 `renderCharacterToCell()` 渲染字符
-4. 网格和高亮效果使用 DOM 元素（非 Canvas）以提升性能
+- Use absolute imports with `@/` alias for src root
+- Group imports: external libs → @/ utils → local components
+- Vue imports: use named imports from 'vue'
 
-### 插入点检测
-- **自动模式**: `detectInsertPoints()` 扫描 Canvas 像素寻找空单元格（基于 alpha 透明度阈值）
-- **手动模式**: 用户点击单元格设置起始位置
-- 字符渲染从 `characterEntries` 中的 `startCellIndex` 开始按顺序渲染
-
-## TypeScript 接口定义
 ```typescript
-interface CellConfig { width, height, margin, padding }
-interface CharacterEntry { char, margin }
-interface InsertPointConfig { mode, startCellIndex }
+import { ref, computed, watch } from 'vue'
+import { useEditorStore } from '@/stores/editor'
+import { CanvasSpace } from '@/utils/canvas'
+import { notify } from '@/utils/notification'
+import Ruler from './Ruler.vue'
 ```
 
-## 文件处理
-- 字体文件: 使用 `FontFace` API，通过 `src/utils/file.ts` 处理
-- 图片文件: `FileReader` → `Image` 对象 → `canvas.drawImage()`
-- Object URLs 使用后应及时释放
+### TypeScript
+
+- Enable `strict: true` (inferred from project config)
+- Use interfaces for object shapes, types for unions/primitives
+- Export all interfaces used across modules
+- Use optional properties with `?` when appropriate
+- Avoid `any`; use `unknown` for truly unknown types
+
+```typescript
+export interface CellConfig {
+  width: number;
+  height: number;
+  margin: { top: number; right: number; bottom: number; left: number };
+  padding: { top: number; right: number; bottom: number; left: number };
+}
+
+export interface GridCellInfo {
+  index: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+```
+
+### Naming Conventions
+
+- **Files**: kebab-case for components (`CanvasArea.vue`), camelCase for utils (`char-renderer.ts`)
+- **Variables/Functions**: camelCase (`baseCellConfig`, `renderCharacterToCell`)
+- **Interfaces/Types**: PascalCase (`CellConfig`, `GridCellInfo`)
+- **Constants**: SCREAMING_SNAKE_CASE for config objects, camelCase for values
+- **Vue Components**: PascalCase in code, kebab-case in templates
+- **Refs**: suffixed with type or `ref` (e.g., `canvasLayer ref<HTMLCanvasElement>()`)
+
+### Vue Component Structure
+
+```vue
+<template>
+  <!-- Full template first -->
+</template>
+
+<script setup lang="ts">
+// Imports
+// Types/Interfaces
+// Constants
+// Component refs
+// Computed properties
+// Watchers
+// Lifecycle hooks
+// Methods
+// Expose
+</script>
+
+<style scoped>
+/* Scoped CSS */
+</style>
+```
+
+### CSS/Styling
+
+- Use scoped CSS in Vue components
+- BEM-like naming: `.block`, `.block__element`, `.block--modifier`
+- Use CSS variables for theming when appropriate
+- Avoid inline styles except for dynamic values
+
+```scss
+.canvas-container {
+  position: relative;
+  
+  &__header {
+    font-weight: 500;
+  }
+  
+  &--active {
+    border-color: #007bff;
+  }
+}
+```
+
+### Error Handling
+
+- Use `try/catch` with specific error handling
+- Notify users via `notify.error()`, `notify.warning()`, `notify.success()`
+- Log errors with `console.error()` for debugging
+- Never swallow errors silently
+
+```typescript
+try {
+  const result = detectGridFast(image, config);
+  if (!result) {
+    notify.warning(t('gridDetectionFailed'));
+    return;
+  }
+} catch (error) {
+  console.error('Grid detection failed:', error);
+  notify.error(t('gridDetectionError'));
+}
+```
+
+### Canvas Operations
+
+- Use `imageSmoothingEnabled = false` for pixel art
+- Always check `getContext('2d')` for null
+- Clean up canvas with `clearRect()` before redrawing
+- Handle DPI scaling when needed
+
+### File Handling
+
+- Use `FileReader` for reading uploaded files
+- Revoke object URLs after use (`URL.revokeObjectURL()`)
+- Use `FontFace` API for custom fonts
+
+## Architecture Patterns
+
+### Dual Canvas Architecture
+
+- **Canvas Layer**: Renders base image and characters via `<canvas>`
+- **UI Layer**: DOM overlay for grids, highlights, rulers
+- Separation ensures performance while maintaining visual precision
+
+### State Management (Pinia)
+
+- `editorStore` in `src/stores/editor.ts` manages all state
+- Base configs (original image size) vs Display configs (scaled)
+- Use `computed` for derived state
+
+### Rendering Flow
+
+1. Upload base image → `setBaseImage()` → auto-scale to fit container
+2. Configure grid (`cellConfig`) and character positions
+3. `CanvasArea.vue` draws image, then renders characters
+4. Grids/highlights use DOM elements for performance
+
+## Important File Locations
+
+- Store: `src/stores/editor.ts`
+- Canvas utilities: `src/utils/canvas.ts`
+- Character rendering: `src/utils/char-renderer.ts`
+- Grid detection: `src/utils/grid-detector.ts`
+- Main canvas component: `src/components/CanvasArea.vue`

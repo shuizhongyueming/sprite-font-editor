@@ -5,6 +5,15 @@ import { detectGridFast } from "@/utils/grid-detector";
 import { notify } from "@/utils/notification";
 import { t } from "@/utils/i18n";
 
+// 单元格信息接口（用于插入点检测）
+export interface GridCellInfo {
+  index: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 // 基于原始图片尺寸的绝对配置（用于持久化）
 export interface BaseCellConfig {
   width: number;
@@ -298,8 +307,12 @@ export const useEditorStore = defineStore("editor", () => {
   }
 
   // 检测插入点（基于透明度）
-  function detectInsertPoints(canvas: HTMLCanvasElement) {
-    console.log("[detectInsertPoints] 开始检测插入点...");
+  // cells 参数可选，传入时使用传入的 cells，否则使用内部计算
+  function detectInsertPoints(
+    canvas: HTMLCanvasElement,
+    cells?: GridCellInfo[],
+  ) {
+    console.log("[detectInsertPoints] 开始检测插入点...", cells);
 
     if (!baseImage.value) {
       console.log("[detectInsertPoints] 没有底图，清空检测结果");
@@ -314,73 +327,94 @@ export const useEditorStore = defineStore("editor", () => {
       return;
     }
 
-    console.log(
-      `[detectInsertPoints] Canvas尺寸: ${canvas.width}x${canvas.height}`,
-    );
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const emptyCells: number[] = [];
 
-    // 使用计算后的绝对配置
-    const currentCellConfig = cellConfig.value;
-    const currentImageConfig = imageConfig.value;
-
-    // 根据当前配置检测所有单元格
-    const cellTotalWidth =
-      currentCellConfig.width +
-      currentCellConfig.margin.left +
-      currentCellConfig.margin.right;
-    const cellTotalHeight =
-      currentCellConfig.height +
-      currentCellConfig.margin.top +
-      currentCellConfig.margin.bottom;
-
-    const startX =
-      currentImageConfig.margin.left + currentImageConfig.padding.left;
-    const startY =
-      currentImageConfig.margin.top + currentImageConfig.padding.top;
-
-    const cols = Math.floor(
-      (displayedCanvasWidth.value -
-        currentImageConfig.padding.left -
-        currentImageConfig.padding.right) /
-        cellTotalWidth,
-    );
-    const rows = Math.floor(
-      (displayedCanvasHeight.value -
-        currentImageConfig.padding.top -
-        currentImageConfig.padding.bottom) /
-        cellTotalHeight,
-    );
-
-    console.log(`[detectInsertPoints] 网格配置: ${rows}行 × ${cols}列`);
-    console.log(
-      `[detectInsertPoints] 单元格大小: ${currentCellConfig.width}x${currentCellConfig.height}, 边距: ${JSON.stringify(currentCellConfig.margin)}`,
-    );
-    console.log(
-      `[detectInsertPoints] 图片边距: ${JSON.stringify(currentImageConfig.margin)}, 内边距: ${JSON.stringify(currentImageConfig.padding)}`,
-    );
-    console.log(`[detectInsertPoints] 起始位置: (${startX}, ${startY})`);
-
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const cellX =
-          startX + col * cellTotalWidth + currentCellConfig.margin.left;
-        const cellY =
-          startY + row * cellTotalHeight + currentCellConfig.margin.top;
-        const cellWidth = currentCellConfig.width;
-        const cellHeight = currentCellConfig.height;
-        const index = row * cols + col;
-
-        // 检查单元格是否为空（透明）
+    if (cells) {
+      // 使用传入的 cells
+      console.log(
+        `[detectInsertPoints] Canvas尺寸: ${canvas.width}x${canvas.height}, 待检测单元格: ${cells.length}`,
+      );
+      for (const cell of cells) {
         const isEmpty = isCellEmpty(
           imageData,
-          cellX,
-          cellY,
-          cellWidth,
-          cellHeight,
+          cell.x,
+          cell.y,
+          cell.width,
+          cell.height,
         );
         if (isEmpty) {
-          emptyCells.push(index);
+          emptyCells.push(cell.index);
+        }
+      }
+    } else {
+      // 内部计算 cells（向后兼容）
+      const currentCellConfig = cellConfig.value;
+      const currentImageConfig = imageConfig.value;
+
+      const cellTotalWidth =
+        currentCellConfig.width +
+        currentCellConfig.margin.left +
+        currentCellConfig.margin.right;
+      const cellTotalHeight =
+        currentCellConfig.height +
+        currentCellConfig.margin.top +
+        currentCellConfig.margin.bottom;
+
+      const startX =
+        currentImageConfig.margin.left + currentImageConfig.padding.left;
+      const startY =
+        currentImageConfig.margin.top + currentImageConfig.padding.top;
+
+      const effectiveSpriteWidth =
+        baseImageConfig.value.fontSpriteWidth || originalImageWidth.value || 0;
+      const effectiveSpriteHeight =
+        baseImageConfig.value.fontSpriteHeight ||
+        originalImageHeight.value ||
+        0;
+
+      const availableWidth =
+        effectiveSpriteWidth - startX - currentImageConfig.padding.right;
+      const availableHeight =
+        effectiveSpriteHeight - startY - currentImageConfig.padding.bottom;
+
+      const cols =
+        availableWidth >= cellTotalWidth
+          ? Math.floor(
+              (availableWidth - currentCellConfig.width) / cellTotalWidth,
+            ) + 1
+          : 0;
+      const rows =
+        availableHeight >= cellTotalHeight
+          ? Math.floor(
+              (availableHeight - currentCellConfig.height) / cellTotalHeight,
+            ) + 1
+          : 0;
+
+      console.log(
+        `[detectInsertPoints] Canvas尺寸: ${canvas.width}x${canvas.height}, 网格: ${rows}行×${cols}列`,
+      );
+
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const cellX =
+            startX + col * cellTotalWidth + currentCellConfig.margin.left;
+          const cellY =
+            startY + row * cellTotalHeight + currentCellConfig.margin.top;
+          const cellWidth = currentCellConfig.width;
+          const cellHeight = currentCellConfig.height;
+          const index = row * cols + col;
+
+          const isEmpty = isCellEmpty(
+            imageData,
+            cellX,
+            cellY,
+            cellWidth,
+            cellHeight,
+          );
+          if (isEmpty) {
+            emptyCells.push(index);
+          }
         }
       }
     }
@@ -391,7 +425,6 @@ export const useEditorStore = defineStore("editor", () => {
 
     detectedInsertPoints.value = emptyCells;
 
-    // 如果当前有插入点配置，确保它在检测到的列表中
     if (insertPointConfig.value.mode === "auto" && emptyCells.length > 0) {
       insertPointConfig.value.startCellIndex = emptyCells[0];
       currentInsertPoint.value = 0;

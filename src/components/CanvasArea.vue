@@ -183,6 +183,7 @@ const uiLayerStyle = computed(() => ({
 const canvasSpace = computed(() => {
   if (!hasImage.value) return null
 
+  console.log('computed canvasSpace', cellConfig.value, imageConfig.value);
   return new CanvasSpace(
     canvasWidth.value,
     canvasHeight.value,
@@ -404,9 +405,18 @@ watch(() => editorStore.baseImage, async (newImage) => {
 
     if (editorStore.insertPointConfig.mode === 'auto') {
       setTimeout(() => {
-        if (canvasLayer.value) {
-          editorStore.detectInsertPoints(canvasLayer.value)
-        }
+        nextTick(() => {
+          if (canvasLayer.value && gridCells.value.length > 0) {
+            const cells = gridCells.value.map(cell => ({
+              index: cell.index,
+              x: parseInt(cell.style.left),
+              y: parseInt(cell.style.top),
+              width: parseInt(cell.style.width),
+              height: parseInt(cell.style.height),
+            }));
+            editorStore.detectInsertPoints(canvasLayer.value, cells);
+          }
+        })
       }, 100)
     }
   }
@@ -420,6 +430,36 @@ watch(() => [editorStore.characterStyle, editorStore.cellAlignment, editorStore.
         drawBaseImage()
       }
     })
+  },
+  { deep: true }
+)
+
+// 监听会影响插入点检测的配置变化，自动重新检测
+watch(
+  () => [
+    editorStore.baseImageConfig.fontSpriteWidth,
+    editorStore.baseImageConfig.fontSpriteHeight,
+    editorStore.baseImageConfig.margin,
+    editorStore.baseImageConfig.padding,
+    editorStore.baseCellConfig.width,
+    editorStore.baseCellConfig.height,
+    editorStore.baseCellConfig.margin,
+  ],
+  () => {
+    if (editorStore.insertPointConfig.mode === 'auto' && canvasLayer.value && gridCells.value.length > 0) {
+      nextTick(() => {
+        if (canvasLayer.value) {
+          const cells = gridCells.value.map(cell => ({
+            index: cell.index,
+            x: parseInt(cell.style.left),
+            y: parseInt(cell.style.top),
+            width: parseInt(cell.style.width),
+            height: parseInt(cell.style.height),
+          }));
+          editorStore.detectInsertPoints(canvasLayer.value, cells);
+        }
+      })
+    }
   },
   { deep: true }
 )

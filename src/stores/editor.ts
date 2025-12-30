@@ -654,7 +654,6 @@ export const useEditorStore = defineStore("editor", () => {
 
     const result = detectGridFast(baseImage.value, {
       margin: baseImageConfig.value.margin,
-      padding: baseImageConfig.value.padding,
       fontSpriteWidth: baseImageConfig.value.fontSpriteWidth,
       fontSpriteHeight: baseImageConfig.value.fontSpriteHeight,
     });

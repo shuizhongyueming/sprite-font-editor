@@ -10,7 +10,7 @@
         @input="handleTextInput"
       />
     </div>
-    
+
     <!-- 字符列表和按钮 -->
     <div
       v-if="characterEntries.length > 0"
@@ -29,40 +29,37 @@
           >
             <span class="character-char">{{ entry.char }}</span>
             <span class="character-index">{{ index + 1 }}</span>
-            
+
             <!-- 边距显示（只读） -->
             <div class="margin-preview">
               <div class="margin-icon">
                 <span
                   class="margin-value"
-                  :style="{ top: `${entry.margin.top}px` }"
+                  :style="{ top: 0 }"
                 >{{ entry.margin.top }}</span>
                 <span
                   class="margin-value"
-                  :style="{ right: `${entry.margin.right}px` }"
+                  :style="{ right: 0 }"
                 >{{ entry.margin.right }}</span>
                 <span
                   class="margin-value"
-                  :style="{ bottom: `${entry.margin.bottom}px` }"
+                  :style="{ bottom: 0 }"
                 >{{ entry.margin.bottom }}</span>
                 <span
                   class="margin-value"
-                  :style="{ left: `${entry.margin.left}px` }"
+                  :style="{ left: 0 }"
                 >{{ entry.margin.left }}</span>
-                <div class="char-box">
-                  {{ entry.char }}
-                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-      
+
       <!-- 按钮组 -->
       <div class="button-group">
         <span class="character-count">{{ t('charCount', { count: characterEntries.length }) }}</span>
-        <button 
-          class="btn btn-sm btn-outline-danger" 
+        <button
+          class="btn btn-sm btn-outline-danger"
           @click="clearCharacters"
         >
           {{ t('clear') }}
@@ -76,10 +73,10 @@
         </button>
       </div>
     </div>
-    
+
     <!-- 边距编辑弹窗 -->
     <div
-      v-if="showMarginPopup && editorStore.selectedCharIndex !== null"
+      v-if="editorStore.selectedCharIndex !== null"
       ref="marginPopup"
       class="margin-popup"
       :style="popupPosition"
@@ -88,7 +85,7 @@
         <span>{{ t('editMargin') }} "{{ selectedChar }}"</span>
         <button
           class="close-btn"
-          @click="closeMarginPopup"
+          @click="editorStore.selectedCharIndex = null"
         >
           ×
         </button>
@@ -101,7 +98,7 @@
       <div class="popup-actions">
         <button
           class="btn btn-sm btn-primary"
-          @click="closeMarginPopup"
+          @click="editorStore.selectedCharIndex = null"
         >
           {{ t('confirm') }}
         </button>
@@ -120,7 +117,6 @@ import { t } from '@/utils/i18n'
 const editorStore = useEditorStore()
 
 const textInput = ref('')
-const showMarginPopup = ref(false)
 const marginPopup = ref<HTMLElement>()
 
 const characterEntries = computed(() => editorStore.characterEntries)
@@ -149,16 +145,11 @@ const canRender = computed(() => {
 })
 
 const popupPosition = computed(() => {
-  if (editorStore.selectedCharIndex === null) return {}
-  
-  // 计算弹窗位置（相对于viewport）
-  const charElement = document.querySelector(`[data-char-index="${editorStore.selectedCharIndex}"]`)
-  if (!charElement) return {}
-  
-  const rect = charElement.getBoundingClientRect()
   return {
-    left: `${rect.right + 10}px`,
-    top: `${rect.top}px`,
+    left: '0',
+    bottom: '0',
+    top: 'auto',
+    right: 'auto',
   }
 })
 
@@ -166,7 +157,6 @@ function handleTextInput() {
   editorStore.updateCharacters(textInput.value)
   editorStore.saveToLocalStorage()
   editorStore.selectedCharIndex = null
-  showMarginPopup.value = false
 }
 
 function clearCharacters() {
@@ -174,55 +164,19 @@ function clearCharacters() {
   editorStore.updateCharacters('')
   editorStore.saveToLocalStorage()
   editorStore.selectedCharIndex = null
-  showMarginPopup.value = false
-}
-
-// 显示边距编辑弹窗（带边界检查）
-function showMarginEditorAt(left: number, top: number) {
-  console.log('[CharacterInput] showMarginEditorAt called:', { left, top })
-  
-  // 获取视口尺寸
-  const viewportWidth = window.innerWidth
-  const viewportHeight = window.innerHeight
-  
-  // 预估弹窗尺寸
-  const estimatedWidth = 250
-  const estimatedHeight = 180
-  
-  let adjustedLeft = Math.max(10, Math.min(left, viewportWidth - estimatedWidth - 10))
-  let adjustedTop = Math.max(10, Math.min(top, viewportHeight - estimatedHeight - 10))
-  
-  console.log('[CharacterInput] 调整后位置:', { adjustedLeft, adjustedTop })
-  
-  // 先设置位置再显示弹窗
-  nextTick(() => {
-    if (marginPopup.value) {
-      marginPopup.value.style.left = `${adjustedLeft}px`
-      marginPopup.value.style.top = `${adjustedTop}px`
-      console.log('[CharacterInput] 设置弹窗位置完成')
-    }
-  })
-  
-  // 显示弹窗
-  showMarginPopup.value = true
-  console.log('[CharacterInput] showMarginPopup 设置为 true')
 }
 
 function selectCharacter(index: number) {
-  // 这个函数现在只在点击字符列表时调用
-  // 不在画布上弹出
-  editorStore.selectedCharIndex = index
-}
-
-function closeMarginPopup() {
-  showMarginPopup.value = false
-  editorStore.selectedCharIndex = null
-  editorStore.saveToLocalStorage()
+  if (editorStore.selectedCharIndex === index) {
+    editorStore.selectedCharIndex = null
+  } else {
+    editorStore.selectedCharIndex = index
+  }
 }
 
 function saveMargin() {
   editorStore.saveToLocalStorage()
-  
+
   // 重新渲染
   if (editorStore.baseImage && editorStore.characterEntries.length > 0) {
     editorStore.renderTrigger++
@@ -232,30 +186,30 @@ function saveMargin() {
 function renderCharacters() {
   // 触发字符渲染，使用当前插入点开始排版
   console.log('Rendering characters from insert point:', editorStore.insertPointConfig.startCellIndex)
-  
+
   // 触发渲染
   editorStore.renderTrigger++
   editorStore.saveToLocalStorage()
-  
+
   notify.success(t('renderComplete'))
 }
 
 // 点击外部关闭弹窗
 function handleClickOutside(event: MouseEvent) {
-  if (showMarginPopup.value && marginPopup.value) {
+  if (editorStore.selectedCharIndex !== null && marginPopup.value) {
     const target = event.target as Node
     if (!marginPopup.value.contains(target)) {
       const charElements = document.querySelectorAll('.character-item')
       let clickedOnChar = false
-      
+
       charElements.forEach(el => {
         if (el.contains(target)) {
           clickedOnChar = true
         }
       })
-      
+
       if (!clickedOnChar) {
-        closeMarginPopup()
+        editorStore.selectedCharIndex = null
       }
     }
   }
@@ -263,8 +217,8 @@ function handleClickOutside(event: MouseEvent) {
 
 // Esc键关闭弹窗
 function handleKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && showMarginPopup.value) {
-    closeMarginPopup()
+  if (event.key === 'Escape' && editorStore.selectedCharIndex !== null) {
+    editorStore.selectedCharIndex = null
   }
 }
 
@@ -280,10 +234,6 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
   document.removeEventListener('keydown', handleKeydown)
-})
-
-defineExpose({
-  showMarginEditorAt
 })
 
 // 监听字符变化，更新data-*属性
@@ -332,6 +282,8 @@ watch(characterEntries, () => {
 
 .character-scroll-container {
   overflow: auto;
+  padding-top: 2px;
+  padding-bottom: 4px;
 }
 
 .character-items {
@@ -345,7 +297,7 @@ watch(characterEntries, () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0.5rem;
+  padding: 1rem 0.5rem 0.5rem;
   border: 2px solid #dee2e6;
   border-radius: 4px;
   background-color: white;
@@ -373,9 +325,11 @@ watch(characterEntries, () => {
 }
 
 .character-index {
+  position: absolute;
+  top: 2px;
+  left: 4px;
   font-size: 0.625rem;
   color: #6c757d;
-  margin-top: 0.25rem;
 }
 
 .margin-preview {
@@ -434,7 +388,7 @@ watch(characterEntries, () => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   padding: 1rem;
   z-index: 1500;
-  min-width: 200px;
+  width: 360px;
 }
 
 .popup-header {

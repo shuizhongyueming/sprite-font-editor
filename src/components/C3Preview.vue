@@ -34,12 +34,14 @@ import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { renderC3AppendedCharacter } from '@/utils/c3-char-renderer'
 import { splitGraphemes } from '@/utils/grapheme'
+import { CanvasSpace } from '@/utils/canvas'
 import { t } from '@/utils/i18n'
 
 const editorStore = useEditorStore()
 
 const previewCanvas = ref<HTMLCanvasElement>()
 const sampleText = ref('')
+const previousEffectiveCharacterSet = ref('')
 const canvasWidth = ref(800)
 const canvasHeight = ref(64)
 
@@ -49,6 +51,7 @@ const characterSpacing = computed(() => editorStore.importedCharacterSpacing)
 const lineHeight = computed(() => editorStore.importedLineHeight)
 
 const effectiveChars = computed(() => splitGraphemes(editorStore.c3EffectiveCharacterSet))
+const importedCount = computed(() => splitGraphemes(editorStore.importedCharacterSet).length)
 
 const importedSpacingMap = computed(() => {
   const map = new Map<string, number>()
@@ -107,6 +110,8 @@ function renderPreview() {
     const ctx = canvas.getContext('2d')
     if (!ctx) return
 
+    ctx.imageSmoothingEnabled = false
+
     const sourceCanvas = buildSourceCanvas()
     if (!sourceCanvas) return
 
@@ -164,18 +169,54 @@ function buildSourceCanvas(): HTMLCanvasElement | null {
   const image = editorStore.c3ImportedImage || editorStore.baseImage
   if (!image) return null
 
-  const cols = Math.max(1, Math.floor(image.width / characterWidth.value))
+  const baseCell = editorStore.baseCellConfig
+  const baseImageCfg = editorStore.baseImageConfig
+
+  const canvasSpace = new CanvasSpace(
+    image.width,
+    image.height,
+    baseCell.width,
+    baseCell.height,
+    baseCell.margin,
+    baseImageCfg.margin,
+    baseImageCfg.padding,
+    baseImageCfg.fontSpriteWidth,
+    baseImageCfg.fontSpriteHeight,
+  )
+
+  const cols = Math.max(1, canvasSpace.columns)
   const rows = Math.max(1, Math.ceil(effectiveChars.value.length / cols))
   const canvas = document.createElement('canvas')
 
-  canvas.width = cols * characterWidth.value
-  canvas.height = rows * characterHeight.value
+  canvas.width = cols * baseCell.width
+  canvas.height = rows * baseCell.height
 
   const ctx = canvas.getContext('2d')
   if (!ctx) return canvas
 
+  ctx.imageSmoothingEnabled = false
   ctx.clearRect(0, 0, canvas.width, canvas.height)
-  ctx.drawImage(image, 0, 0)
+
+  // 从原图按网格单元复制导入的字符
+  for (let i = 0; i < importedCount.value; i++) {
+    const { row, col } = canvasSpace.indexToRowCol(i)
+    const position = canvasSpace.getCellPosition(row, col)
+    const dx = col * baseCell.width
+    const dy = row * baseCell.height
+
+    ctx.drawImage(
+      image,
+      position.x,
+      position.y,
+      baseCell.width,
+      baseCell.height,
+      dx,
+      dy,
+      baseCell.width,
+      baseCell.height,
+    )
+  }
+
   renderAppendedToSource(ctx, cols)
 
   return canvas
@@ -187,21 +228,20 @@ function renderAppendedToSource(
 ) {
   const fontFamily = editorStore.currentFont?.family || editorStore.characterStyle.fontFamily
   const baseCell = editorStore.baseCellConfig
-  const importedCount = splitGraphemes(editorStore.importedCharacterSet).length
 
   for (let i = 0; i < editorStore.c3AppendedEntries.length; i++) {
     const entry = editorStore.c3AppendedEntries[i]
-    const cellIndex = importedCount + i
+    const cellIndex = importedCount.value + i
     const row = Math.floor(cellIndex / cols)
     const col = cellIndex % cols
 
     renderC3AppendedCharacter({
       char: entry.char,
       targetCtx: ctx,
-      baseCellX: col * characterWidth.value,
-      baseCellY: row * characterHeight.value,
-      baseCellWidth: characterWidth.value,
-      baseCellHeight: characterHeight.value,
+      baseCellX: col * baseCell.width,
+      baseCellY: row * baseCell.height,
+      baseCellWidth: baseCell.width,
+      baseCellHeight: baseCell.height,
       renderScale: 1,
       charMargin: entry.margin,
       cellPadding: baseCell.padding,
@@ -216,18 +256,26 @@ function renderAppendedToSource(
 
 onMounted(() => {
   sampleText.value = editorStore.c3EffectiveCharacterSet
+  previousEffectiveCharacterSet.value = editorStore.c3EffectiveCharacterSet
   renderPreview()
 })
 
-watch(() => editorStore.c3EffectiveCharacterSet, () => {
-  if (sampleText.value === '') {
-    sampleText.value = editorStore.c3EffectiveCharacterSet
+watch(() => editorStore.c3EffectiveCharacterSet, (newSet) => {
+  if (
+    sampleText.value === '' ||
+    sampleText.value === previousEffectiveCharacterSet.value
+  ) {
+    sampleText.value = newSet
   }
+  previousEffectiveCharacterSet.value = newSet
   renderPreview()
 })
 
 watch(() => editorStore.c3EffectiveSpacingData, renderPreview)
 watch(() => editorStore.baseImage, renderPreview)
+watch(() => editorStore.c3ImportedImage, renderPreview)
+watch(() => editorStore.baseCellConfig, renderPreview, { deep: true })
+watch(() => editorStore.baseImageConfig, renderPreview, { deep: true })
 watch(() => editorStore.c3AppendedEntries, renderPreview, { deep: true })
 watch(() => editorStore.importedCharacterSpacing, renderPreview)
 watch(() => editorStore.importedLineHeight, renderPreview)
@@ -274,7 +322,14 @@ watch(() => editorStore.importedLineHeight, renderPreview)
 .preview-canvas-wrapper {
   border: 1px solid #dee2e6;
   border-radius: 4px;
-  background-color: white;
+  background-color: #f8f9fa;
+  background-image:
+    linear-gradient(45deg, #e9ecef 25%, transparent 25%),
+    linear-gradient(-45deg, #e9ecef 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e9ecef 75%),
+    linear-gradient(-45deg, transparent 75%, #e9ecef 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
   overflow: auto;
 }
 

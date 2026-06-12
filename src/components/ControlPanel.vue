@@ -27,12 +27,10 @@
       <h3>{{ t('c3ModeActive') }}</h3>
       <div class="c3-info">
         <div class="c3-info__item">
-          <span class="c3-info__label">{{ t('c3ImportedCount') }}</span>
-          <span class="c3-info__value">{{ importedCount }}</span>
+          <span class="c3-info__label">{{ t('c3ImportedCount', { count: importedCount }) }}</span>
         </div>
         <div class="c3-info__item">
-          <span class="c3-info__label">{{ t('c3AppendedCount') }}</span>
-          <span class="c3-info__value">{{ appendedCount }}</span>
+          <span class="c3-info__label">{{ t('c3AppendedCount', { count: appendedCount }) }}</span>
         </div>
       </div>
     </div>
@@ -133,11 +131,5 @@ defineExpose({
   font-size: 0.875rem;
   font-weight: 500;
   color: #495057;
-}
-
-.c3-info__value {
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: #007bff;
 }
 </style>

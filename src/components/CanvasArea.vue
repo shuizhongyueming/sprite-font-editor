@@ -107,6 +107,7 @@
         class="canvas-layer"
         :width="canvasWidth"
         :height="canvasHeight"
+        :style="canvasLayerStyle"
       />
 
       <!-- UI 层（上层）-->
@@ -226,7 +227,14 @@ const importedGraphemeCount = computed(() => {
   return splitGraphemes(editorStore.importedCharacterSet).length
 })
 
+const RULER_SIZE = 20
+
 const containerStyle = computed(() => ({
+  width: `${canvasWidth.value + RULER_SIZE}px`,
+  height: `${canvasHeight.value + RULER_SIZE}px`,
+}))
+
+const canvasLayerStyle = computed(() => ({
   width: `${canvasWidth.value}px`,
   height: `${canvasHeight.value}px`,
   background: getCanvasBackground(),
@@ -485,6 +493,14 @@ function handleResize() {
     editorStore.setBaseImage(editorStore.baseImage)
   }
 }
+
+// 监听视图模式变化，重绘底图
+watch(() => editorStore.canvasViewMode, async () => {
+  await nextTick()
+  if (canvasLayer.value && editorStore.baseImage) {
+    drawBaseImage()
+  }
+})
 
 // 监听底图变化
 watch(() => editorStore.baseImage, async (newImage) => {
@@ -936,8 +952,8 @@ defineExpose({
 .canvas-area {
   flex: 1;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-start;
+  justify-content: flex-start;
   background-color: #f8f9fa;
   overflow: auto;
   padding: 1rem;
@@ -976,6 +992,8 @@ defineExpose({
 .canvas-container {
   position: relative;
   display: inline-block;
+  flex-shrink: 0;
+  margin: auto;
   border: 1px solid #dee2e6;
   border-radius: 4px;
   background-color: white;
@@ -991,8 +1009,6 @@ defineExpose({
   position: absolute;
   top: 20px;
   left: 20px;
-  width: calc(100% - 40px);
-  height: calc(100% - 40px);
   pointer-events: auto;
   cursor: crosshair;
 }

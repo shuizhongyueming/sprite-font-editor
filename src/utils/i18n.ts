@@ -107,6 +107,12 @@ export interface Translations {
   gridDetectionFailed: string;
   gridDetectionSuccess: string;
 
+  // Canvas View Mode
+  viewFitToView: string;
+  viewActualSize: string;
+  viewZoom: string;
+  spacePanHint: string;
+
   // Notifications
   invalidImageFile: string;
   invalidFontFile: string;
@@ -264,6 +270,12 @@ export const translations: Record<Locale, Translations> = {
     gridDetectionFailed: "无法自动检测网格，请手动调整",
     gridDetectionSuccess:
       "网格检测成功！尺寸: {width}x{height}，网格: {rows}行×{cols}列",
+
+    // Canvas View Mode
+    viewFitToView: "适应窗口",
+    viewActualSize: "1:1",
+    viewZoom: "{percent}%",
+    spacePanHint: "按住 Space 拖拽",
 
     // Notifications
     invalidImageFile: "请选择有效的图片文件 (PNG, JPG, GIF, WebP)",
@@ -423,6 +435,12 @@ export const translations: Record<Locale, Translations> = {
       "Cannot detect grid automatically, please adjust manually",
     gridDetectionSuccess:
       "Grid detected! Size: {width}x{height}, Grid: {rows}×{cols}",
+
+    // Canvas View Mode
+    viewFitToView: "Fit to view",
+    viewActualSize: "1:1",
+    viewZoom: "{percent}%",
+    spacePanHint: "Hold Space to pan",
 
     // Notifications
     invalidImageFile: "Please select a valid image file (PNG, JPG, GIF, WebP)",

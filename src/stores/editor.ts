@@ -1,5 +1,5 @@
 import { defineStore } from "pinia";
-import { ref, computed } from "vue";
+import { ref, computed, nextTick } from "vue";
 import {
   ImageStorage,
   FontStorage,
@@ -223,6 +223,9 @@ export const useEditorStore = defineStore("editor", () => {
   type CanvasBgType = "white" | "black" | "checkerboard";
   const canvasBg = ref<CanvasBgType>("white");
 
+  // 画布视图模式
+  const canvasViewMode = ref<"fit" | "actual">("fit");
+
   // 对齐配置
   const cellAlignment = ref<CellAlignmentConfig>({
     horizontal: "center",
@@ -341,6 +344,57 @@ export const useEditorStore = defineStore("editor", () => {
   const currentFont = ref<FontFace | null>(null);
   const canvasLayer = ref<HTMLCanvasElement | null>(null);
 
+  // 缩放百分比
+  const zoomPercentage = computed(() => {
+    if (!originalImageWidth.value || displayedCanvasWidth.value === 0) return 100;
+    return Math.round(
+      (displayedCanvasWidth.value / originalImageWidth.value) * 100,
+    );
+  });
+
+  // 设置画布视图模式
+  function setCanvasViewMode(mode: "fit" | "actual") {
+    if (mode === canvasViewMode.value || !baseImage.value) return;
+
+    const canvasArea = document.querySelector(
+      ".canvas-area",
+    ) as HTMLElement | null;
+    let centerRatioX = 0.5;
+    let centerRatioY = 0.5;
+
+    if (
+      canvasArea &&
+      displayedCanvasWidth.value > 0 &&
+      displayedCanvasHeight.value > 0
+    ) {
+      const viewportWidth = canvasArea.clientWidth;
+      const viewportHeight = canvasArea.clientHeight;
+      centerRatioX =
+        (canvasArea.scrollLeft + viewportWidth / 2) / displayedCanvasWidth.value;
+      centerRatioY =
+        (canvasArea.scrollTop + viewportHeight / 2) /
+        displayedCanvasHeight.value;
+    }
+
+    canvasViewMode.value = mode;
+    setBaseImage(baseImage.value);
+
+    nextTick(() => {
+      if (
+        canvasArea &&
+        displayedCanvasWidth.value > 0 &&
+        displayedCanvasHeight.value > 0
+      ) {
+        const viewportWidth = canvasArea.clientWidth;
+        const viewportHeight = canvasArea.clientHeight;
+        canvasArea.scrollLeft =
+          centerRatioX * displayedCanvasWidth.value - viewportWidth / 2;
+        canvasArea.scrollTop =
+          centerRatioY * displayedCanvasHeight.value - viewportHeight / 2;
+      }
+    });
+  }
+
   // 插入点检测结果
   const detectedInsertPoints = ref<number[]>([]);
   const currentInsertPoint = ref<number>(0);
@@ -356,14 +410,16 @@ export const useEditorStore = defineStore("editor", () => {
 
     // 缩放计算使用原图尺寸（Canvas 始终显示整张图片）
     let scale = 1;
-    const widthRatio = maxCanvasWidth.value / image.width;
-    const heightRatio = maxCanvasHeight.value / image.height;
+    if (canvasViewMode.value === "fit") {
+      const widthRatio = maxCanvasWidth.value / image.width;
+      const heightRatio = maxCanvasHeight.value / image.height;
 
-    if (
-      image.width > maxCanvasWidth.value ||
-      image.height > maxCanvasHeight.value
-    ) {
-      scale = Math.min(widthRatio, heightRatio);
+      if (
+        image.width > maxCanvasWidth.value ||
+        image.height > maxCanvasHeight.value
+      ) {
+        scale = Math.min(widthRatio, heightRatio);
+      }
     }
 
     displayedCanvasWidth.value = Math.floor(image.width * scale);
@@ -745,6 +801,7 @@ export const useEditorStore = defineStore("editor", () => {
       characterEntries: characterEntries.value,
       gridConfig: gridConfig.value,
       canvasBg: canvasBg.value,
+      canvasViewMode: canvasViewMode.value,
       isC3Mode: isC3Mode.value,
     };
     localStorage.setItem("sprite-font-editor-state", JSON.stringify(state));
@@ -821,6 +878,7 @@ export const useEditorStore = defineStore("editor", () => {
         characterEntries.value = state.characterEntries || [];
         gridConfig.value = state.gridConfig || gridConfig.value;
         canvasBg.value = state.canvasBg || "white";
+        canvasViewMode.value = state.canvasViewMode || "fit";
         isC3Mode.value = state.isC3Mode || false;
 
         restoreC3Config();
@@ -1077,6 +1135,8 @@ export const useEditorStore = defineStore("editor", () => {
     currentFont,
     gridConfig,
     canvasBg,
+    canvasViewMode,
+    zoomPercentage,
     detectedInsertPoints,
     currentInsertPoint,
     // C3 模式状态
@@ -1097,6 +1157,7 @@ export const useEditorStore = defineStore("editor", () => {
     setFont,
     setCanvas,
     setC3ImportedImage,
+    setCanvasViewMode,
     updateCharacters,
     importC3SpriteFont,
     setC3Mode,

@@ -38,6 +38,24 @@ The uploaded source image that serves as the canvas/background. In the current e
 ### Cell
 A rectangular slot in the grid where one character can be rendered. In the current editor a cell has `width`, `height`, `margin`, and `padding`. The cell dimensions are stored as absolute pixel values relative to the original image (`baseCellConfig`) and scaled for on-screen display (`cellConfig`).
 
+### Canvas View Mode
+The zoom strategy used to display the base image and grid inside the editor viewport. Two modes are supported: **Fit to view** scales the image so the entire image fits within the available viewport; **Actual size** (also called 1:1) renders the image at its original pixel dimensions, which may require scrolling.
+
+### Fit to View
+A Canvas View Mode that scales the image to fit within the available viewport. This is the default mode because most source images are larger than the viewport.
+
+### Actual Size (1:1)
+A Canvas View Mode that renders the image at its original pixel dimensions (`originalImageWidth × originalImageHeight`). When the image is larger than the viewport, the user can scroll or use Space-pan to navigate.
+
+### Space Pan
+A canvas interaction where the user holds the Space key and drags to scroll the viewport. It is only active inside the canvas area, changes the cursor to `grab`/`grabbing`, and disables cell-click selection while panning.
+
+### Reference Lines Grid
+A grid rendering strategy that draws only row and column boundary lines instead of creating a DOM element for every cell. It reduces the DOM node count from O(rows × cols) to O(rows + cols). Cell highlighting, selection, and click handling are performed with a single temporary highlight div positioned by coordinate calculation.
+
+### Temporary Highlight Div
+A single absolutely positioned DOM element used to highlight the currently selected cell or the cell containing the selected character. It is created and positioned on demand rather than being rendered for every cell.
+
 ### Character Set
 An ordered string of characters. The order determines which grid cell each character occupies, reading left-to-right and top-to-bottom (row-major order). In C3 mode the character set is split using grapheme clusters (`Intl.Segmenter` with `granularity: 'grapheme'`) to match C3's `SplitGraphemes` behavior. User input in the append text box is also split by grapheme clusters. If the browser does not support `Intl.Segmenter`, the editor prompts the user to upgrade their browser.
 

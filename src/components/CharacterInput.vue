@@ -1,80 +1,165 @@
 <template>
   <div class="character-input">
-    <div class="form-group">
-      <label>{{ t('inputText') }}</label>
-      <textarea
-        v-model="textInput"
-        class="form-control text-input"
-        :placeholder="t('inputTextPlaceholder')"
-        rows="3"
-        @input="handleTextInput"
-      />
-    </div>
+    <!-- C3 追加模式 -->
+    <template v-if="editorStore.isC3Mode">
+      <div class="form-group">
+        <label>{{ t('c3AppendPlaceholder') }}</label>
+        <textarea
+          v-model="appendInput"
+          class="form-control text-input"
+          :class="{ 'is-invalid': hasValidationError }"
+          :placeholder="t('c3AppendPlaceholder')"
+          rows="2"
+          @input="handleAppendInput"
+        />
+        <div
+          v-if="validationMessage"
+          class="invalid-feedback"
+        >
+          {{ validationMessage }}
+        </div>
+      </div>
 
-    <!-- 字符列表和按钮 -->
-    <div
-      v-if="characterEntries.length > 0"
-      class="character-controls"
-    >
-      <!-- 紧凑的字符列表（单行） -->
-      <div class="character-scroll-container">
-        <div class="character-items">
+      <!-- 已导入字符 -->
+      <div
+        v-if="importedCharacters.length > 0"
+        class="character-section"
+      >
+        <div class="section-title">
+          {{ t('c3ImportedCount', { count: importedCharacters.length }) }}
+        </div>
+        <div class="character-items character-items--readonly">
           <div
-            v-for="(entry, index) in characterEntries"
-            :key="index"
-            class="character-item"
-            :class="{ active: editorStore.selectedCharIndex === index }"
-            :title="`${t('clickToHighlight')}: ${entry.char}`"
-            @click="selectCharacter(index)"
+            v-for="(char, index) in importedCharacters"
+            :key="`imported-${index}`"
+            class="character-item character-item--readonly"
           >
-            <span class="character-char">{{ entry.char }}</span>
-            <span class="character-index">{{ index + 1 }}</span>
-
-            <!-- 边距显示（只读） -->
-            <div class="margin-preview">
-              <div class="margin-icon">
-                <span
-                  class="margin-value"
-                  :style="{ top: 0 }"
-                >{{ entry.margin.top }}</span>
-                <span
-                  class="margin-value"
-                  :style="{ right: 0 }"
-                >{{ entry.margin.right }}</span>
-                <span
-                  class="margin-value"
-                  :style="{ bottom: 0 }"
-                >{{ entry.margin.bottom }}</span>
-                <span
-                  class="margin-value"
-                  :style="{ left: 0 }"
-                >{{ entry.margin.left }}</span>
-              </div>
-            </div>
+            <span class="character-char">{{ char }}</span>
           </div>
         </div>
       </div>
 
-      <!-- 按钮组 -->
-      <div class="button-group">
-        <span class="character-count">{{ t('charCount', { count: characterEntries.length }) }}</span>
-        <button
-          class="btn btn-sm btn-outline-danger"
-          @click="clearCharacters"
-        >
-          {{ t('clear') }}
-        </button>
-        <button
-          class="btn btn-sm btn-success"
-          :disabled="!canRender"
-          @click="renderCharacters"
-        >
-          {{ t('renderText') }}
-        </button>
-      </div>
-    </div>
+      <!-- 已追加字符 -->
+      <div
+        v-if="appendedEntries.length > 0"
+        class="character-section"
+      >
+        <div class="section-title">
+          {{ t('c3AppendedCount', { count: appendedEntries.length }) }}
+        </div>
+        <div class="character-items">
+          <div
+            v-for="(entry, index) in appendedEntries"
+            :key="`appended-${index}`"
+            class="character-item"
+            :class="{ active: editorStore.selectedCharIndex === index }"
+            :title="`${t('clickToHighlight')}: ${entry.char}`"
+            @click="selectAppendedCharacter(index)"
+          >
+            <span class="character-char">{{ entry.char }}</span>
+            <span class="character-index">{{ index + 1 }}</span>
+            <span class="display-width-badge">{{ entry.displayWidth }}</span>
+            <button
+              class="delete-char-btn"
+              @click.stop="deleteAppendedCharacter(index)"
+            >
+              ×
+            </button>
+          </div>
+        </div>
 
-    <!-- 边距编辑弹窗 -->
+        <div class="button-group">
+          <span class="character-count">
+            {{ t('c3AppendedCount', { count: appendedEntries.length }) }}
+          </span>
+          <button
+            class="btn btn-sm btn-outline-danger"
+            @click="clearAppendedCharacters"
+          >
+            {{ t('clear') }}
+          </button>
+        </div>
+      </div>
+    </template>
+
+    <!-- 普通模式 -->
+    <template v-else>
+      <div class="form-group">
+        <label>{{ t('inputText') }}</label>
+        <textarea
+          v-model="textInput"
+          class="form-control text-input"
+          :placeholder="t('inputTextPlaceholder')"
+          rows="3"
+          @input="handleTextInput"
+        />
+      </div>
+
+      <!-- 字符列表和按钮 -->
+      <div
+        v-if="characterEntries.length > 0"
+        class="character-controls"
+      >
+        <!-- 紧凑的字符列表（单行） -->
+        <div class="character-scroll-container">
+          <div class="character-items">
+            <div
+              v-for="(entry, index) in characterEntries"
+              :key="index"
+              class="character-item"
+              :class="{ active: editorStore.selectedCharIndex === index }"
+              :title="`${t('clickToHighlight')}: ${entry.char}`"
+              @click="selectCharacter(index)"
+            >
+              <span class="character-char">{{ entry.char }}</span>
+              <span class="character-index">{{ index + 1 }}</span>
+
+              <!-- 边距显示（只读） -->
+              <div class="margin-preview">
+                <div class="margin-icon">
+                  <span
+                    class="margin-value"
+                    :style="{ top: 0 }"
+                  >{{ entry.margin.top }}</span>
+                  <span
+                    class="margin-value"
+                    :style="{ right: 0 }"
+                  >{{ entry.margin.right }}</span>
+                  <span
+                    class="margin-value"
+                    :style="{ bottom: 0 }"
+                  >{{ entry.margin.bottom }}</span>
+                  <span
+                    class="margin-value"
+                    :style="{ left: 0 }"
+                  >{{ entry.margin.left }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 按钮组 -->
+        <div class="button-group">
+          <span class="character-count">{{ t('charCount', { count: characterEntries.length }) }}</span>
+          <button
+            class="btn btn-sm btn-outline-danger"
+            @click="clearCharacters"
+          >
+            {{ t('clear') }}
+          </button>
+          <button
+            class="btn btn-sm btn-success"
+            :disabled="!canRender"
+            @click="renderCharacters"
+          >
+            {{ t('renderText') }}
+          </button>
+        </div>
+      </div>
+    </template>
+
+    <!-- 边距/显示宽度编辑弹窗 -->
     <div
       v-if="editorStore.selectedCharIndex !== null"
       ref="marginPopup"
@@ -95,6 +180,30 @@
         :label="t('marginLabel')"
         @change="saveMargin"
       />
+      <div
+        v-if="editorStore.isC3Mode && selectedAppendedEntry"
+        class="display-width-section"
+      >
+        <label>{{ t('c3DisplayWidth') }}</label>
+        <div class="display-width-row">
+          <input
+            :value="selectedAppendedEntry.displayWidth"
+            type="number"
+            class="form-control display-width-input"
+            min="0"
+            @change="saveDisplayWidth"
+          >
+          <span class="auto-width-hint">
+            {{ t('c3ResetAuto') }}: {{ selectedAppendedEntry.autoDisplayWidth }}
+          </span>
+          <button
+            class="btn btn-sm btn-outline-secondary"
+            @click="resetDisplayWidthToAuto"
+          >
+            {{ t('c3ResetAuto') }}
+          </button>
+        </div>
+      </div>
       <div class="popup-actions">
         <button
           class="btn btn-sm btn-primary"
@@ -110,6 +219,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useEditorStore } from '@/stores/editor'
+import { splitGraphemes } from '@/utils/grapheme'
 import SpacingInput from './SpacingInput.vue'
 import { notify } from '@/utils/notification'
 import { t } from '@/utils/i18n'
@@ -117,23 +227,62 @@ import { t } from '@/utils/i18n'
 const editorStore = useEditorStore()
 
 const textInput = ref('')
+const appendInput = ref('')
 const marginPopup = ref<HTMLElement>()
+const duplicateChars = ref<string[]>([])
+const hasSpaceError = ref(false)
 
 const characterEntries = computed(() => editorStore.characterEntries)
+const appendedEntries = computed(() => editorStore.c3AppendedEntries)
+const importedCharacters = computed(() => splitGraphemes(editorStore.importedCharacterSet))
+
+const hasValidationError = computed(() => duplicateChars.value.length > 0 || hasSpaceError.value)
+const validationMessage = computed(() => {
+  if (hasSpaceError.value) {
+    return t('c3SpaceNotAllowed')
+  }
+  if (duplicateChars.value.length > 0) {
+    return t('c3DuplicateChars', { chars: duplicateChars.value.join(', ') })
+  }
+  return ''
+})
 
 const selectedChar = computed(() => {
   if (editorStore.selectedCharIndex === null) return ''
+
+  if (editorStore.isC3Mode) {
+    return appendedEntries.value[editorStore.selectedCharIndex]?.char || ''
+  }
+
   return characterEntries.value[editorStore.selectedCharIndex]?.char || ''
+})
+
+const selectedAppendedEntry = computed(() => {
+  if (!editorStore.isC3Mode || editorStore.selectedCharIndex === null) return null
+  return appendedEntries.value[editorStore.selectedCharIndex] || null
 })
 
 const selectedCharMargin = computed({
   get: () => {
-    if (editorStore.selectedCharIndex === null) return { top: 0, right: 0, bottom: 0, left: 0 }
+    if (editorStore.selectedCharIndex === null) {
+      return { top: 0, right: 0, bottom: 0, left: 0 }
+    }
+
+    if (editorStore.isC3Mode) {
+      return appendedEntries.value[editorStore.selectedCharIndex]?.margin || { top: 0, right: 0, bottom: 0, left: 0 }
+    }
+
     return characterEntries.value[editorStore.selectedCharIndex]?.margin || { top: 0, right: 0, bottom: 0, left: 0 }
   },
   set: (value) => {
-    if (editorStore.selectedCharIndex !== null) {
-      editorStore.characterEntries[editorStore.selectedCharIndex].margin = value
+    if (editorStore.selectedCharIndex === null) return
+
+    if (editorStore.isC3Mode) {
+      const entry = appendedEntries.value[editorStore.selectedCharIndex]
+      if (entry) entry.margin = value
+    } else {
+      const entry = characterEntries.value[editorStore.selectedCharIndex]
+      if (entry) entry.margin = value
     }
   }
 })
@@ -159,6 +308,34 @@ function handleTextInput() {
   editorStore.selectedCharIndex = null
 }
 
+function handleAppendInput() {
+  duplicateChars.value = []
+  hasSpaceError.value = false
+
+  const graphemes = splitGraphemes(appendInput.value)
+
+  if (graphemes.length === 0) return
+
+  if (graphemes.some((g) => g === ' ')) {
+    hasSpaceError.value = true
+    return
+  }
+
+  const existing = new Set([
+    ...splitGraphemes(editorStore.importedCharacterSet),
+    ...appendedEntries.value.map((entry) => entry.char),
+  ])
+  const duplicates = graphemes.filter((g) => existing.has(g))
+
+  if (duplicates.length > 0) {
+    duplicateChars.value = [...new Set(duplicates)]
+    return
+  }
+
+  editorStore.appendC3Characters(graphemes)
+  appendInput.value = ''
+}
+
 function clearCharacters() {
   textInput.value = ''
   editorStore.updateCharacters('')
@@ -174,20 +351,48 @@ function selectCharacter(index: number) {
   }
 }
 
+function selectAppendedCharacter(index: number) {
+  if (editorStore.selectedCharIndex === index) {
+    editorStore.selectedCharIndex = null
+  } else {
+    editorStore.selectedCharIndex = index
+  }
+}
+
+function deleteAppendedCharacter(index: number) {
+  editorStore.removeC3AppendedCharacter(index)
+}
+
+function clearAppendedCharacters() {
+  editorStore.clearC3AppendedCharacters()
+}
+
 function saveMargin() {
   editorStore.saveToLocalStorage()
 
-  // 重新渲染
-  if (editorStore.baseImage && editorStore.characterEntries.length > 0) {
+  if (editorStore.baseImage) {
     editorStore.renderTrigger++
   }
 }
 
+function saveDisplayWidth(event: Event) {
+  const target = event.target as HTMLInputElement
+  const value = parseInt(target.value) || 0
+
+  if (editorStore.selectedCharIndex !== null) {
+    editorStore.updateC3AppendedDisplayWidth(editorStore.selectedCharIndex, value)
+  }
+}
+
+function resetDisplayWidthToAuto() {
+  if (editorStore.selectedCharIndex !== null) {
+    editorStore.updateC3AppendedDisplayWidth(editorStore.selectedCharIndex, 'auto')
+  }
+}
+
 function renderCharacters() {
-  // 触发字符渲染，使用当前插入点开始排版
   console.log('Rendering characters from insert point:', editorStore.insertPointConfig.startCellIndex)
 
-  // 触发渲染
   editorStore.renderTrigger++
   editorStore.saveToLocalStorage()
 
@@ -226,7 +431,7 @@ onMounted(() => {
   document.addEventListener('click', handleClickOutside)
   document.addEventListener('keydown', handleKeydown)
 
-  if (editorStore.characterEntries.length > 0) {
+  if (!editorStore.isC3Mode && editorStore.characterEntries.length > 0) {
     textInput.value = editorStore.characterEntries.map(e => e.char).join('')
   }
 })
@@ -269,6 +474,35 @@ watch(characterEntries, () => {
 .text-input {
   resize: vertical;
   min-height: 80px;
+}
+
+.text-input.is-invalid {
+  border-color: #dc3545;
+}
+
+.text-input.is-invalid:focus {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+.invalid-feedback {
+  color: #dc3545;
+  font-size: 0.875rem;
+}
+
+.character-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+.section-title {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #495057;
 }
 
 .character-controls {
@@ -317,6 +551,16 @@ watch(characterEntries, () => {
   box-shadow: 0 0 8px rgba(40, 167, 69, 0.3);
 }
 
+.character-item--readonly {
+  cursor: default;
+  background-color: #e9ecef;
+}
+
+.character-item--readonly:hover {
+  border-color: #dee2e6;
+  transform: none;
+}
+
 .character-char {
   font-size: 1.25rem;
   font-weight: 500;
@@ -330,6 +574,39 @@ watch(characterEntries, () => {
   left: 4px;
   font-size: 0.625rem;
   color: #6c757d;
+}
+
+.display-width-badge {
+  margin-top: 0.25rem;
+  font-size: 0.625rem;
+  color: #007bff;
+  background-color: #e7f3ff;
+  padding: 0.125rem 0.375rem;
+  border-radius: 2px;
+}
+
+.delete-char-btn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: none;
+  background-color: #dc3545;
+  color: white;
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.character-item:hover .delete-char-btn {
+  opacity: 1;
 }
 
 .margin-preview {
@@ -418,6 +695,38 @@ watch(characterEntries, () => {
   color: #495057;
 }
 
+.display-width-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #dee2e6;
+}
+
+.display-width-section label {
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: #495057;
+}
+
+.display-width-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.display-width-input {
+  width: 80px;
+  text-align: center;
+}
+
+.auto-width-hint {
+  font-size: 0.75rem;
+  color: #6c757d;
+  white-space: nowrap;
+}
+
 .popup-actions {
   display: flex;
   justify-content: flex-end;
@@ -462,6 +771,17 @@ watch(characterEntries, () => {
   color: white;
 }
 
+.btn-outline-secondary {
+  background-color: transparent;
+  color: #6c757d;
+  border-color: #6c757d;
+}
+
+.btn-outline-secondary:hover:not(:disabled) {
+  background-color: #6c757d;
+  color: white;
+}
+
 .btn-success {
   background-color: #28a745;
   color: white;
@@ -471,5 +791,16 @@ watch(characterEntries, () => {
 .btn-success:hover:not(:disabled) {
   background-color: #1e7e34;
   border-color: #1e7e34;
+}
+
+.btn-primary {
+  background-color: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #0056b3;
+  border-color: #0056b3;
 }
 </style>

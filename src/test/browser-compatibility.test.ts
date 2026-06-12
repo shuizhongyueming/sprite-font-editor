@@ -91,7 +91,7 @@ describe('Browser Compatibility', () => {
 
   describe('ES2020+ Features', () => {
     it('should support optional chaining', () => {
-      const obj: any = { a: { b: 1 } }
+      const obj: { a?: { b: number }; c?: { d?: unknown } } = { a: { b: 1 } }
       expect(obj?.a?.b).toBe(1)
       expect(obj?.c?.d).toBeUndefined()
     })

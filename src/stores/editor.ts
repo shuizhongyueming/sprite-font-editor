@@ -1,9 +1,18 @@
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
-import { ImageStorage, FontStorage } from "@/utils/storage";
+import {
+  ImageStorage,
+  FontStorage,
+  C3ImageStorage,
+  C3ConfigStorage,
+} from "@/utils/storage";
 import { detectGridFast } from "@/utils/grid-detector";
 import { notify } from "@/utils/notification";
 import { t } from "@/utils/i18n";
+import { splitGraphemes } from "@/utils/grapheme";
+import { measureGlyphDisplayWidth } from "@/utils/c3-char-renderer";
+import { buildC3InstanceArray } from "@/utils/c3-export";
+import type { C3InstanceArray, C3ParsedData } from "@/utils/c3-parser";
 
 // 单元格信息接口（用于插入点检测）
 export interface GridCellInfo {
@@ -109,6 +118,12 @@ export interface CharacterEntry {
     bottom: number;
     left: number;
   };
+}
+
+export interface C3AppendedEntry extends CharacterEntry {
+  displayWidth: number;
+  autoDisplayWidth: number;
+  isDisplayWidthManual?: boolean;
 }
 
 export interface InsertPointConfig {
@@ -236,6 +251,82 @@ export const useEditorStore = defineStore("editor", () => {
   // 字符输入
   const characterEntries = ref<CharacterEntry[]>([]);
 
+  // C3 模式状态
+  const isC3Mode = ref(false);
+  const c3InstanceArray = ref<C3InstanceArray | null>(null);
+  const importedCharacterSet = ref("");
+  const importedSpacingData = ref("");
+  const importedCharacterSpacing = ref(0);
+  const importedLineHeight = ref(0);
+  const c3ImportedImage = ref<HTMLImageElement | null>(null);
+  const c3ImportedImageFilename = ref("");
+  const c3AppendedEntries = ref<C3AppendedEntry[]>([]);
+
+  // C3 模式派生数据
+  const c3EffectiveCharacterSet = computed(() => {
+    return (
+      importedCharacterSet.value +
+      c3AppendedEntries.value.map((entry) => entry.char).join("")
+    );
+  });
+
+  const c3EffectiveSpacingData = computed(() => {
+    if (!isC3Mode.value) {
+      return importedSpacingData.value;
+    }
+
+    const characterWidth = baseCellConfig.value.width;
+    const displayWidthMap = new Map<string, number>();
+
+    try {
+      if (importedSpacingData.value) {
+        const tuples = JSON.parse(importedSpacingData.value) as Array<
+          [number, string]
+        >;
+        for (const [width, chars] of tuples) {
+          if (width === characterWidth) continue;
+          for (const char of splitGraphemes(chars)) {
+            displayWidthMap.set(char, width);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Failed to parse imported spacing data:", error);
+    }
+
+    for (const entry of c3AppendedEntries.value) {
+      displayWidthMap.set(entry.char, entry.displayWidth);
+    }
+
+    const groups = new Map<number, string[]>();
+    for (const [char, width] of displayWidthMap.entries()) {
+      if (width === characterWidth) continue;
+      if (!groups.has(width)) {
+        groups.set(width, []);
+      }
+      groups.get(width)!.push(char);
+    }
+
+    const result: Array<[number, string]> = [];
+    for (const [width, chars] of groups.entries()) {
+      result.push([width, chars.join("")]);
+    }
+
+    return JSON.stringify(result);
+  });
+
+  const c3ExportInstanceArray = computed<C3InstanceArray | null>(() => {
+    if (!isC3Mode.value || !c3InstanceArray.value) {
+      return null;
+    }
+
+    return buildC3InstanceArray(
+      c3InstanceArray.value,
+      [...c3EffectiveCharacterSet.value],
+      c3EffectiveSpacingData.value,
+    );
+  });
+
   // 渲染触发器（用于从Toolbar触发Canvas重绘）
   const renderTrigger = ref(0);
 
@@ -306,6 +397,179 @@ export const useEditorStore = defineStore("editor", () => {
       char,
       margin: { top: 0, right: 0, bottom: 0, left: 0 },
     }));
+  }
+
+  // 设置 C3 导入的图片（不保存到普通图片存储）
+  function setC3ImportedImage(image: HTMLImageElement) {
+    c3ImportedImage.value = image;
+    setBaseImage(image);
+  }
+
+  // 进入或退出 C3 模式
+  function setC3Mode(value: boolean) {
+    isC3Mode.value = value;
+  }
+
+  // 清空 C3 状态
+  function clearC3State() {
+    isC3Mode.value = false;
+    c3InstanceArray.value = null;
+    importedCharacterSet.value = "";
+    importedSpacingData.value = "";
+    importedCharacterSpacing.value = 0;
+    importedLineHeight.value = 0;
+    c3ImportedImage.value = null;
+    c3ImportedImageFilename.value = "";
+    c3AppendedEntries.value = [];
+  }
+
+  // 导入 C3 Sprite Font
+  function importC3SpriteFont(
+    image: HTMLImageElement,
+    array: C3InstanceArray,
+    parsed: C3ParsedData,
+    imageFilename?: string,
+    fontSpriteWidth?: number,
+    fontSpriteHeight?: number,
+  ) {
+    // 重置为干净状态，避免与普通模式数据混合
+    clearState();
+
+    isC3Mode.value = true;
+    c3InstanceArray.value = array;
+    importedCharacterSet.value = parsed.characterSet.join("");
+    importedSpacingData.value = parsed.spacingData;
+    importedCharacterSpacing.value = parsed.characterSpacing;
+    importedLineHeight.value = parsed.lineHeight;
+    c3ImportedImage.value = image;
+    c3ImportedImageFilename.value = imageFilename || "";
+    c3AppendedEntries.value = [];
+
+    setBaseImage(image);
+
+    baseCellConfig.value = {
+      ...baseCellConfig.value,
+      width: parsed.characterWidth,
+      height: parsed.characterHeight,
+      margin: { top: 0, right: 0, bottom: 0, left: 0 },
+    };
+
+    baseImageConfig.value = {
+      margin: { top: 0, right: 0, bottom: 0, left: 0 },
+      padding: { top: 0, right: 0, bottom: 0, left: 0 },
+      fontSpriteWidth: fontSpriteWidth ?? image.width,
+      fontSpriteHeight: fontSpriteHeight ?? image.height,
+    };
+
+    cellAlignment.value = { horizontal: "left", vertical: "top" };
+
+    renderTrigger.value++;
+    saveToLocalStorage();
+  }
+
+  // 追加 C3 字符（自动计算显示宽度）
+  function appendC3Characters(chars: string[]) {
+    if (!isC3Mode.value) return;
+
+    const fontFamily = currentFont.value?.family || characterStyle.value.fontFamily;
+    const newEntries: C3AppendedEntry[] = chars.map((char) => {
+      const autoWidth = measureGlyphDisplayWidth({
+        text: char,
+        fontFamily,
+        fontSize: characterStyle.value.fontSize,
+        characterWidth: baseCellConfig.value.width,
+        characterHeight: baseCellConfig.value.height,
+        padding: baseCellConfig.value.padding,
+        color: characterStyle.value.color,
+        outline: characterStyle.value.outline,
+      });
+
+      return {
+        char,
+        margin: { top: 0, right: 0, bottom: 0, left: 0 },
+        displayWidth: autoWidth,
+        autoDisplayWidth: autoWidth,
+      };
+    });
+
+    c3AppendedEntries.value.push(...newEntries);
+    saveToLocalStorage();
+    renderTrigger.value++;
+  }
+
+  // 移除单个追加的 C3 字符
+  function removeC3AppendedCharacter(index: number) {
+    if (!isC3Mode.value) return;
+
+    c3AppendedEntries.value.splice(index, 1);
+
+    if (selectedCharIndex.value === index) {
+      selectedCharIndex.value = null;
+    } else if (
+      selectedCharIndex.value !== null &&
+      selectedCharIndex.value > index
+    ) {
+      selectedCharIndex.value--;
+    }
+
+    saveToLocalStorage();
+    renderTrigger.value++;
+  }
+
+  // 更新追加字符的显示宽度
+  function updateC3AppendedDisplayWidth(
+    index: number,
+    width: number | "auto",
+  ) {
+    if (!isC3Mode.value || index < 0 || index >= c3AppendedEntries.value.length) {
+      return;
+    }
+
+    const entry = c3AppendedEntries.value[index];
+    entry.displayWidth = width === "auto" ? entry.autoDisplayWidth : width;
+    entry.isDisplayWidthManual = width !== "auto";
+
+    saveToLocalStorage();
+    renderTrigger.value++;
+  }
+
+  // 清空所有追加的 C3 字符
+  function clearC3AppendedCharacters() {
+    if (!isC3Mode.value) return;
+
+    c3AppendedEntries.value = [];
+    selectedCharIndex.value = null;
+
+    saveToLocalStorage();
+    renderTrigger.value++;
+  }
+
+  // 重新计算所有追加字符的自动显示宽度
+  function recalculateC3AppendedDisplayWidths() {
+    if (!isC3Mode.value) return;
+
+    const fontFamily = currentFont.value?.family || characterStyle.value.fontFamily;
+
+    for (const entry of c3AppendedEntries.value) {
+      const autoWidth = measureGlyphDisplayWidth({
+        text: entry.char,
+        fontFamily,
+        fontSize: characterStyle.value.fontSize,
+        characterWidth: baseCellConfig.value.width,
+        characterHeight: baseCellConfig.value.height,
+        padding: baseCellConfig.value.padding,
+        color: characterStyle.value.color,
+        outline: characterStyle.value.outline,
+      });
+
+      entry.autoDisplayWidth = autoWidth;
+      if (!entry.isDisplayWidthManual) {
+        entry.displayWidth = autoWidth;
+      }
+    }
+
+    saveToLocalStorage();
+    renderTrigger.value++;
   }
 
   // 检测插入点（基于透明度）
@@ -481,8 +745,24 @@ export const useEditorStore = defineStore("editor", () => {
       characterEntries: characterEntries.value,
       gridConfig: gridConfig.value,
       canvasBg: canvasBg.value,
+      isC3Mode: isC3Mode.value,
     };
     localStorage.setItem("sprite-font-editor-state", JSON.stringify(state));
+
+    C3ConfigStorage.save({
+      version: 1,
+      instanceArrayJson: c3InstanceArray.value
+        ? JSON.stringify(c3InstanceArray.value)
+        : "",
+      importedCharacterSet: importedCharacterSet.value,
+      importedSpacingData: importedSpacingData.value,
+      importedCharacterSpacing: importedCharacterSpacing.value,
+      importedLineHeight: importedLineHeight.value,
+      appendedEntries: c3AppendedEntries.value,
+      originalImageWidth: originalImageWidth.value,
+      originalImageHeight: originalImageHeight.value,
+      imageFilename: c3ImportedImageFilename.value,
+    });
   }
 
   // 从 localStorage 恢复
@@ -541,32 +821,94 @@ export const useEditorStore = defineStore("editor", () => {
         characterEntries.value = state.characterEntries || [];
         gridConfig.value = state.gridConfig || gridConfig.value;
         canvasBg.value = state.canvasBg || "white";
+        isC3Mode.value = state.isC3Mode || false;
+
+        restoreC3Config();
       } catch (error) {
         console.warn("Failed to load state from localStorage:", error);
       }
     }
   }
 
+  const CURRENT_C3_STORAGE_VERSION = 1;
+
+  function restoreC3Config() {
+    const c3Config = C3ConfigStorage.load();
+    if (!c3Config) {
+      if (isC3Mode.value) {
+        clearC3State();
+      }
+      return;
+    }
+
+    if (c3Config.version !== CURRENT_C3_STORAGE_VERSION) {
+      console.warn(
+        `[Editor] C3 storage version mismatch: ${c3Config.version}`,
+      );
+      notify.warning(t("c3StorageVersionMismatch"));
+      clearC3State();
+      return;
+    }
+
+    try {
+      c3InstanceArray.value = c3Config.instanceArrayJson
+        ? (JSON.parse(c3Config.instanceArrayJson) as C3InstanceArray)
+        : null;
+    } catch {
+      c3InstanceArray.value = null;
+    }
+
+    importedCharacterSet.value = c3Config.importedCharacterSet || "";
+    importedSpacingData.value = c3Config.importedSpacingData || "";
+    importedCharacterSpacing.value = c3Config.importedCharacterSpacing || 0;
+    importedLineHeight.value = c3Config.importedLineHeight || 0;
+    c3ImportedImageFilename.value = c3Config.imageFilename || "";
+    c3AppendedEntries.value = c3Config.appendedEntries || [];
+  }
+
   // 从 IndexedDB 恢复图片和字体
   async function restoreAssets() {
-    // 恢复图片
-    const imageData = await ImageStorage.load();
-    if (imageData) {
-      try {
-        const url = URL.createObjectURL(imageData.blob);
-        const img = new Image();
-        img.onload = () => {
-          setBaseImage(img, imageData.blob);
-          URL.revokeObjectURL(url);
-        };
-        img.onerror = () => {
-          URL.revokeObjectURL(url);
-          ImageStorage.remove();
-        };
-        img.src = url;
-      } catch (error) {
-        console.warn("Failed to restore image:", error);
-        await ImageStorage.remove();
+    if (isC3Mode.value) {
+      // 恢复 C3 图片
+      const c3ImageData = await C3ImageStorage.load();
+      if (c3ImageData) {
+        try {
+          const url = URL.createObjectURL(c3ImageData.blob);
+          const img = new Image();
+          img.onload = () => {
+            setC3ImportedImage(img);
+            URL.revokeObjectURL(url);
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(url);
+            C3ImageStorage.remove();
+          };
+          img.src = url;
+        } catch (error) {
+          console.warn("Failed to restore C3 image:", error);
+          await C3ImageStorage.remove();
+        }
+      }
+    } else {
+      // 恢复普通图片
+      const imageData = await ImageStorage.load();
+      if (imageData) {
+        try {
+          const url = URL.createObjectURL(imageData.blob);
+          const img = new Image();
+          img.onload = () => {
+            setBaseImage(img, imageData.blob);
+            URL.revokeObjectURL(url);
+          };
+          img.onerror = () => {
+            URL.revokeObjectURL(url);
+            ImageStorage.remove();
+          };
+          img.src = url;
+        } catch (error) {
+          console.warn("Failed to restore image:", error);
+          await ImageStorage.remove();
+        }
       }
     }
 
@@ -588,7 +930,12 @@ export const useEditorStore = defineStore("editor", () => {
   // 清除所有缓存数据
   async function clearAllData() {
     clearState();
-    await Promise.all([ImageStorage.remove(), FontStorage.remove()]);
+    await Promise.all([
+      ImageStorage.remove(),
+      FontStorage.remove(),
+      C3ImageStorage.remove(),
+      C3ConfigStorage.remove(),
+    ]);
   }
 
   // 清空状态
@@ -642,7 +989,9 @@ export const useEditorStore = defineStore("editor", () => {
     originalImageHeight.value = 0;
     displayedCanvasWidth.value = 0;
     displayedCanvasHeight.value = 0;
+    clearC3State();
     localStorage.removeItem("sprite-font-editor-state");
+    C3ConfigStorage.remove();
   }
 
   // 自动检测网格
@@ -730,11 +1079,33 @@ export const useEditorStore = defineStore("editor", () => {
     canvasBg,
     detectedInsertPoints,
     currentInsertPoint,
+    // C3 模式状态
+    isC3Mode,
+    c3InstanceArray,
+    importedCharacterSet,
+    importedSpacingData,
+    importedCharacterSpacing,
+    importedLineHeight,
+    c3ImportedImage,
+    c3ImportedImageFilename,
+    c3AppendedEntries,
+    c3EffectiveCharacterSet,
+    c3EffectiveSpacingData,
+    c3ExportInstanceArray,
     // actions
     setBaseImage,
     setFont,
     setCanvas,
+    setC3ImportedImage,
     updateCharacters,
+    importC3SpriteFont,
+    setC3Mode,
+    clearC3State,
+    appendC3Characters,
+    removeC3AppendedCharacter,
+    updateC3AppendedDisplayWidth,
+    clearC3AppendedCharacters,
+    recalculateC3AppendedDisplayWidths,
     saveToLocalStorage,
     loadFromLocalStorage,
     restoreAssets,

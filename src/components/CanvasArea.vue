@@ -26,9 +26,9 @@
           position="corner"
           :width="0"
           :height="0"
-          :cell-width="cellConfig.width"
-          :cell-height="cellConfig.height"
-          :cell-margin="cellConfig.margin"
+          :cell-width="effectiveCellConfig.width"
+          :cell-height="effectiveCellConfig.height"
+          :cell-margin="effectiveCellConfig.margin"
           :highlight-row="highlightedRow"
           :highlight-col="highlightedCol"
           :insert-point-row="insertPointRow"
@@ -44,9 +44,9 @@
           position="top"
           :width="canvasWidth"
           :height="0"
-          :cell-width="cellConfig.width"
-          :cell-height="cellConfig.height"
-          :cell-margin="cellConfig.margin"
+          :cell-width="effectiveCellConfig.width"
+          :cell-height="effectiveCellConfig.height"
+          :cell-margin="effectiveCellConfig.margin"
           :highlight-row="highlightedRow"
           :highlight-col="highlightedCol"
           :insert-point-row="insertPointRow"
@@ -62,9 +62,9 @@
           position="left"
           :width="0"
           :height="canvasHeight"
-          :cell-width="cellConfig.width"
-          :cell-height="cellConfig.height"
-          :cell-margin="cellConfig.margin"
+          :cell-width="effectiveCellConfig.width"
+          :cell-height="effectiveCellConfig.height"
+          :cell-margin="effectiveCellConfig.margin"
           :highlight-row="highlightedRow"
           :highlight-col="highlightedCol"
           :insert-point-row="insertPointRow"
@@ -136,7 +136,10 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted, watchEffect } f
 import { useEditorStore } from '@/stores/editor'
 import { CanvasSpace } from '@/utils/canvas'
 import { renderCharacterToCellScaled } from '@/utils/char-renderer'
+import { renderC3AppendedCharacter } from '@/utils/c3-char-renderer'
+import { splitGraphemes } from '@/utils/grapheme'
 import { notify } from '@/utils/notification'
+import { t } from '@/utils/i18n'
 import Ruler from './Ruler.vue'
 
 const editorStore = useEditorStore()
@@ -167,6 +170,21 @@ const canvasHeight = computed(() => editorStore.canvasHeight)
 const cellConfig = computed(() => editorStore.cellConfig)
 const imageConfig = computed(() => editorStore.imageConfig)
 
+// C3 模式下强制单元格边距为 0
+const effectiveCellConfig = computed(() => {
+  if (editorStore.isC3Mode) {
+    return {
+      ...cellConfig.value,
+      margin: { top: 0, right: 0, bottom: 0, left: 0 },
+    }
+  }
+  return cellConfig.value
+})
+
+const importedGraphemeCount = computed(() => {
+  return splitGraphemes(editorStore.importedCharacterSet).length
+})
+
 const containerStyle = computed(() => ({
   width: `${canvasWidth.value}px`,
   height: `${canvasHeight.value}px`,
@@ -195,13 +213,13 @@ const uiLayerStyle = computed(() => ({
 const canvasSpace = computed(() => {
   if (!hasImage.value) return null
 
-  console.log('computed canvasSpace', cellConfig.value, imageConfig.value);
+  console.log('computed canvasSpace', effectiveCellConfig.value, imageConfig.value);
   return new CanvasSpace(
     canvasWidth.value,
     canvasHeight.value,
-    cellConfig.value.width,
-    cellConfig.value.height,
-    cellConfig.value.margin,
+    effectiveCellConfig.value.width,
+    effectiveCellConfig.value.height,
+    effectiveCellConfig.value.margin,
     imageConfig.value.margin,
     imageConfig.value.padding,
     editorStore.baseImageConfig.fontSpriteWidth || undefined,
@@ -227,13 +245,13 @@ const gridCells = computed(() => {
         col,
         x: position.x,
         y: position.y,
-        width: cellConfig.value.width,
-        height: cellConfig.value.height,
+        width: effectiveCellConfig.value.width,
+        height: effectiveCellConfig.value.height,
         style: {
           left: `${position.x}px`,
           top: `${position.y}px`,
-          width: `${cellConfig.value.width}px`,
-          height: `${cellConfig.value.height}px`,
+          width: `${effectiveCellConfig.value.width}px`,
+          height: `${effectiveCellConfig.value.height}px`,
           border: editorStore.gridConfig.cellBorder
             ? `${editorStore.gridConfig.cellBorderWidth}px dashed ${editorStore.gridConfig.cellBorderColor}`
             : 'none',
@@ -261,8 +279,8 @@ const highlightedCells = computed(() => {
         style: {
           left: `${position.x}px`,
           top: `${position.y}px`,
-          width: `${cellConfig.value.width}px`,
-          height: `${cellConfig.value.height}px`,
+          width: `${effectiveCellConfig.value.width}px`,
+          height: `${effectiveCellConfig.value.height}px`,
           border: '1px dashed rgba(0, 255, 255, 0.6)',
           backgroundColor: 'rgba(0, 255, 255, 0.1)',
         },
@@ -284,8 +302,8 @@ const highlightedCells = computed(() => {
       style: {
         left: `${position.x}px`,
         top: `${position.y}px`,
-        width: `${cellConfig.value.width}px`,
-        height: `${cellConfig.value.height}px`,
+        width: `${effectiveCellConfig.value.width}px`,
+        height: `${effectiveCellConfig.value.height}px`,
         border: '1px solid #ff0000',
         backgroundColor: 'rgba(255, 0, 0, 0.1)',
       },
@@ -306,8 +324,8 @@ const highlightedCells = computed(() => {
         style: {
           left: `${position.x}px`,
           top: `${position.y}px`,
-          width: `${cellConfig.value.width}px`,
-          height: `${cellConfig.value.height}px`,
+          width: `${effectiveCellConfig.value.width}px`,
+          height: `${effectiveCellConfig.value.height}px`,
           border: '2px solid #28a745',
           backgroundColor: 'rgba(40, 167, 69, 0.2)',
           boxShadow: '0 0 12px rgba(40, 167, 69, 0.4)',
@@ -438,16 +456,34 @@ watch(() => editorStore.baseImage, async (newImage) => {
 })
 
 // 监听配置变化
-watch(() => [editorStore.characterStyle, editorStore.cellAlignment, editorStore.baseCellConfig, editorStore.baseImageConfig, editorStore.characterEntries],
+watch(() => [editorStore.characterStyle, editorStore.cellAlignment, editorStore.baseCellConfig, editorStore.baseImageConfig, editorStore.characterEntries, editorStore.c3AppendedEntries],
   () => {
     nextTick(() => {
-      if (canvasLayer.value && editorStore.baseImage && editorStore.characterEntries.length > 0) {
+      const hasGenericChars = editorStore.characterEntries.length > 0
+      const hasC3Chars = editorStore.isC3Mode && editorStore.c3AppendedEntries.length > 0
+      if (canvasLayer.value && editorStore.baseImage && (hasGenericChars || hasC3Chars)) {
         drawBaseImage()
       }
     })
   },
   { deep: true }
 )
+
+// C3 模式下字体变化时重新计算自动显示宽度
+watch(() => editorStore.currentFont, () => {
+  nextTick(() => {
+    if (editorStore.isC3Mode && editorStore.c3AppendedEntries.length > 0) {
+      editorStore.recalculateC3AppendedDisplayWidths()
+    }
+  })
+})
+
+// C3 模式下字体大小变化时重新计算自动显示宽度
+watch(() => editorStore.characterStyle.fontSize, () => {
+  if (editorStore.isC3Mode && editorStore.c3AppendedEntries.length > 0) {
+    editorStore.recalculateC3AppendedDisplayWidths()
+  }
+})
 
 // 监听会影响插入点检测的配置变化，自动重新检测
 watch(
@@ -483,7 +519,9 @@ watch(
 watch(() => editorStore.renderTrigger,
   () => {
     nextTick(() => {
-      if (canvasLayer.value && editorStore.baseImage && editorStore.characterEntries.length > 0) {
+      const hasGenericChars = editorStore.characterEntries.length > 0
+      const hasC3Chars = editorStore.isC3Mode && editorStore.c3AppendedEntries.length > 0
+      if (canvasLayer.value && editorStore.baseImage && (hasGenericChars || hasC3Chars)) {
         drawBaseImage()
       }
     })
@@ -545,10 +583,16 @@ function handleCellClick(event: MouseEvent) {
       editorStore.saveToLocalStorage()
     }
 
-    if (editorStore.characterEntries.length > 0) {
-      const startIndex = editorStore.insertPointConfig.startCellIndex || 0
+    const entries = editorStore.isC3Mode
+      ? editorStore.c3AppendedEntries
+      : editorStore.characterEntries
 
-      for (let i = 0; i < editorStore.characterEntries.length; i++) {
+    if (entries.length > 0) {
+      const startIndex = editorStore.isC3Mode
+        ? importedGraphemeCount.value
+        : (editorStore.insertPointConfig.startCellIndex || 0)
+
+      for (let i = 0; i < entries.length; i++) {
         const charCellIndex = startIndex + i
 
         if (charCellIndex === clickedIndex) {
@@ -557,7 +601,7 @@ function handleCellClick(event: MouseEvent) {
           const charRowCol = canvasSpace.value.indexToRowCol(charCellIndex)
           const cellPosition = canvasSpace.value.getCellPosition(charRowCol.row, charRowCol.col)
 
-          const popupLeft = rect.left + cellPosition.x + cellConfig.value.width - 50
+          const popupLeft = rect.left + cellPosition.x + effectiveCellConfig.value.width - 50
           const popupTop = rect.top + cellPosition.y - 50
 
           emit('showMarginPopup', {
@@ -579,7 +623,9 @@ const emit = defineEmits(['showMarginPopup'])
 const highlightedRow = computed(() => {
   if (editorStore.selectedCharIndex === null || !canvasSpace.value) return null
 
-  const startIndex = editorStore.insertPointConfig.startCellIndex || 0
+  const startIndex = editorStore.isC3Mode
+    ? importedGraphemeCount.value
+    : (editorStore.insertPointConfig.startCellIndex || 0)
   const charCellIndex = startIndex + editorStore.selectedCharIndex
 
   if (charCellIndex >= canvasSpace.value.rows * canvasSpace.value.columns) return null
@@ -591,7 +637,9 @@ const highlightedRow = computed(() => {
 const highlightedCol = computed(() => {
   if (editorStore.selectedCharIndex === null || !canvasSpace.value) return null
 
-  const startIndex = editorStore.insertPointConfig.startCellIndex || 0
+  const startIndex = editorStore.isC3Mode
+    ? importedGraphemeCount.value
+    : (editorStore.insertPointConfig.startCellIndex || 0)
   const charCellIndex = startIndex + editorStore.selectedCharIndex
 
   if (charCellIndex >= canvasSpace.value.rows * canvasSpace.value.columns) return null
@@ -629,6 +677,16 @@ const insertPointCol = computed(() => {
 
 // 渲染所有字符（使用原始 fontSize 渲染，然后缩放绘制）
 function renderCharacters() {
+  if (editorStore.isC3Mode) {
+    renderC3AppendedCharacters()
+    return
+  }
+
+  renderGenericCharacters()
+}
+
+// 普通模式字符渲染
+function renderGenericCharacters() {
   try {
     if (!canvasLayer.value || !editorStore.baseImage) return
 
@@ -682,6 +740,54 @@ function renderCharacters() {
   } catch (error) {
     console.error('Failed to render characters:', error)
     notify.error('字符渲染失败')
+  }
+}
+
+// C3 模式追加字符渲染（Phase B 实现）
+function renderC3AppendedCharacters() {
+  if (!canvasLayer.value || !editorStore.baseImage || !editorStore.isC3Mode) return
+
+  const canvas = canvasLayer.value
+  const ctx = canvas.getContext('2d')
+  if (!ctx) {
+    notify.error(t('canvasNotReady'))
+    return
+  }
+
+  // 重置画布为导入的底图
+  ctx.clearRect(0, 0, canvas.width, canvas.height)
+  const sourceImage = editorStore.c3ImportedImage || editorStore.baseImage
+  ctx.drawImage(sourceImage, 0, 0, canvas.width, canvas.height)
+
+  if (editorStore.c3AppendedEntries.length === 0 || !canvasSpace.value) return
+
+  const importedCount = importedGraphemeCount.value
+  const scale = editorStore.canvasScale
+  const baseCell = editorStore.baseCellConfig
+  const fontFamily = editorStore.currentFont?.family || editorStore.characterStyle.fontFamily
+
+  for (let i = 0; i < editorStore.c3AppendedEntries.length; i++) {
+    const entry = editorStore.c3AppendedEntries[i]
+    const cellIndex = importedCount + i
+    const { row, col } = canvasSpace.value.indexToRowCol(cellIndex)
+    const position = canvasSpace.value.getCellPosition(row, col)
+
+    renderC3AppendedCharacter({
+      char: entry.char,
+      targetCtx: ctx,
+      baseCellX: position.x / scale,
+      baseCellY: position.y / scale,
+      baseCellWidth: effectiveCellConfig.value.width / scale,
+      baseCellHeight: effectiveCellConfig.value.height / scale,
+      renderScale: scale,
+      charMargin: entry.margin,
+      cellPadding: baseCell.padding,
+      fontFamily,
+      fontSize: editorStore.characterStyle.fontSize,
+      color: editorStore.characterStyle.color,
+      outline: editorStore.characterStyle.outline,
+      pixelStyle: editorStore.characterStyle.pixelStyle,
+    })
   }
 }
 

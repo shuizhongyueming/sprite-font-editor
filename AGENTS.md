@@ -183,3 +183,9 @@ try {
 - Character rendering: `src/utils/char-renderer.ts`
 - Grid detection: `src/utils/grid-detector.ts`
 - Main canvas component: `src/components/CanvasArea.vue`
+- C3 parser: `src/utils/c3-parser.ts`
+- C3 export: `src/utils/c3-export.ts`
+- Grapheme splitting: `src/utils/grapheme.ts`
+- C3 import modal: `src/components/C3ImportModal.vue`
+- C3 export modal: `src/components/C3ExportModal.vue`
+- C3 config/image storage: `src/utils/storage.ts`

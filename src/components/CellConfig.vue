@@ -2,7 +2,14 @@
   <div class="cell-config">
     <div class="form-group">
       <label>{{ t('cellSize') }}</label>
+      <div
+        v-if="editorStore.isC3Mode"
+        class="readonly-value"
+      >
+        {{ editorStore.baseCellConfig.width }} × {{ editorStore.baseCellConfig.height }}
+      </div>
       <DimensionsInput
+        v-else
         :width="editorStore.baseCellConfig.width"
         :height="editorStore.baseCellConfig.height"
         :min="8"
@@ -14,7 +21,10 @@
       />
     </div>
 
-    <div class="form-group">
+    <div
+      v-if="!editorStore.isC3Mode"
+      class="form-group"
+    >
       <label>{{ t('cellMargin') }}</label>
       <SpacingInput
         :model-value="editorStore.baseCellConfig.margin"
@@ -32,7 +42,10 @@
       />
     </div>
 
-    <div class="form-group">
+    <div
+      v-if="!editorStore.isC3Mode"
+      class="form-group"
+    >
       <label>{{ t('alignment') }}</label>
       <div class="inline-controls">
         <div class="control-item">
@@ -72,6 +85,13 @@
           </select>
         </div>
       </div>
+    </div>
+
+    <div
+      v-if="editorStore.isC3Mode"
+      class="form-group c3-locked-notice"
+    >
+      {{ t('c3CellConfigLocked') }}
     </div>
 
     <div class="form-group">
@@ -321,5 +341,23 @@ function saveConfig() {
 .color-input::-webkit-color-swatch {
   border: none;
   border-radius: 3px;
+}
+
+.readonly-value {
+  padding: 0.375rem 0.75rem;
+  background-color: #e9ecef;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: #495057;
+  text-align: center;
+}
+
+.c3-locked-notice {
+  padding: 0.5rem;
+  background-color: #e7f3ff;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  color: #004085;
 }
 </style>

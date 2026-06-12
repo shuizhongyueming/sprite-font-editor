@@ -18,7 +18,7 @@ interface Option<T extends string | number> {
   label: string;
 }
 
-const props = defineProps<{
+defineProps<{
   modelValue: string | number;
   options: Option<string | number>[];
 }>();

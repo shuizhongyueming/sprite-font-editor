@@ -15,6 +15,29 @@ interface StoredAsset {
   createdAt: number;
 }
 
+export interface C3StoredConfig {
+  version: number;
+  instanceArrayJson: string;
+  importedCharacterSet: string;
+  importedSpacingData: string;
+  importedCharacterSpacing: number;
+  importedLineHeight: number;
+  appendedEntries: Array<{
+    char: string;
+    margin: {
+      top: number;
+      right: number;
+      bottom: number;
+      left: number;
+    };
+    displayWidth: number;
+    autoDisplayWidth: number;
+  }>;
+  originalImageWidth: number;
+  originalImageHeight: number;
+  imageFilename?: string;
+}
+
 let db: IDBDatabase | null = null;
 
 /**
@@ -174,8 +197,69 @@ export const FontStorage = {
   },
 };
 
+// ==================== C3 图片存储 ====================
+
+export const C3ImageStorage = {
+  key: "c3-image",
+
+  async save(blob: Blob, width: number, height: number): Promise<void> {
+    await save(this.key, "image", blob, {
+      width,
+      height,
+      mimeType: blob.type,
+    });
+  },
+
+  async load(): Promise<{ blob: Blob; width: number; height: number } | null> {
+    const result = await get(this.key);
+    if (result && result.type === "image" && result.data instanceof Blob) {
+      return {
+        blob: result.data,
+        width: (result.metadata.width as number) || 0,
+        height: (result.metadata.height as number) || 0,
+      };
+    }
+    return null;
+  },
+
+  async remove(): Promise<void> {
+    await remove(this.key);
+  },
+};
+
+// ==================== C3 配置存储 ====================
+
+const C3_CONFIG_KEY = "sprite-font-editor-c3-config";
+
+export const C3ConfigStorage = {
+  save(data: C3StoredConfig): void {
+    localStorage.setItem(C3_CONFIG_KEY, JSON.stringify(data));
+  },
+
+  load(): C3StoredConfig | null {
+    const saved = localStorage.getItem(C3_CONFIG_KEY);
+    if (!saved) return null;
+
+    try {
+      return JSON.parse(saved) as C3StoredConfig;
+    } catch (error) {
+      console.error("[Storage] Failed to load C3 config:", error);
+      return null;
+    }
+  },
+
+  remove(): void {
+    localStorage.removeItem(C3_CONFIG_KEY);
+  },
+};
+
 // ==================== 清除所有缓存 ====================
 
 export async function clearAll(): Promise<void> {
-  await Promise.all([ImageStorage.remove(), FontStorage.remove()]);
+  await Promise.all([
+    ImageStorage.remove(),
+    FontStorage.remove(),
+    C3ImageStorage.remove(),
+    C3ConfigStorage.remove(),
+  ]);
 }

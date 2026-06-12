@@ -2,10 +2,17 @@
   <div class="toolbar-container">
     <div class="toolbar-left">
       <button
+        v-if="!editorStore.isC3Mode"
         class="btn btn-primary"
         @click="uploadImage"
       >
         {{ t('uploadImage') }}
+      </button>
+      <button
+        class="btn btn-primary"
+        @click="openC3ImportModal"
+      >
+        {{ t('importC3SpriteFont') }}
       </button>
       <button
         class="btn btn-secondary"
@@ -129,6 +136,12 @@
       style="display: none"
       @change="handleFontUpload"
     >
+
+    <C3ImportModal v-model:visible="showC3ImportModal" />
+    <C3ExportModal
+      v-model="showC3ExportModal"
+      :instance-array="c3ExportInstanceArray"
+    />
   </div>
 </template>
 
@@ -137,9 +150,13 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { isValidImageFile, isValidFontFile } from '@/utils/file'
 import { exportWithOriginalSize } from '@/utils/download'
+import { exportC3SpriteFont, type C3AppendedEntry } from '@/utils/c3-export'
+import type { C3InstanceArray } from '@/utils/c3-parser'
 import { notify } from '@/utils/notification'
 import { t, getLocale, setLanguage } from '@/utils/i18n'
 import SegmentControl from './SegmentControl.vue'
+import C3ImportModal from './C3ImportModal.vue'
+import C3ExportModal from './C3ExportModal.vue'
 
 type Locale = 'zh-CN' | 'en-US'
 type CanvasBgType = 'white' | 'black' | 'checkerboard'
@@ -149,6 +166,9 @@ const editorStore = useEditorStore()
 const imageInput = ref<HTMLInputElement>()
 const fontInput = ref<HTMLInputElement>()
 const showDropdown = ref(false)
+const showC3ImportModal = ref(false)
+const showC3ExportModal = ref(false)
+const c3ExportInstanceArray = ref<C3InstanceArray | null>(null)
 const currentLocale = computed(() => getLocale())
 
 const insertPointMode = computed({
@@ -198,6 +218,10 @@ const hasBaseImage = computed(() => {
 
 function uploadImage() {
   imageInput.value?.click()
+}
+
+function openC3ImportModal() {
+  showC3ImportModal.value = true
 }
 
 function uploadFont() {
@@ -297,6 +321,36 @@ async function exportImage() {
   try {
     if (!editorStore.baseImage) {
       notify.warning(t('pleaseUploadImage'))
+      return
+    }
+
+    if (editorStore.isC3Mode) {
+      if (!editorStore.c3InstanceArray) {
+        notify.error(t('exportFailed'))
+        return
+      }
+
+      const filename = editorStore.c3ImportedImageFilename || 'c3-sprite-font.png'
+
+      const updatedArray = exportC3SpriteFont({
+        originalArray: editorStore.c3InstanceArray,
+        importedCharacterSet: editorStore.importedCharacterSet,
+        characterSet: [...editorStore.c3EffectiveCharacterSet],
+        spacingData: editorStore.c3EffectiveSpacingData,
+        baseImage: editorStore.baseImage,
+        c3ImportedImage: editorStore.c3ImportedImage,
+        baseCellConfig: editorStore.baseCellConfig,
+        baseImageConfig: editorStore.baseImageConfig,
+        appendedEntries: editorStore.c3AppendedEntries as C3AppendedEntry[],
+        characterStyle: editorStore.characterStyle,
+        currentFontFamily: editorStore.currentFont?.family,
+        filename,
+      })
+
+      c3ExportInstanceArray.value = updatedArray
+      showC3ExportModal.value = true
+      notify.success(t('c3ExportSuccess'))
+      console.log('C3 image exported successfully', filename)
       return
     }
 

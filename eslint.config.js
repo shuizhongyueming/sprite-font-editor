@@ -36,6 +36,14 @@ export default tsEslint.config(
     ],
   },
   {
+    files: ['**/*.{ts,vue}'],
+    rules: {
+      // TypeScript already catches undefined variables; no-undef is redundant
+      // and produces false positives for browser globals in Vue/TS files
+      'no-undef': 'off',
+    },
+  },
+  {
     rules: {
       'vue/multi-word-component-names': 'off',
     },

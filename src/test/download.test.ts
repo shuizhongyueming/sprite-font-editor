@@ -2,9 +2,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { triggerDownload, exportCanvasToPNG, exportCanvasToJPEG, dataURLToBlob, blobToDataURL } from '@/utils/download'
 
 describe('download utils', () => {
-  let mockLink: any
-  let mockCanvas: any
-  let createElementSpy: any
+  let mockLink: {
+    href: string
+    download: string
+    style: { display: string }
+    click: ReturnType<typeof vi.fn>
+  }
+  let mockCanvas: {
+    toDataURL: ReturnType<typeof vi.fn>
+  }
 
   beforeEach(() => {
     mockLink = {
@@ -15,7 +21,7 @@ describe('download utils', () => {
     }
 
     mockCanvas = {
-      toDataURL: vi.fn((type: string, quality?: number) => {
+      toDataURL: vi.fn((type: string) => {
         if (type === 'image/png') {
           return 'data:image/png;base64,mockpng'
         }
@@ -26,19 +32,18 @@ describe('download utils', () => {
       }),
     }
 
-    createElementSpy = vi.spyOn(document, 'createElement').mockImplementation((tagName: string): any => {
+    vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
       if (tagName === 'a') {
-        return mockLink
+        return mockLink as unknown as HTMLElement
       }
       if (tagName === 'canvas') {
-        return mockCanvas
+        return mockCanvas as unknown as HTMLCanvasElement
       }
-      const element = document.createElement.bind(document)(tagName)
-      return element
+      return document.createElement.bind(document)(tagName)
     })
 
-    vi.spyOn(document.body, 'appendChild').mockImplementation(() => mockLink)
-    vi.spyOn(document.body, 'removeChild').mockImplementation(() => mockLink)
+    vi.spyOn(document.body, 'appendChild').mockImplementation(() => mockLink as unknown as Node)
+    vi.spyOn(document.body, 'removeChild').mockImplementation(() => mockLink as unknown as Node)
   })
 
   afterEach(() => {
@@ -62,7 +67,7 @@ describe('download utils', () => {
 
   describe('exportCanvasToPNG', () => {
     it('should export canvas to PNG with default filename', () => {
-      exportCanvasToPNG(mockCanvas as any)
+      exportCanvasToPNG(mockCanvas as unknown as HTMLCanvasElement)
 
       expect(mockCanvas.toDataURL).toHaveBeenCalledWith('image/png')
       expect(mockLink.download).toBe('sprite-font.png')
@@ -71,7 +76,7 @@ describe('download utils', () => {
 
   describe('exportCanvasToJPEG', () => {
     it('should export canvas to JPEG with default quality', () => {
-      exportCanvasToJPEG(mockCanvas as any)
+      exportCanvasToJPEG(mockCanvas as unknown as HTMLCanvasElement)
 
       expect(mockCanvas.toDataURL).toHaveBeenCalledWith('image/jpeg', 0.9)
       expect(mockLink.download).toBe('sprite-font.jpg')

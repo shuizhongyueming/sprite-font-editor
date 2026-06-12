@@ -1,5 +1,5 @@
 import AppNotification from '@/components/AppNotification.vue'
-import { createApp, h, ref } from 'vue'
+import { createApp, h } from 'vue'
 
 export type NotificationType = 'info' | 'success' | 'warning' | 'error'
 

@@ -120,6 +120,39 @@ export interface Translations {
   cleared: string;
   confirmClear: string;
 
+  // C3 Sprite Font
+  importC3SpriteFont: string;
+  c3ImportTitle: string;
+  c3ImportImage: string;
+  c3ImportArray: string;
+  c3Validate: string;
+  c3Import: string;
+  c3ImportSuccess: string;
+  c3ImportError: string;
+  c3ReimportConfirm: string;
+  c3ModeActive: string;
+  c3ImportedCount: string;
+  c3AppendedCount: string;
+  c3CellConfigLocked: string;
+  c3FontSpriteSize: string;
+  c3FontSpriteWidth: string;
+  c3FontSpriteHeight: string;
+  c3ImageTooSmallError: string;
+  c3ParseSuccess: string;
+  c3StorageVersionMismatch: string;
+  c3AppendPlaceholder: string;
+  c3DuplicateChars: string;
+  c3SpaceNotAllowed: string;
+  c3DisplayWidth: string;
+  c3ResetAuto: string;
+  c3Preview: string;
+  c3SampleText: string;
+  c3ResetSampleText: string;
+  c3ExportTitle: string;
+  c3ExportCopy: string;
+  c3ExportCopied: string;
+  c3ExportSuccess: string;
+
   // DimensionsInput
   width: string;
   height: string;
@@ -245,6 +278,41 @@ export const translations: Record<Locale, Translations> = {
     cleared: "已清空所有内容",
     confirmClear: "确定要清空所有内容吗？",
 
+    // C3 Sprite Font
+    importC3SpriteFont: "导入 C3 Sprite Font",
+    c3ImportTitle: "导入 C3 Sprite Font",
+    c3ImportImage: "选择图片",
+    c3ImportArray: "C3 实例数组 JSON",
+    c3Validate: "验证",
+    c3Import: "导入",
+    c3ImportSuccess: "C3 Sprite Font 导入成功！",
+    c3ImportError: "导入失败：{message}",
+    c3ReimportConfirm:
+      "重新导入将覆盖当前 C3 项目和所有追加字符，是否继续？",
+    c3ModeActive: "C3 模式",
+    c3ImportedCount: "已导入字符：{count}",
+    c3AppendedCount: "已追加字符：{count}",
+    c3CellConfigLocked: "C3 模式下单元格边距和对齐方式已固定",
+    c3FontSpriteSize: "Font Sprite 尺寸",
+    c3FontSpriteWidth: "Font Sprite 宽度",
+    c3FontSpriteHeight: "Font Sprite 高度",
+    c3ImageTooSmallError:
+      "图片只能容纳 {capacity} 个字符，当前字符集有 {count} 个，超出部分将被省略",
+    c3ParseSuccess: "验证成功：{count} 个字符",
+    c3StorageVersionMismatch: "C3 项目存储版本不匹配，请重新导入",
+    c3AppendPlaceholder: "输入要追加的字符...",
+    c3DuplicateChars: "以下字符已存在：{chars}",
+    c3SpaceNotAllowed: "不能追加空格字符",
+    c3DisplayWidth: "显示宽度",
+    c3ResetAuto: "自动",
+    c3Preview: "C3 预览",
+    c3SampleText: "示例文本",
+    c3ResetSampleText: "重置示例文本",
+    c3ExportTitle: "导出 C3 Sprite Font",
+    c3ExportCopy: "复制到剪贴板",
+    c3ExportCopied: "已复制",
+    c3ExportSuccess: "C3 Sprite Font 导出成功！",
+
     // DimensionsInput
     width: "宽度",
     height: "高度",
@@ -368,6 +436,42 @@ export const translations: Record<Locale, Translations> = {
     renderComplete: "Character rendering complete",
     cleared: "All content cleared",
     confirmClear: "Are you sure you want to clear all content?",
+
+    // C3 Sprite Font
+    importC3SpriteFont: "Import C3 Sprite Font",
+    c3ImportTitle: "Import C3 Sprite Font",
+    c3ImportImage: "Select Image",
+    c3ImportArray: "C3 Instance Array JSON",
+    c3Validate: "Validate",
+    c3Import: "Import",
+    c3ImportSuccess: "C3 Sprite Font imported successfully!",
+    c3ImportError: "Import failed: {message}",
+    c3ReimportConfirm:
+      "Re-importing will overwrite the current C3 project and any appended characters. Continue?",
+    c3ModeActive: "C3 Mode",
+    c3ImportedCount: "Imported characters: {count}",
+    c3AppendedCount: "Appended characters: {count}",
+    c3CellConfigLocked: "Cell margin and alignment are fixed in C3 mode",
+    c3FontSpriteSize: "Font Sprite Size",
+    c3FontSpriteWidth: "Font Sprite Width",
+    c3FontSpriteHeight: "Font Sprite Height",
+    c3ImageTooSmallError:
+      "The image can only hold {capacity} characters, but the character set has {count}; excess characters will be omitted",
+    c3ParseSuccess: "Validation successful: {count} characters",
+    c3StorageVersionMismatch:
+      "C3 project storage version mismatch, please re-import",
+    c3AppendPlaceholder: "Enter characters to append...",
+    c3DuplicateChars: "Characters already exist: {chars}",
+    c3SpaceNotAllowed: "Space characters cannot be appended",
+    c3DisplayWidth: "Display Width",
+    c3ResetAuto: "Auto",
+    c3Preview: "C3 Preview",
+    c3SampleText: "Sample Text",
+    c3ResetSampleText: "Reset Sample Text",
+    c3ExportTitle: "Export C3 Sprite Font",
+    c3ExportCopy: "Copy to Clipboard",
+    c3ExportCopied: "Copied",
+    c3ExportSuccess: "C3 Sprite Font exported successfully!",
 
     // DimensionsInput
     width: "Width",

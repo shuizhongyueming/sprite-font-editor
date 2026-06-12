@@ -12,6 +12,7 @@ import { t } from "@/utils/i18n";
 import { splitGraphemes } from "@/utils/grapheme";
 import { measureGlyphDisplayWidth } from "@/utils/c3-char-renderer";
 import { buildC3InstanceArray } from "@/utils/c3-export";
+import type { C3AppendedEntry } from "@/utils/c3-export";
 import type { C3InstanceArray, C3ParsedData } from "@/utils/c3-parser";
 
 // 单元格信息接口（用于插入点检测）
@@ -118,12 +119,6 @@ export interface CharacterEntry {
     bottom: number;
     left: number;
   };
-}
-
-export interface C3AppendedEntry extends CharacterEntry {
-  displayWidth: number;
-  autoDisplayWidth: number;
-  isDisplayWidthManual?: boolean;
 }
 
 export interface InsertPointConfig {
@@ -263,6 +258,7 @@ export const useEditorStore = defineStore("editor", () => {
   const importedLineHeight = ref(0);
   const c3ImportedImage = ref<HTMLImageElement | null>(null);
   const c3ImportedImageFilename = ref("");
+  const c3GlobalExtraSpacing = ref(0);
   const c3AppendedEntries = ref<C3AppendedEntry[]>([]);
 
   // C3 模式派生数据
@@ -298,7 +294,11 @@ export const useEditorStore = defineStore("editor", () => {
     }
 
     for (const entry of c3AppendedEntries.value) {
-      displayWidthMap.set(entry.char, entry.displayWidth);
+      const displayWidth =
+        entry.autoDisplayWidth +
+        c3GlobalExtraSpacing.value +
+        entry.extraSpacing;
+      displayWidthMap.set(entry.char, displayWidth);
     }
 
     const groups = new Map<number, string[]>();
@@ -476,6 +476,7 @@ export const useEditorStore = defineStore("editor", () => {
     importedLineHeight.value = 0;
     c3ImportedImage.value = null;
     c3ImportedImageFilename.value = "";
+    c3GlobalExtraSpacing.value = 0;
     c3AppendedEntries.value = [];
   }
 
@@ -517,7 +518,10 @@ export const useEditorStore = defineStore("editor", () => {
       fontSpriteHeight: fontSpriteHeight ?? image.height,
     };
 
-    cellAlignment.value = { horizontal: "left", vertical: "top" };
+    cellAlignment.value = {
+      horizontal: "left",
+      vertical: cellAlignment.value.vertical,
+    };
 
     renderTrigger.value++;
     saveToLocalStorage();
@@ -543,8 +547,8 @@ export const useEditorStore = defineStore("editor", () => {
       return {
         char,
         margin: { top: 0, right: 0, bottom: 0, left: 0 },
-        displayWidth: autoWidth,
         autoDisplayWidth: autoWidth,
+        extraSpacing: 0,
       };
     });
 
@@ -572,18 +576,18 @@ export const useEditorStore = defineStore("editor", () => {
     renderTrigger.value++;
   }
 
-  // 更新追加字符的显示宽度
-  function updateC3AppendedDisplayWidth(
-    index: number,
-    width: number | "auto",
-  ) {
-    if (!isC3Mode.value || index < 0 || index >= c3AppendedEntries.value.length) {
+  // 更新追加字符的额外间距
+  function updateC3AppendedExtraSpacing(index: number, extraSpacing: number) {
+    if (
+      !isC3Mode.value ||
+      index < 0 ||
+      index >= c3AppendedEntries.value.length
+    ) {
       return;
     }
 
     const entry = c3AppendedEntries.value[index];
-    entry.displayWidth = width === "auto" ? entry.autoDisplayWidth : width;
-    entry.isDisplayWidthManual = width !== "auto";
+    entry.extraSpacing = extraSpacing;
 
     saveToLocalStorage();
     renderTrigger.value++;
@@ -596,6 +600,15 @@ export const useEditorStore = defineStore("editor", () => {
     c3AppendedEntries.value = [];
     selectedCharIndex.value = null;
 
+    saveToLocalStorage();
+    renderTrigger.value++;
+  }
+
+  // 设置追加字符的全局额外间距
+  function setC3GlobalExtraSpacing(value: number) {
+    if (!isC3Mode.value) return;
+
+    c3GlobalExtraSpacing.value = value;
     saveToLocalStorage();
     renderTrigger.value++;
   }
@@ -619,9 +632,6 @@ export const useEditorStore = defineStore("editor", () => {
       });
 
       entry.autoDisplayWidth = autoWidth;
-      if (!entry.isDisplayWidthManual) {
-        entry.displayWidth = autoWidth;
-      }
     }
 
     saveToLocalStorage();
@@ -815,6 +825,7 @@ export const useEditorStore = defineStore("editor", () => {
       importedSpacingData: importedSpacingData.value,
       importedCharacterSpacing: importedCharacterSpacing.value,
       importedLineHeight: importedLineHeight.value,
+      globalExtraSpacing: c3GlobalExtraSpacing.value,
       appendedEntries: c3AppendedEntries.value,
       originalImageWidth: originalImageWidth.value,
       originalImageHeight: originalImageHeight.value,
@@ -921,7 +932,43 @@ export const useEditorStore = defineStore("editor", () => {
     importedCharacterSpacing.value = c3Config.importedCharacterSpacing || 0;
     importedLineHeight.value = c3Config.importedLineHeight || 0;
     c3ImportedImageFilename.value = c3Config.imageFilename || "";
-    c3AppendedEntries.value = c3Config.appendedEntries || [];
+    c3GlobalExtraSpacing.value = c3Config.globalExtraSpacing || 0;
+    c3AppendedEntries.value = migrateAppendedEntries(c3Config.appendedEntries || []);
+  }
+
+  // 迁移旧版追加字符数据：从 displayWidth 推导出 extraSpacing
+  function migrateAppendedEntries(
+    entries: Array<{
+      char: string;
+      margin: { top: number; right: number; bottom: number; left: number };
+      autoDisplayWidth: number;
+      extraSpacing?: number;
+      displayWidth?: number;
+      isDisplayWidthManual?: boolean;
+    }>,
+  ): C3AppendedEntry[] {
+    return entries.map((entry) => {
+      if (typeof entry.extraSpacing === "number") {
+        return entry as C3AppendedEntry;
+      }
+
+      // 向后兼容：从旧版 displayWidth 推导 extraSpacing
+      let extraSpacing = 0;
+      if (
+        typeof entry.displayWidth === "number" &&
+        typeof entry.autoDisplayWidth === "number" &&
+        entry.displayWidth !== entry.autoDisplayWidth
+      ) {
+        extraSpacing = entry.displayWidth - entry.autoDisplayWidth;
+      }
+
+      return {
+        char: entry.char,
+        margin: entry.margin,
+        autoDisplayWidth: entry.autoDisplayWidth,
+        extraSpacing,
+      };
+    });
   }
 
   // 从 IndexedDB 恢复图片和字体
@@ -1148,6 +1195,7 @@ export const useEditorStore = defineStore("editor", () => {
     importedLineHeight,
     c3ImportedImage,
     c3ImportedImageFilename,
+    c3GlobalExtraSpacing,
     c3AppendedEntries,
     c3EffectiveCharacterSet,
     c3EffectiveSpacingData,
@@ -1164,8 +1212,9 @@ export const useEditorStore = defineStore("editor", () => {
     clearC3State,
     appendC3Characters,
     removeC3AppendedCharacter,
-    updateC3AppendedDisplayWidth,
+    updateC3AppendedExtraSpacing,
     clearC3AppendedCharacters,
+    setC3GlobalExtraSpacing,
     recalculateC3AppendedDisplayWidths,
     saveToLocalStorage,
     loadFromLocalStorage,

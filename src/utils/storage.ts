@@ -22,6 +22,7 @@ export interface C3StoredConfig {
   importedSpacingData: string;
   importedCharacterSpacing: number;
   importedLineHeight: number;
+  globalExtraSpacing: number;
   appendedEntries: Array<{
     char: string;
     margin: {
@@ -30,8 +31,11 @@ export interface C3StoredConfig {
       bottom: number;
       left: number;
     };
-    displayWidth: number;
     autoDisplayWidth: number;
+    extraSpacing: number;
+    // 向后兼容旧数据
+    displayWidth?: number;
+    isDisplayWidthManual?: boolean;
   }>;
   originalImageWidth: number;
   originalImageHeight: number;

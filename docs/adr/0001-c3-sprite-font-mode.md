@@ -20,7 +20,7 @@ We will add a dedicated **C3 mode** to the editor instead of trying to map C3 se
 
 Key consequences of this decision:
 - C3 mode is entered by importing a C3 sprite font (image + C3 instance array).
-- In C3 mode, cell alignment is fixed to top-left to match C3 drawing.
+- In C3 mode, horizontal cell alignment is fixed to left to match C3 drawing; vertical alignment remains configurable.
 - Cell margin is forced to 0 because C3 cells are contiguous.
 - Image margin and padding default to 0 but remain editable so a font inside a larger sprite atlas can be shifted into place.
 - Character padding is retained as an image-generation offset; it determines where the glyph is drawn inside each exported cell.
@@ -39,7 +39,7 @@ Key consequences of this decision:
 We could have tried to express C3 concepts using the existing cell width/height/margin/padding/alignment model. This was rejected because:
 - C3 has no per-cell margin; cells are contiguous.
 - C3 has a separate `displayWidth` concept that does not map to any existing editor concept.
-- The existing alignment feature would mislead users, because C3 ignores alignment inside cells.
+- The existing horizontal alignment feature would mislead users, because C3 always draws cells left-aligned. (Vertical alignment was later made configurable for appended characters to help even out glyph baselines, but it does not affect C3 runtime layout.)
 - The resulting UI would be confusing and error-prone.
 
 ### Alternative 2: Allow editing imported characters

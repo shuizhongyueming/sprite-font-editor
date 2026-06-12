@@ -165,6 +165,12 @@
         />
       </div>
     </div>
+
+    <!-- C3 预览悬浮面板 -->
+    <C3Preview
+      v-if="editorStore.isC3Mode"
+      class="c3-preview-floating"
+    />
   </div>
 </template>
 
@@ -178,6 +184,7 @@ import { splitGraphemes } from '@/utils/grapheme'
 import { notify } from '@/utils/notification'
 import { t } from '@/utils/i18n'
 import Ruler from './Ruler.vue'
+import C3Preview from './C3Preview.vue'
 
 const editorStore = useEditorStore()
 
@@ -616,6 +623,15 @@ watch(() => editorStore.renderTrigger,
   }
 )
 
+// 监听画布背景变化
+watch(() => editorStore.canvasBg, () => {
+  nextTick(() => {
+    if (canvasLayer.value && editorStore.baseImage) {
+      drawBaseImage()
+    }
+  })
+})
+
 // 监听插入点变化
 watch(() => editorStore.insertPointConfig,
   () => {
@@ -642,6 +658,9 @@ function drawBaseImage() {
     // 清除画布
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
+    // 绘制画布背景
+    drawCanvasBackground(ctx, canvas)
+
     // 绘制底图
     ctx.drawImage(editorStore.baseImage, 0, 0, canvas.width, canvas.height)
 
@@ -651,6 +670,45 @@ function drawBaseImage() {
     console.error('Failed to draw base image:', error)
     notify.error('绘制图片失败')
   }
+}
+
+function drawCanvasBackground(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+) {
+  const bg = editorStore.canvasBg
+
+  if (bg === 'white') {
+    ctx.fillStyle = 'white'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    return
+  }
+
+  if (bg === 'black') {
+    ctx.fillStyle = 'black'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    return
+  }
+
+  // checkerboard
+  const size = 40
+  const patternCanvas = document.createElement('canvas')
+  patternCanvas.width = size
+  patternCanvas.height = size
+  const patternCtx = patternCanvas.getContext('2d')
+  if (!patternCtx) return
+
+  patternCtx.fillStyle = '#ffffff'
+  patternCtx.fillRect(0, 0, size, size)
+  patternCtx.fillStyle = '#d2d2d2'
+  patternCtx.fillRect(0, 0, size / 2, size / 2)
+  patternCtx.fillRect(size / 2, size / 2, size / 2, size / 2)
+
+  const pattern = ctx.createPattern(patternCanvas, 'repeat')
+  if (!pattern) return
+
+  ctx.fillStyle = pattern
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
 }
 
 function handleCellClick(event: MouseEvent) {
@@ -877,6 +935,7 @@ function renderC3AppendedCharacters() {
       color: editorStore.characterStyle.color,
       outline: editorStore.characterStyle.outline,
       pixelStyle: editorStore.characterStyle.pixelStyle,
+      alignment: { horizontal: 'left', vertical: editorStore.cellAlignment.vertical },
     })
   }
 }
@@ -1093,5 +1152,9 @@ defineExpose({
 
 .cell-highlight--char {
   z-index: 20;
+}
+
+.c3-preview-floating {
+  /* C3Preview 组件内部控制自己的定位、尺寸和样式 */
 }
 </style>

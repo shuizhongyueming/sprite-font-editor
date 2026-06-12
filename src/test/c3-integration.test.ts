@@ -69,8 +69,8 @@ describe('C3 import → append → export round-trip', () => {
     store.appendC3Characters(['C', 'D'])
     // Set appended characters to the default cell width so they are skipped
     // from spacing data, matching C3 behavior.
-    store.updateC3AppendedDisplayWidth(0, 16)
-    store.updateC3AppendedDisplayWidth(1, 16)
+    store.updateC3AppendedExtraSpacing(0, 16)
+    store.updateC3AppendedExtraSpacing(1, 16)
 
     const exportedArray = store.c3ExportInstanceArray
     expect(exportedArray).not.toBeNull()
@@ -117,7 +117,7 @@ describe('C3 import → append → export round-trip', () => {
 
     store.importC3SpriteFont(image, rawArray, parsed)
     store.appendC3Characters(['C'])
-    store.updateC3AppendedDisplayWidth(0, 10)
+    store.updateC3AppendedExtraSpacing(0, 10)
 
     const exportedArray = store.c3ExportInstanceArray
     expect(exportedArray).not.toBeNull()

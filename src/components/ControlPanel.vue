@@ -32,20 +32,22 @@
         <div class="c3-info__item">
           <span class="c3-info__label">{{ t('c3AppendedCount', { count: appendedCount }) }}</span>
         </div>
+        <div class="c3-info__item c3-info__item--input">
+          <label for="c3-global-extra-spacing">{{ t('c3GlobalExtraSpacing') }}</label>
+          <input
+            id="c3-global-extra-spacing"
+            :value="editorStore.c3GlobalExtraSpacing"
+            type="number"
+            class="form-control c3-extra-spacing-input"
+            @change="handleGlobalExtraSpacingChange"
+          >
+        </div>
       </div>
     </div>
 
     <div class="panel-section">
       <h3>{{ t('insertPointInfo') }}</h3>
       <InsertPointInfo />
-    </div>
-
-    <div
-      v-if="editorStore.isC3Mode"
-      class="panel-section"
-    >
-      <h3>{{ t('c3Preview') }}</h3>
-      <C3Preview />
     </div>
   </div>
 </template>
@@ -58,7 +60,6 @@ import CellConfig from './CellConfig.vue'
 import CharStyle from './CharStyle.vue'
 import CharacterInput from './CharacterInput.vue'
 import InsertPointInfo from './InsertPointInfo.vue'
-import C3Preview from './C3Preview.vue'
 import { t } from '@/utils/i18n'
 import { splitGraphemes } from '@/utils/grapheme'
 
@@ -73,6 +74,12 @@ const appendedCount = computed(() => {
 })
 
 const characterInputRef = ref()
+
+function handleGlobalExtraSpacingChange(event: Event) {
+  const target = event.target as HTMLInputElement
+  const value = parseInt(target.value) || 0
+  editorStore.setC3GlobalExtraSpacing(value)
+}
 
 defineExpose({
   characterInputRef
@@ -131,5 +138,30 @@ defineExpose({
   font-size: 0.875rem;
   font-weight: 500;
   color: #495057;
+}
+
+.c3-info__item--input {
+  gap: 0.5rem;
+}
+
+.c3-info__item--input label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #495057;
+}
+
+.c3-extra-spacing-input {
+  width: 80px;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.c3-extra-spacing-input:focus {
+  outline: none;
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
 }
 </style>

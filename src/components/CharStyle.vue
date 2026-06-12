@@ -30,10 +30,10 @@
     <div class="form-group">
       <label>{{ t('textColor') }}</label>
       <input
-        v-model="characterStyle.color"
+        v-model="localColor"
         type="color"
         class="color-input"
-        @change="saveConfig"
+        @change="saveColor"
       >
     </div>
     
@@ -72,10 +72,10 @@
       <div class="form-group">
         <label>{{ t('outlineColor') }}</label>
         <input
-          v-model="characterStyle.outline.color"
+          v-model="localOutlineColor"
           type="color"
           class="color-input"
-          @change="saveConfig"
+          @change="saveOutlineColor"
         >
       </div>
       
@@ -95,7 +95,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { t } from '@/utils/i18n'
 
@@ -110,8 +110,36 @@ const characterStyle = computed({
 
 const currentFont = computed(() => editorStore.currentFont)
 
+// 本地颜色值，避免在调色板滑动时实时触发 store 更新和画布重绘
+const localColor = ref(editorStore.characterStyle.color)
+const localOutlineColor = ref(editorStore.characterStyle.outline.color)
+
+watch(
+  () => editorStore.characterStyle.color,
+  (newColor) => {
+    localColor.value = newColor
+  },
+)
+
+watch(
+  () => editorStore.characterStyle.outline.color,
+  (newColor) => {
+    localOutlineColor.value = newColor
+  },
+)
+
 function saveConfig() {
   editorStore.saveToLocalStorage()
+}
+
+function saveColor() {
+  editorStore.characterStyle.color = localColor.value
+  saveConfig()
+}
+
+function saveOutlineColor() {
+  editorStore.characterStyle.outline.color = localOutlineColor.value
+  saveConfig()
 }
 </script>
 

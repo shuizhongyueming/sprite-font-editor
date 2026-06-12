@@ -42,13 +42,13 @@
       />
     </div>
 
-    <div
-      v-if="!editorStore.isC3Mode"
-      class="form-group"
-    >
+    <div class="form-group">
       <label>{{ t('alignment') }}</label>
       <div class="inline-controls">
-        <div class="control-item">
+        <div
+          v-if="!editorStore.isC3Mode"
+          class="control-item"
+        >
           <span class="control-label">{{ t('horizontal') }}</span>
           <select
             v-model="cellAlignment.horizontal"
@@ -85,13 +85,6 @@
           </select>
         </div>
       </div>
-    </div>
-
-    <div
-      v-if="editorStore.isC3Mode"
-      class="form-group c3-locked-notice"
-    >
-      {{ t('c3CellConfigLocked') }}
     </div>
 
     <div class="form-group">

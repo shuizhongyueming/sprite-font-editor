@@ -113,11 +113,16 @@ export interface RenderC3AppendedCharacterOptions {
   color: string;
   outline?: RenderCharacterOptions["outline"];
   pixelStyle?: boolean;
+  alignment?: {
+    horizontal: "left" | "center" | "right";
+    vertical: "top" | "middle" | "bottom";
+  };
 }
 
 /**
  * Render one appended character at the correct C3 cell position.
- * C3 draws cells top-left aligned, so we force left/top alignment here.
+ * Horizontal alignment is always left to match C3's cell drawing,
+ * but vertical alignment can be adjusted to even out glyph baselines.
  */
 export function renderC3AppendedCharacter(
   options: RenderC3AppendedCharacterOptions,
@@ -137,7 +142,10 @@ export function renderC3AppendedCharacter(
       fontSize: options.fontSize,
       color: options.color,
       outline: options.outline,
-      alignment: { horizontal: "left", vertical: "top" },
+      alignment: {
+        horizontal: "left",
+        vertical: options.alignment?.vertical ?? "top",
+      },
     },
     options.pixelStyle ?? false,
   );

@@ -58,7 +58,9 @@
           >
             <span class="character-char">{{ entry.char }}</span>
             <span class="character-index">{{ index + 1 }}</span>
-            <span class="display-width-badge">{{ entry.displayWidth }}</span>
+            <span class="display-width-badge">
+              {{ entry.autoDisplayWidth + editorStore.c3GlobalExtraSpacing + entry.extraSpacing }}
+            </span>
             <button
               class="delete-char-btn"
               @click.stop="deleteAppendedCharacter(index)"
@@ -184,24 +186,40 @@
         v-if="editorStore.isC3Mode && selectedAppendedEntry"
         class="display-width-section"
       >
-        <label>{{ t('c3DisplayWidth') }}</label>
+        <label>{{ t('c3AutoDisplayWidth') }}</label>
         <div class="display-width-row">
           <input
-            :value="selectedAppendedEntry.displayWidth"
+            :value="selectedAppendedEntry.autoDisplayWidth"
             type="number"
             class="form-control display-width-input"
-            min="0"
-            @change="saveDisplayWidth"
+            readonly
           >
-          <span class="auto-width-hint">
-            {{ t('c3ResetAuto') }}: {{ selectedAppendedEntry.autoDisplayWidth }}
-          </span>
+        </div>
+
+        <label>{{ t('c3ExtraSpacing') }}</label>
+        <div class="display-width-row">
+          <input
+            :value="selectedAppendedEntry.extraSpacing"
+            type="number"
+            class="form-control display-width-input"
+            @change="saveExtraSpacing"
+          >
           <button
             class="btn btn-sm btn-outline-secondary"
-            @click="resetDisplayWidthToAuto"
+            @click="resetExtraSpacing"
           >
-            {{ t('c3ResetAuto') }}
+            {{ t('c3ResetExtraSpacing') }}
           </button>
+        </div>
+
+        <label>{{ t('c3FinalDisplayWidth') }}</label>
+        <div class="display-width-row">
+          <input
+            :value="finalDisplayWidth"
+            type="number"
+            class="form-control display-width-input"
+            readonly
+          >
         </div>
       </div>
       <div class="popup-actions">
@@ -260,6 +278,12 @@ const selectedChar = computed(() => {
 const selectedAppendedEntry = computed(() => {
   if (!editorStore.isC3Mode || editorStore.selectedCharIndex === null) return null
   return appendedEntries.value[editorStore.selectedCharIndex] || null
+})
+
+const finalDisplayWidth = computed(() => {
+  const entry = selectedAppendedEntry.value
+  if (!entry) return 0
+  return entry.autoDisplayWidth + editorStore.c3GlobalExtraSpacing + entry.extraSpacing
 })
 
 const selectedCharMargin = computed({
@@ -375,18 +399,18 @@ function saveMargin() {
   }
 }
 
-function saveDisplayWidth(event: Event) {
+function saveExtraSpacing(event: Event) {
   const target = event.target as HTMLInputElement
   const value = parseInt(target.value) || 0
 
   if (editorStore.selectedCharIndex !== null) {
-    editorStore.updateC3AppendedDisplayWidth(editorStore.selectedCharIndex, value)
+    editorStore.updateC3AppendedExtraSpacing(editorStore.selectedCharIndex, value)
   }
 }
 
-function resetDisplayWidthToAuto() {
+function resetExtraSpacing() {
   if (editorStore.selectedCharIndex !== null) {
-    editorStore.updateC3AppendedDisplayWidth(editorStore.selectedCharIndex, 'auto')
+    editorStore.updateC3AppendedExtraSpacing(editorStore.selectedCharIndex, 0)
   }
 }
 

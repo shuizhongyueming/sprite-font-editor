@@ -150,10 +150,17 @@ export interface Translations {
   c3DuplicateChars: string;
   c3SpaceNotAllowed: string;
   c3DisplayWidth: string;
+  c3AutoDisplayWidth: string;
+  c3FinalDisplayWidth: string;
+  c3ExtraSpacing: string;
+  c3ResetExtraSpacing: string;
+  c3GlobalExtraSpacing: string;
   c3ResetAuto: string;
   c3Preview: string;
   c3SampleText: string;
   c3ResetSampleText: string;
+  c3CollapsePreview: string;
+  c3ExpandPreview: string;
   c3ExportTitle: string;
   c3ExportCopy: string;
   c3ExportCopied: string;
@@ -316,10 +323,17 @@ export const translations: Record<Locale, Translations> = {
     c3DuplicateChars: "以下字符已存在：{chars}",
     c3SpaceNotAllowed: "不能追加空格字符",
     c3DisplayWidth: "显示宽度",
+    c3AutoDisplayWidth: "自动宽度",
+    c3FinalDisplayWidth: "最终显示宽度",
+    c3ExtraSpacing: "额外间距",
+    c3ResetExtraSpacing: "重置额外间距",
+    c3GlobalExtraSpacing: "全局追加字符额外间距",
     c3ResetAuto: "自动",
     c3Preview: "C3 预览",
     c3SampleText: "示例文本",
     c3ResetSampleText: "重置示例文本",
+    c3CollapsePreview: "收起预览",
+    c3ExpandPreview: "展开预览",
     c3ExportTitle: "导出 C3 Sprite Font",
     c3ExportCopy: "复制到剪贴板",
     c3ExportCopied: "已复制",
@@ -482,10 +496,17 @@ export const translations: Record<Locale, Translations> = {
     c3DuplicateChars: "Characters already exist: {chars}",
     c3SpaceNotAllowed: "Space characters cannot be appended",
     c3DisplayWidth: "Display Width",
+    c3AutoDisplayWidth: "Auto Width",
+    c3FinalDisplayWidth: "Final Display Width",
+    c3ExtraSpacing: "Extra Spacing",
+    c3ResetExtraSpacing: "Reset Extra Spacing",
+    c3GlobalExtraSpacing: "Global Appended Extra Spacing",
     c3ResetAuto: "Auto",
     c3Preview: "C3 Preview",
     c3SampleText: "Sample Text",
     c3ResetSampleText: "Reset Sample Text",
+    c3CollapsePreview: "Collapse Preview",
+    c3ExpandPreview: "Expand Preview",
     c3ExportTitle: "Export C3 Sprite Font",
     c3ExportCopy: "Copy to Clipboard",
     c3ExportCopied: "Copied",

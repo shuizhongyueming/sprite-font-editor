@@ -62,7 +62,8 @@ export interface C3AppendedEntry {
     bottom: number;
     left: number;
   };
-  displayWidth: number;
+  autoDisplayWidth: number;
+  extraSpacing: number;
 }
 
 export interface ExportC3Options {

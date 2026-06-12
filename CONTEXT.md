@@ -6,7 +6,7 @@
 The web-based editor project itself. Its current domain model assumes every cell in the grid has the same render size, same margin, and same padding, and characters are rendered into those cells at the current zoom level for preview. Export produces a PNG whose dimensions match the original base image. In C3 mode the editor becomes a C3 sprite sheet generator: it produces the sprite sheet image and the accompanying C3 font configuration, while runtime-only object properties (text, scale, alignment, wrapping, visibility) are intentionally not exported.
 
 ### C3 Mode
-An editor mode entered when importing a C3 sprite font. In this mode the editor uses C3 semantics (uniform grid, row-major character set, per-character display widths). Cell alignment is fixed to top-left to match C3's cell drawing. Cell margin defaults to 0 because C3 cells are contiguous. Character padding remains available because it offsets the glyph within the exported cell. Image margin and image padding default to 0 but remain editable so that a font located inside a larger sprite atlas can be shifted into place. The generic Upload Image button is hidden in C3 mode; the only way to change the base image is to import another C3 sprite font. If no custom font is uploaded, appended characters are rendered with a fallback system font.
+An editor mode entered when importing a C3 sprite font. In this mode the editor uses C3 semantics (uniform grid, row-major character set, per-character display widths). Horizontal cell alignment is fixed to left to match C3's cell drawing, but vertical alignment remains configurable so users can even out glyph baselines (especially useful for mixed CJK and Latin characters). Cell margin defaults to 0 because C3 cells are contiguous. Character padding remains available because it offsets the glyph within the exported cell. Image margin and image padding default to 0 but remain editable so that a font located inside a larger sprite atlas can be shifted into place. The generic Upload Image button is hidden in C3 mode; the only way to change the base image is to import another C3 sprite font. If no custom font is uploaded, appended characters are rendered with a fallback system font.
 
 ### Imported Character Set
 The character set loaded from a C3 instance array when importing. It is kept in memory as the baseline. Users may append new characters, but they cannot edit or reorder existing characters because the imported sprite sheet image already contains them.
@@ -75,6 +75,19 @@ The horizontal advance width used when laying out a specific character in C3. De
 - the override from spacing data if `c` appears there and the override differs from `characterWidth`;
 - `characterWidth` otherwise.
 
+### Appended Character Extra Spacing
+An editor-specific horizontal offset applied **only to appended characters** in C3 mode. It is **not** a native C3 concept; the editor folds it into each appended character's `displayWidth` before exporting `spacingData`. It has two layers:
+- **Global default**: a single value configured in the C3 panel and applied to every appended character.
+- **Per-character override**: an additional value configured per appended character in the character edit popup.
+
+Both layers are additive: for an appended character `c`,
+
+```
+displayWidth(c) = autoDisplayWidth(c) + globalExtraSpacing + perCharExtraSpacing(c)
+```
+
+where `autoDisplayWidth(c)` is the measured glyph pixel width plus `padding.left`. Changing the global default immediately recomputes every appended character's `displayWidth`; the per-character override is always added on top of the current global default.
+
 ### Spacing Data (C3)
 A JSON-encoded array of `[displayWidth, characters]` tuples. Each tuple assigns the same `displayWidth` to every character in the `characters` string. C3 ignores any tuple whose `displayWidth` equals `characterWidth`. The space character may receive a special `spaceWidth` value if it is not present in the character set.
 
@@ -112,3 +125,5 @@ The mapping convention where the first character in the character set occupies t
 
 ### Cell Placement (C3)
 C3 draws each character using a quad whose size is exactly `characterWidth × characterHeight`, placed so that its top-left corner is at the current pen position. C3 does **not** center, pad, or otherwise align the glyph inside the cell; the glyph position inside the sprite sheet cell is whatever the artist drew. The only horizontal offset between characters comes from `displayWidth + spacing`.
+
+For appended characters, the editor allows the user to choose the vertical alignment (`top`, `middle`, `bottom`) used when rendering the glyph into the cell. This affects only the glyph's vertical position inside the cell and does **not** change `displayWidth` or exported `spacingData`.

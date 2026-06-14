@@ -189,3 +189,5 @@ try {
 - C3 import modal: `src/components/C3ImportModal.vue`
 - C3 export modal: `src/components/C3ExportModal.vue`
 - C3 config/image storage: `src/utils/storage.ts`
+- Project export: `src/utils/project-export.ts`
+- Project import: `src/utils/project-import.ts`

@@ -63,6 +63,7 @@ export interface C3AppendedEntry {
     left: number;
   };
   autoDisplayWidth: number;
+  autoGlyphHeight: number;
   extraSpacing: number;
 }
 

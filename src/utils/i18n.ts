@@ -126,6 +126,19 @@ export interface Translations {
   cleared: string;
   confirmClear: string;
 
+  // Project Import/Export
+  projectMenu: string;
+  importProject: string;
+  exportProject: string;
+  exportingProject: string;
+  projectImportSuccess: string;
+  projectImportFailed: string;
+  projectExportSuccess: string;
+  projectExportFailed: string;
+  confirmImportProject: string;
+  projectImageDimensionMismatch: string;
+  projectFontLoadWarning: string;
+
   // C3 Sprite Font
   importC3SpriteFont: string;
   c3ImportTitle: string;
@@ -186,6 +199,17 @@ export const translations: Record<Locale, Translations> = {
     autoMode: "自动",
     manualMode: "手动",
     clearAll: "清空",
+    projectMenu: "项目 ▼",
+    importProject: "导入项目",
+    exportProject: "导出项目",
+    exportingProject: "导出中...",
+    projectImportSuccess: "项目导入成功！",
+    projectImportFailed: "项目导入失败：{message}",
+    projectExportSuccess: "项目导出成功！",
+    projectExportFailed: "项目导出失败：{message}",
+    confirmImportProject: "导入项目将覆盖当前编辑器状态，是否继续？",
+    projectImageDimensionMismatch: "图片尺寸与项目元数据不匹配",
+    projectFontLoadWarning: "项目字体加载失败，已回退到系统字体",
     canvasBackground: "画布背景",
     bgWhite: "白色",
     bgBlack: "黑色",
@@ -357,6 +381,17 @@ export const translations: Record<Locale, Translations> = {
     autoMode: "Auto",
     manualMode: "Manual",
     clearAll: "Clear All",
+    projectMenu: "Project ▼",
+    importProject: "Import Project",
+    exportProject: "Export Project",
+    exportingProject: "Exporting...",
+    projectImportSuccess: "Project imported successfully!",
+    projectImportFailed: "Project import failed: {message}",
+    projectExportSuccess: "Project exported successfully!",
+    projectExportFailed: "Project export failed: {message}",
+    confirmImportProject: "Importing a project will overwrite the current editor state. Continue?",
+    projectImageDimensionMismatch: "Image dimensions do not match project metadata",
+    projectFontLoadWarning: "Failed to load project font, falling back to system font",
     canvasBackground: "Canvas Background",
     bgWhite: "White",
     bgBlack: "Black",

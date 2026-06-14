@@ -1,6 +1,41 @@
 <template>
   <div class="toolbar-container">
     <div class="toolbar-left">
+      <!-- Project dropdown -->
+      <div class="project-dropdown">
+        <button
+          class="btn btn-project"
+          @click="toggleProjectDropdown"
+        >
+          {{ t('projectMenu') }}
+          <span class="dropdown-arrow">▼</span>
+        </button>
+        <div
+          v-show="showProjectDropdown"
+          class="dropdown-menu"
+        >
+          <div
+            class="dropdown-item"
+            @click="importProject"
+          >
+            <span>{{ t('importProject') }}</span>
+          </div>
+          <div
+            class="dropdown-item"
+            @click="exportProject"
+          >
+            <span>{{ isExporting ? t('exportingProject') : t('exportProject') }}</span>
+          </div>
+          <div class="dropdown-separator" />
+          <div
+            class="dropdown-item dropdown-item--danger"
+            @click="clearAll"
+          >
+            <span>{{ t('clearAll') }}</span>
+          </div>
+        </div>
+      </div>
+
       <button
         v-if="!editorStore.isC3Mode"
         class="btn btn-primary"
@@ -95,13 +130,6 @@
         </div>
       </div>
 
-      <button
-        class="btn btn-danger"
-        @click="clearAll"
-      >
-        {{ t('clearAll') }}
-      </button>
-
       <a
         href="https://github.com/shuizhongyueming/sprite-font-editor"
         target="_blank"
@@ -136,6 +164,21 @@
       style="display: none"
       @change="handleFontUpload"
     >
+    <input
+      ref="projectFolderInput"
+      type="file"
+      style="display: none"
+      webkitdirectory
+      directory
+      @change="handleProjectFolderImport"
+    >
+    <input
+      ref="projectZipInput"
+      type="file"
+      accept=".zip"
+      style="display: none"
+      @change="handleProjectZipImport"
+    >
 
     <C3ImportModal v-model:visible="showC3ImportModal" />
     <C3ExportModal
@@ -149,9 +192,11 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { isValidImageFile, isValidFontFile } from '@/utils/file'
-import { exportWithOriginalSize } from '@/utils/download'
+import { exportWithOriginalSize, triggerDownload } from '@/utils/download'
 import { exportC3SpriteFont, type C3AppendedEntry } from '@/utils/c3-export'
 import type { C3InstanceArray } from '@/utils/c3-parser'
+import { exportProjectToDirectory, exportProjectToZip } from '@/utils/project-export'
+import { parseProjectFiles, buildFileMapFromFileList, readZipProject } from '@/utils/project-import'
 import { notify } from '@/utils/notification'
 import { t, getLocale, setLanguage } from '@/utils/i18n'
 import SegmentControl from './SegmentControl.vue'
@@ -165,10 +210,14 @@ const editorStore = useEditorStore()
 
 const imageInput = ref<HTMLInputElement>()
 const fontInput = ref<HTMLInputElement>()
+const projectFolderInput = ref<HTMLInputElement>()
+const projectZipInput = ref<HTMLInputElement>()
 const showDropdown = ref(false)
+const showProjectDropdown = ref(false)
 const showC3ImportModal = ref(false)
 const showC3ExportModal = ref(false)
 const c3ExportInstanceArray = ref<C3InstanceArray | null>(null)
+const isExporting = ref(false)
 const currentLocale = computed(() => getLocale())
 
 const insertPointMode = computed({
@@ -236,6 +285,10 @@ function toggleDropdown() {
   showDropdown.value = !showDropdown.value
 }
 
+function toggleProjectDropdown() {
+  showProjectDropdown.value = !showProjectDropdown.value
+}
+
 function selectLanguage(locale: Locale) {
   setLanguage(locale)
   showDropdown.value = false
@@ -245,6 +298,9 @@ function handleClickOutside(event: MouseEvent) {
   const target = event.target as HTMLElement
   if (!target.closest('.language-dropdown')) {
     showDropdown.value = false
+  }
+  if (!target.closest('.project-dropdown')) {
+    showProjectDropdown.value = false
   }
 }
 
@@ -272,7 +328,7 @@ async function handleImageUpload(event: Event) {
     const image = new Image()
     image.onload = () => {
       // 传递 blob 以便保存到 IndexedDB
-      editorStore.setBaseImage(image, blob)
+      editorStore.setBaseImage(image, blob, file.name)
       editorStore.saveToLocalStorage()
     };
     image.onerror = (error) => {
@@ -307,7 +363,7 @@ async function handleFontUpload(event: Event) {
     document.fonts.add(fontFace)
 
     // 传递数据以便保存到 IndexedDB
-    editorStore.setFont(fontFace, data)
+    editorStore.setFont(fontFace, data, file.name)
     editorStore.saveToLocalStorage()
 
     notify.success(t('fontLoadSuccess'))
@@ -377,7 +433,108 @@ async function exportImage() {
   }
 }
 
+async function importProjectFromFiles(files: Map<string, Blob>) {
+  if (editorStore.hasProjectData) {
+    const confirmed = confirm(t('confirmImportProject'))
+    if (!confirmed) {
+      return
+    }
+  }
+
+  try {
+    const projectData = await parseProjectFiles(files)
+    await editorStore.applyProject(projectData)
+    notify.success(t('projectImportSuccess'))
+  } catch (error) {
+    console.error('Project import failed:', error)
+    const message = error instanceof Error ? error.message : String(error)
+    notify.error(t('projectImportFailed', { message }))
+  }
+}
+
+function importProject() {
+  showProjectDropdown.value = false
+
+  const supportsDirectory =
+    projectFolderInput.value &&
+    typeof (projectFolderInput.value as unknown as { webkitdirectory?: boolean }).webkitdirectory !== 'undefined'
+
+  if (supportsDirectory) {
+    projectFolderInput.value?.click()
+  } else {
+    projectZipInput.value?.click()
+  }
+}
+
+async function handleProjectFolderImport(event: Event) {
+  const target = event.target as HTMLInputElement
+  const files = target.files
+
+  if (!files || files.length === 0) {
+    return
+  }
+
+  const map = buildFileMapFromFileList(files)
+  await importProjectFromFiles(map)
+
+  // 重置 input 以便可以再次选择同一文件夹
+  target.value = ''
+}
+
+async function handleProjectZipImport(event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+
+  if (!file) {
+    return
+  }
+
+  try {
+    const map = await readZipProject(file)
+    await importProjectFromFiles(map)
+  } catch (error) {
+    console.error('Project ZIP import failed:', error)
+    const message = error instanceof Error ? error.message : String(error)
+    notify.error(t('projectImportFailed', { message }))
+  }
+
+  target.value = ''
+}
+
+async function exportProject() {
+  showProjectDropdown.value = false
+
+  if (!editorStore.hasProjectData) {
+    notify.warning(t('pleaseUploadImage'))
+    return
+  }
+
+  isExporting.value = true
+
+  try {
+    if (typeof window.showDirectoryPicker === 'function') {
+      await exportProjectToDirectory(editorStore)
+    } else {
+      const blob = await exportProjectToZip(editorStore)
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-')
+      const filename = `sprite-font-project-${timestamp}.zip`
+      const url = URL.createObjectURL(blob)
+      triggerDownload(url, filename)
+      URL.revokeObjectURL(url)
+    }
+
+    notify.success(t('projectExportSuccess'))
+  } catch (error) {
+    console.error('Project export failed:', error)
+    const message = error instanceof Error ? error.message : String(error)
+    notify.error(t('projectExportFailed', { message }))
+  } finally {
+    isExporting.value = false
+  }
+}
+
 function clearAll() {
+  showProjectDropdown.value = false
   if (confirm(t('confirmClear'))) {
     editorStore.clearAllData()
     notify.info(t('cleared'))
@@ -498,8 +655,23 @@ function clearAll() {
 }
 
 /* 语言下拉框样式 */
-.language-dropdown {
+.language-dropdown,
+.project-dropdown {
   position: relative;
+}
+
+.btn-project {
+  background-color: #6c757d;
+  color: white;
+  border-color: #6c757d;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.btn-project:hover:not(:disabled) {
+  background-color: #545b62;
+  border-color: #545b62;
 }
 
 .dropdown-menu {
@@ -532,6 +704,20 @@ function clearAll() {
 .dropdown-item.active {
   background-color: #007bff;
   color: white;
+}
+
+.dropdown-item--danger {
+  color: #dc3545;
+}
+
+.dropdown-item--danger:hover {
+  background-color: #f8d7da;
+}
+
+.dropdown-separator {
+  height: 1px;
+  background-color: #dee2e6;
+  margin: 0.25rem 0;
 }
 
 .lang-name {

@@ -20,9 +20,9 @@ export interface ExportOptions {
 /**
  * 触发文件下载
  */
-export function triggerDownload(dataURL: string, filename: string): void {
+export function triggerDownload(url: string, filename: string): void {
   const link = document.createElement("a");
-  link.href = dataURL;
+  link.href = url;
   link.download = filename;
   link.style.display = "none";
 

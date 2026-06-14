@@ -1,8 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
+import { nextTick } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { parseC3InstanceArray } from '@/utils/c3-parser'
 import { buildSpacingData, buildC3InstanceArray } from '@/utils/c3-export'
+import * as c3CharRenderer from '@/utils/c3-char-renderer'
 
 function createSampleArray(
   characterSet: string = 'ABCDEF',
@@ -225,5 +227,129 @@ describe('buildC3InstanceArray', () => {
         expect(updated[i]).toBe(original[i])
       }
     }
+  })
+})
+
+describe('C3 appended character vertical alignment', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('defaults vertical alignment to middle when importing C3 sprite font', () => {
+    const store = useEditorStore()
+    const rawArray = JSON.parse(createSampleArray('AB')) as [
+      string,
+      boolean,
+      number,
+      number,
+      string,
+      string,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      boolean,
+      unknown,
+      boolean,
+    ]
+    const parsed = parseC3InstanceArray(createSampleArray('AB'))
+    const image = createImage(64, 64)
+
+    store.importC3SpriteFont(image, rawArray, parsed)
+
+    expect(store.cellAlignment.vertical).toBe('middle')
+  })
+
+  it('computes margin.top based on vertical alignment when appending characters', async () => {
+    const store = useEditorStore()
+    const rawArray = JSON.parse(createSampleArray('AB')) as [
+      string,
+      boolean,
+      number,
+      number,
+      string,
+      string,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      boolean,
+      unknown,
+      boolean,
+    ]
+    const parsed = parseC3InstanceArray(createSampleArray('AB'))
+    const image = createImage(64, 64)
+
+    store.importC3SpriteFont(image, rawArray, parsed)
+
+    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({ width: 8, height: 12 })
+    store.appendC3Characters(['A', 'B'])
+
+    // Same height: both top margins are 0 in middle alignment.
+    expect(store.c3AppendedEntries[0].margin.top).toBe(0)
+    expect(store.c3AppendedEntries[1].margin.top).toBe(0)
+
+    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({ width: 8, height: 6 })
+    store.appendC3Characters(['C'])
+
+    // Heights are 12, 12, 6; max is 12.
+    expect(store.c3AppendedEntries[0].margin.top).toBe(0)
+    expect(store.c3AppendedEntries[1].margin.top).toBe(0)
+    expect(store.c3AppendedEntries[2].margin.top).toBe(3)
+
+    store.cellAlignment.vertical = 'bottom'
+    await nextTick()
+    expect(store.c3AppendedEntries[2].margin.top).toBe(6)
+
+    store.cellAlignment.vertical = 'top'
+    await nextTick()
+    expect(store.c3AppendedEntries[2].margin.top).toBe(0)
+  })
+
+  it('recomputes vertical alignment after removing the tallest character', () => {
+    const store = useEditorStore()
+    const rawArray = JSON.parse(createSampleArray('AB')) as [
+      string,
+      boolean,
+      number,
+      number,
+      string,
+      string,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      boolean,
+      unknown,
+      boolean,
+    ]
+    const parsed = parseC3InstanceArray(createSampleArray('AB'))
+    const image = createImage(64, 64)
+
+    store.importC3SpriteFont(image, rawArray, parsed)
+
+    const boundsSpy = vi.spyOn(c3CharRenderer, 'measureGlyphBounds')
+    boundsSpy.mockReturnValue({ width: 8, height: 12 })
+    store.appendC3Characters(['A'])
+    boundsSpy.mockReturnValue({ width: 8, height: 6 })
+    store.appendC3Characters(['B'])
+
+    // maxHeight = 12
+    expect(store.c3AppendedEntries[1].margin.top).toBe(3)
+
+    store.removeC3AppendedCharacter(0)
+
+    // Only the 6px character remains, so the offset becomes 0.
+    expect(store.c3AppendedEntries[0].margin.top).toBe(0)
   })
 })

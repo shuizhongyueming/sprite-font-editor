@@ -32,6 +32,7 @@ export interface C3StoredConfig {
       left: number;
     };
     autoDisplayWidth: number;
+    autoGlyphHeight: number;
     extraSpacing: number;
     // 向后兼容旧数据
     displayWidth?: number;

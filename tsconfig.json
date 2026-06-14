@@ -6,6 +6,7 @@
     "composite": true,
     "baseUrl": ".",
     "lib": ["ES2020", "ES2022.Intl", "DOM", "DOM.Iterable"],
+    "types": ["wicg-file-system-access", "node"],
     "paths": {
       "@/*": ["./src/*"]
     }

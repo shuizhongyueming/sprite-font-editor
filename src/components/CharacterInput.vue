@@ -180,8 +180,15 @@
       <SpacingInput
         v-model="selectedCharMargin"
         :label="t('marginLabel')"
+        :readonly-top="editorStore.isC3Mode && editorStore.cellAlignment.vertical !== 'top'"
         @change="saveMargin"
       />
+      <div
+        v-if="editorStore.isC3Mode && editorStore.cellAlignment.vertical !== 'top'"
+        class="auto-margin-hint"
+      >
+        {{ t('topAlign') }}: {{ selectedCharMargin.top }}
+      </div>
       <div
         v-if="editorStore.isC3Mode && selectedAppendedEntry"
         class="display-width-section"
@@ -826,5 +833,11 @@ watch(characterEntries, () => {
 .btn-primary:hover:not(:disabled) {
   background-color: #0056b3;
   border-color: #0056b3;
+}
+
+.auto-margin-hint {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: #6c757d;
 }
 </style>

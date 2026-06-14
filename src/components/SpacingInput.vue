@@ -5,8 +5,11 @@
         :value="modelValue.top"
         type="number"
         class="form-control spacing-input"
+        :class="{ 'is-readonly': readonlyTop }"
         :placeholder="`${label}上`"
         min="0"
+        :readonly="readonlyTop"
+        :disabled="readonlyTop"
         @input="handleTopInput"
         @change="handleChange"
         @blur="handleChange"
@@ -59,9 +62,10 @@ interface SpacingValue {
 
 interface Props {
   label?: string
+  readonlyTop?: boolean
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 
 const modelValue = defineModel<SpacingValue>({
   required: true,
@@ -100,10 +104,10 @@ function handleLeftInput(event: Event) {
 
 function handleChange() {
   const newValue = {
-    top: currentTop,
+    top: props.readonlyTop ? modelValue.value.top : currentTop,
     right: currentRight,
     bottom: currentBottom,
-    left: currentLeft
+    left: currentLeft,
   }
   modelValue.value = newValue
   emit('update:model-value', newValue)
@@ -149,5 +153,10 @@ function handleChange() {
   outline: none;
   border-color: #80bdff;
   box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.spacing-input.is-readonly {
+  background-color: #e9ecef;
+  cursor: not-allowed;
 }
 </style>

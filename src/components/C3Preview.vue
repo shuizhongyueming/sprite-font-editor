@@ -383,7 +383,7 @@ function renderAppendedToSource(
       color: editorStore.characterStyle.color,
       outline: editorStore.characterStyle.outline,
       pixelStyle: editorStore.characterStyle.pixelStyle,
-      alignment: { horizontal: 'left', vertical: editorStore.cellAlignment.vertical },
+      alignment: { horizontal: 'left', vertical: 'top' },
     })
   }
 }

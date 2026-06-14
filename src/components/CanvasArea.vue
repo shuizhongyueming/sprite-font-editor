@@ -564,22 +564,6 @@ watch(() => [editorStore.characterStyle, editorStore.cellAlignment, editorStore.
   { deep: true }
 )
 
-// C3 模式下字体变化时重新计算自动显示宽度
-watch(() => editorStore.currentFont, () => {
-  nextTick(() => {
-    if (editorStore.isC3Mode && editorStore.c3AppendedEntries.length > 0) {
-      editorStore.recalculateC3AppendedDisplayWidths()
-    }
-  })
-})
-
-// C3 模式下字体大小变化时重新计算自动显示宽度
-watch(() => editorStore.characterStyle.fontSize, () => {
-  if (editorStore.isC3Mode && editorStore.c3AppendedEntries.length > 0) {
-    editorStore.recalculateC3AppendedDisplayWidths()
-  }
-})
-
 // 监听会影响插入点检测的配置变化，自动重新检测
 watch(
   () => [
@@ -935,7 +919,7 @@ function renderC3AppendedCharacters() {
       color: editorStore.characterStyle.color,
       outline: editorStore.characterStyle.outline,
       pixelStyle: editorStore.characterStyle.pixelStyle,
-      alignment: { horizontal: 'left', vertical: editorStore.cellAlignment.vertical },
+      alignment: { horizontal: 'left', vertical: 'top' },
     })
   }
 }

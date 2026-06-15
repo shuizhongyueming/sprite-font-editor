@@ -42,6 +42,25 @@
             @change="handleGlobalExtraSpacingChange"
           >
         </div>
+        <div class="c3-info__item c3-info__item--input">
+          <label for="c3-appended-vertical-alignment">{{ t('c3AppendedVerticalAlignment') }}</label>
+          <select
+            id="c3-appended-vertical-alignment"
+            :value="editorStore.c3AppendedVerticalAlignment"
+            class="form-control c3-extra-spacing-input"
+            @change="handleAppendedVerticalAlignmentChange"
+          >
+            <option value="top">
+              {{ t('topAlign') }}
+            </option>
+            <option value="middle">
+              {{ t('middleAlign') }}
+            </option>
+            <option value="bottom">
+              {{ t('bottomAlign') }}
+            </option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -79,6 +98,12 @@ function handleGlobalExtraSpacingChange(event: Event) {
   const target = event.target as HTMLInputElement
   const value = parseInt(target.value) || 0
   editorStore.setC3GlobalExtraSpacing(value)
+}
+
+function handleAppendedVerticalAlignmentChange(event: Event) {
+  const target = event.target as HTMLSelectElement
+  const value = target.value as 'top' | 'middle' | 'bottom'
+  editorStore.setC3AppendedVerticalAlignment(value)
 }
 
 defineExpose({

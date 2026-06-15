@@ -42,13 +42,13 @@
       />
     </div>
 
-    <div class="form-group">
+    <div
+      v-if="!editorStore.isC3Mode"
+      class="form-group"
+    >
       <label>{{ t('alignment') }}</label>
       <div class="inline-controls">
-        <div
-          v-if="!editorStore.isC3Mode"
-          class="control-item"
-        >
+        <div class="control-item">
           <span class="control-label">{{ t('horizontal') }}</span>
           <select
             v-model="cellAlignment.horizontal"

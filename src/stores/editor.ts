@@ -5,6 +5,7 @@ import {
   FontStorage,
   C3ImageStorage,
   C3ConfigStorage,
+  type C3StoredConfig,
 } from "@/utils/storage";
 import { detectGridFast } from "@/utils/grid-detector";
 import { notify } from "@/utils/notification";
@@ -260,6 +261,9 @@ export const useEditorStore = defineStore("editor", () => {
   const c3ImportedImage = ref<HTMLImageElement | null>(null);
   const c3ImportedImageFilename = ref("");
   const c3GlobalExtraSpacing = ref(0);
+  const c3AppendedVerticalAlignment = ref<"top" | "middle" | "bottom">(
+    "middle",
+  );
   const c3AppendedEntries = ref<C3AppendedEntry[]>([]);
 
   // C3 模式派生数据
@@ -501,6 +505,7 @@ export const useEditorStore = defineStore("editor", () => {
     c3ImportedImage.value = null;
     c3ImportedImageFilename.value = "";
     c3GlobalExtraSpacing.value = 0;
+    c3AppendedVerticalAlignment.value = "middle";
     c3AppendedEntries.value = [];
   }
 
@@ -524,6 +529,7 @@ export const useEditorStore = defineStore("editor", () => {
     importedLineHeight.value = parsed.lineHeight;
     c3ImportedImage.value = image;
     c3ImportedImageFilename.value = imageFilename || "";
+    c3AppendedVerticalAlignment.value = "middle";
     c3AppendedEntries.value = [];
 
     setBaseImage(image);
@@ -574,11 +580,12 @@ export const useEditorStore = defineStore("editor", () => {
         autoDisplayWidth: bounds.width + baseCellConfig.value.padding.left,
         autoGlyphHeight: bounds.height,
         extraSpacing: 0,
+        distributionOffset: 0,
       };
     });
 
     c3AppendedEntries.value.push(...newEntries);
-    applyC3VerticalAlignment();
+    applyC3AppendedVerticalDistribution();
     saveToLocalStorage();
     renderTrigger.value++;
   }
@@ -598,9 +605,34 @@ export const useEditorStore = defineStore("editor", () => {
       selectedCharIndex.value--;
     }
 
-    applyC3VerticalAlignment();
+    applyC3AppendedVerticalDistribution();
     saveToLocalStorage();
     renderTrigger.value++;
+  }
+
+  // 设置 C3 追加字符垂直分布方式
+  function setC3AppendedVerticalAlignment(
+    value: "top" | "middle" | "bottom",
+  ) {
+    if (!isC3Mode.value) return;
+
+    c3AppendedVerticalAlignment.value = value;
+    applyC3AppendedVerticalDistribution();
+    saveToLocalStorage();
+    renderTrigger.value++;
+  }
+
+  // 获取追加字符实际生效的边距（包含自动分布偏移）
+  function getEffectiveCharMargin(index: number) {
+    const entry = c3AppendedEntries.value[index];
+    if (!entry) {
+      return { top: 0, right: 0, bottom: 0, left: 0 };
+    }
+
+    return {
+      ...entry.margin,
+      top: entry.distributionOffset + entry.margin.top,
+    };
   }
 
   // 更新追加字符的额外间距
@@ -666,8 +698,8 @@ export const useEditorStore = defineStore("editor", () => {
     renderTrigger.value++;
   }
 
-  // 根据当前垂直对齐方式，为每个追加字符计算顶部 margin
-  function applyC3VerticalAlignment() {
+  // 根据当前 C3 追加字符垂直分布方式，计算每个追加字符的自动分布偏移
+  function applyC3AppendedVerticalDistribution() {
     if (!isC3Mode.value || c3AppendedEntries.value.length === 0) {
       return;
     }
@@ -675,15 +707,19 @@ export const useEditorStore = defineStore("editor", () => {
     const maxHeight = Math.max(
       ...c3AppendedEntries.value.map((entry) => entry.autoGlyphHeight),
     );
-    const vertical = cellAlignment.value.vertical;
+    const vertical = c3AppendedVerticalAlignment.value;
 
     for (const entry of c3AppendedEntries.value) {
       if (vertical === "middle") {
-        entry.margin.top = Math.round((maxHeight - entry.autoGlyphHeight) / 2);
+        entry.distributionOffset = Math.round(
+          (maxHeight - entry.autoGlyphHeight) / 2,
+        );
       } else if (vertical === "bottom") {
-        entry.margin.top = Math.round(maxHeight - entry.autoGlyphHeight);
+        entry.distributionOffset = Math.round(
+          maxHeight - entry.autoGlyphHeight,
+        );
       } else {
-        entry.margin.top = 0;
+        entry.distributionOffset = 0;
       }
     }
   }
@@ -691,7 +727,7 @@ export const useEditorStore = defineStore("editor", () => {
   // 重新计算所有追加字符的自动显示宽度（保留向后兼容的别名）
   function recalculateC3AppendedDisplayWidths() {
     recalculateC3AppendedVerticalMetrics();
-    applyC3VerticalAlignment();
+    applyC3AppendedVerticalDistribution();
   }
 
   // 检测插入点（基于透明度）
@@ -875,7 +911,7 @@ export const useEditorStore = defineStore("editor", () => {
     localStorage.setItem("sprite-font-editor-state", JSON.stringify(state));
 
     C3ConfigStorage.save({
-      version: 1,
+      version: CURRENT_C3_STORAGE_VERSION,
       instanceArrayJson: c3InstanceArray.value
         ? JSON.stringify(c3InstanceArray.value)
         : "",
@@ -884,6 +920,7 @@ export const useEditorStore = defineStore("editor", () => {
       importedCharacterSpacing: importedCharacterSpacing.value,
       importedLineHeight: importedLineHeight.value,
       globalExtraSpacing: c3GlobalExtraSpacing.value,
+      c3AppendedVerticalAlignment: c3AppendedVerticalAlignment.value,
       appendedEntries: c3AppendedEntries.value,
       originalImageWidth: originalImageWidth.value,
       originalImageHeight: originalImageHeight.value,
@@ -959,15 +996,47 @@ export const useEditorStore = defineStore("editor", () => {
     }
   }
 
-  const CURRENT_C3_STORAGE_VERSION = 1;
+  const CURRENT_C3_STORAGE_VERSION = 2;
+
+  function migrateC3StorageV1ToV2(
+    config: C3StoredConfig & { version: 1 },
+  ): C3StoredConfig {
+    const entries = migrateAppendedEntries(config.appendedEntries || []).map(
+      (entry) => ({
+        ...entry,
+        margin: { ...entry.margin, top: 0 },
+      }),
+    );
+
+    const maxHeight = Math.max(
+      ...entries.map((entry) => entry.autoGlyphHeight),
+      0,
+    );
+    for (const entry of entries) {
+      entry.distributionOffset = Math.round(
+        (maxHeight - entry.autoGlyphHeight) / 2,
+      );
+    }
+
+    return {
+      ...config,
+      version: 2,
+      c3AppendedVerticalAlignment: "middle",
+      appendedEntries: entries,
+    };
+  }
 
   function restoreC3Config() {
-    const c3Config = C3ConfigStorage.load();
+    let c3Config = C3ConfigStorage.load();
     if (!c3Config) {
       if (isC3Mode.value) {
         clearC3State();
       }
       return;
+    }
+
+    if (c3Config.version === 1) {
+      c3Config = migrateC3StorageV1ToV2(c3Config as C3StoredConfig & { version: 1 });
     }
 
     if (c3Config.version !== CURRENT_C3_STORAGE_VERSION) {
@@ -993,10 +1062,14 @@ export const useEditorStore = defineStore("editor", () => {
     importedLineHeight.value = c3Config.importedLineHeight || 0;
     c3ImportedImageFilename.value = c3Config.imageFilename || "";
     c3GlobalExtraSpacing.value = c3Config.globalExtraSpacing || 0;
-    c3AppendedEntries.value = migrateAppendedEntries(c3Config.appendedEntries || []);
+    c3AppendedVerticalAlignment.value =
+      c3Config.c3AppendedVerticalAlignment || "middle";
+    c3AppendedEntries.value = migrateAppendedEntries(
+      c3Config.appendedEntries || [],
+    );
   }
 
-  // 迁移旧版追加字符数据：补全 autoGlyphHeight 并从 displayWidth 推导出 extraSpacing
+  // 迁移旧版追加字符数据：补全 autoGlyphHeight、distributionOffset 并从 displayWidth 推导出 extraSpacing
   function migrateAppendedEntries(
     entries: Array<{
       char: string;
@@ -1004,15 +1077,19 @@ export const useEditorStore = defineStore("editor", () => {
       autoDisplayWidth: number;
       autoGlyphHeight?: number;
       extraSpacing?: number;
+      distributionOffset?: number;
       displayWidth?: number;
       isDisplayWidthManual?: boolean;
     }>,
   ): C3AppendedEntry[] {
     return entries.map((entry) => {
+      const distributionOffset = entry.distributionOffset ?? 0;
+
       if (typeof entry.extraSpacing === "number") {
         return {
           ...entry,
           autoGlyphHeight: entry.autoGlyphHeight ?? 0,
+          distributionOffset,
         } as C3AppendedEntry;
       }
 
@@ -1032,6 +1109,7 @@ export const useEditorStore = defineStore("editor", () => {
         autoDisplayWidth: entry.autoDisplayWidth,
         autoGlyphHeight: entry.autoGlyphHeight ?? 0,
         extraSpacing,
+        distributionOffset,
       };
     });
   }
@@ -1181,9 +1259,6 @@ export const useEditorStore = defineStore("editor", () => {
     baseCellConfig.value = project.state.baseCellConfig;
     baseImageConfig.value = project.state.baseImageConfig;
     cellAlignment.value = project.state.cellAlignment;
-    if (project.mode === "c3") {
-      cellAlignment.value.vertical = "middle";
-    }
     characterStyle.value = project.state.characterStyle;
     insertPointConfig.value = project.state.insertPointConfig;
     gridConfig.value = project.state.gridConfig;
@@ -1207,13 +1282,15 @@ export const useEditorStore = defineStore("editor", () => {
         project.state.importedCharacterSpacing || 0;
       importedLineHeight.value = project.state.importedLineHeight || 0;
       c3GlobalExtraSpacing.value = project.state.c3GlobalExtraSpacing || 0;
+      c3AppendedVerticalAlignment.value =
+        project.state.c3AppendedVerticalAlignment || "middle";
       c3AppendedEntries.value = migrateAppendedEntries(
         project.state.c3AppendedEntries || [],
       );
       c3ImportedImageFilename.value = project.imageFilename;
 
       recalculateC3AppendedVerticalMetrics();
-      applyC3VerticalAlignment();
+      applyC3AppendedVerticalDistribution();
 
       setC3ImportedImage(project.image);
       await C3ImageStorage.save(
@@ -1291,11 +1368,11 @@ export const useEditorStore = defineStore("editor", () => {
     );
   }
 
-  // 切换垂直对齐方式时，重新分配追加字符的顶部 margin
+  // 切换 C3 追加字符垂直分布方式时，重新计算自动分布偏移
   watch(
-    () => cellAlignment.value.vertical,
+    () => c3AppendedVerticalAlignment.value,
     () => {
-      applyC3VerticalAlignment();
+      applyC3AppendedVerticalDistribution();
       saveToLocalStorage();
       renderTrigger.value++;
     },
@@ -1307,7 +1384,7 @@ export const useEditorStore = defineStore("editor", () => {
     () => {
       if (isC3Mode.value && c3AppendedEntries.value.length > 0) {
         recalculateC3AppendedVerticalMetrics();
-        applyC3VerticalAlignment();
+        applyC3AppendedVerticalDistribution();
       }
     },
   );
@@ -1315,7 +1392,7 @@ export const useEditorStore = defineStore("editor", () => {
   function onC3StyleChanged() {
     if (isC3Mode.value && c3AppendedEntries.value.length > 0) {
       recalculateC3AppendedVerticalMetrics();
-      applyC3VerticalAlignment();
+      applyC3AppendedVerticalDistribution();
     }
   }
 
@@ -1376,6 +1453,7 @@ export const useEditorStore = defineStore("editor", () => {
     c3ImportedImage,
     c3ImportedImageFilename,
     c3GlobalExtraSpacing,
+    c3AppendedVerticalAlignment,
     c3AppendedEntries,
     c3EffectiveCharacterSet,
     c3EffectiveSpacingData,
@@ -1395,9 +1473,11 @@ export const useEditorStore = defineStore("editor", () => {
     updateC3AppendedExtraSpacing,
     clearC3AppendedCharacters,
     setC3GlobalExtraSpacing,
+    setC3AppendedVerticalAlignment,
+    getEffectiveCharMargin,
     recalculateC3AppendedDisplayWidths,
     recalculateC3AppendedVerticalMetrics,
-    applyC3VerticalAlignment,
+    applyC3AppendedVerticalDistribution,
     saveToLocalStorage,
     loadFromLocalStorage,
     restoreAssets,

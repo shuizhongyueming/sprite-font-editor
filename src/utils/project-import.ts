@@ -2,7 +2,13 @@ import JSZip from "jszip";
 import { parseC3InstanceArray, type C3ParsedData } from "@/utils/c3-parser";
 import type { C3InstanceArray } from "@/utils/c3-parser";
 import type { C3AppendedEntry } from "@/utils/c3-export";
-import type { ProjectJsonV1, ProjectMode, ProjectStateV1 } from "@/utils/project-export";
+import type {
+  ProjectJsonV1,
+  ProjectJsonV2,
+  ProjectMode,
+  ProjectStateV1,
+  ProjectStateV2,
+} from "@/utils/project-export";
 
 export class ProjectImportError extends Error {
   constructor(message: string) {
@@ -18,7 +24,7 @@ export interface ProjectFontData {
 
 export interface ProjectData {
   mode: ProjectMode;
-  state: ProjectStateV1;
+  state: ProjectStateV2;
   image: HTMLImageElement;
   imageBlob: Blob;
   imageFilename: string;
@@ -83,7 +89,7 @@ function findEntry<T>(map: Map<string, T>, name: string): T | undefined {
   return undefined;
 }
 
-function assertProjectShape(raw: unknown): asserts raw is ProjectJsonV1 {
+function assertProjectShape(raw: unknown): asserts raw is ProjectJsonV1 | ProjectJsonV2 {
   if (!raw || typeof raw !== "object") {
     throw new ProjectImportError("project.json 格式无效");
   }
@@ -98,7 +104,7 @@ function assertProjectShape(raw: unknown): asserts raw is ProjectJsonV1 {
     throw new ProjectImportError(`不支持的旧版本项目: ${data.version}`);
   }
 
-  if (data.version > 1) {
+  if (data.version > 2) {
     throw new ProjectImportError(`不支持的项目版本: ${data.version}`);
   }
 
@@ -132,6 +138,39 @@ function assertProjectShape(raw: unknown): asserts raw is ProjectJsonV1 {
   }
 }
 
+function migrateProjectState(
+  state: ProjectStateV1 | ProjectStateV2,
+): ProjectStateV2 {
+  const v2: ProjectStateV2 = { ...state };
+
+  if (v2.c3AppendedVerticalAlignment === undefined) {
+    v2.c3AppendedVerticalAlignment = "middle";
+  }
+
+  if (v2.c3AppendedEntries && v2.c3AppendedEntries.length > 0) {
+    const entries = migrateAppendedEntries(v2.c3AppendedEntries).map(
+      (entry) => ({
+        ...entry,
+        margin: { ...entry.margin, top: 0 },
+      }),
+    );
+
+    const maxHeight = Math.max(
+      ...entries.map((entry) => entry.autoGlyphHeight),
+      0,
+    );
+    for (const entry of entries) {
+      entry.distributionOffset = Math.round(
+        (maxHeight - entry.autoGlyphHeight) / 2,
+      );
+    }
+
+    v2.c3AppendedEntries = entries;
+  }
+
+  return v2;
+}
+
 export async function parseProjectFiles(
   files: Map<string, Blob>,
   imageLoader: (blob: Blob) => Promise<HTMLImageElement> = loadImageFromBlob,
@@ -149,8 +188,8 @@ export async function parseProjectFiles(
   }
 
   assertProjectShape(raw);
-  const projectJson: ProjectJsonV1 = raw;
-  const state: ProjectStateV1 = projectJson.state;
+  const projectJson = raw as ProjectJsonV1 | ProjectJsonV2;
+  const state = migrateProjectState(projectJson.state);
 
   const imageFile = findEntry(files, projectJson.image);
   if (!imageFile) {
@@ -287,6 +326,7 @@ export function migrateAppendedEntries(
     autoDisplayWidth: number;
     autoGlyphHeight?: number;
     extraSpacing?: number;
+    distributionOffset?: number;
     displayWidth?: number;
     isDisplayWidthManual?: boolean;
   }>,
@@ -303,6 +343,7 @@ export function migrateAppendedEntries(
       autoDisplayWidth: entry.autoDisplayWidth,
       autoGlyphHeight: entry.autoGlyphHeight ?? 0,
       extraSpacing,
+      distributionOffset: entry.distributionOffset ?? 0,
     };
   });
 }

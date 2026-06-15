@@ -204,15 +204,8 @@
       <SpacingInput
         v-model="selectedCharMargin"
         :label="t('marginLabel')"
-        :readonly-top="editorStore.isC3Mode && editorStore.cellAlignment.vertical !== 'top'"
         @change="saveMargin"
       />
-      <div
-        v-if="editorStore.isC3Mode && editorStore.cellAlignment.vertical !== 'top'"
-        class="auto-margin-hint"
-      >
-        {{ t('topAlign') }}: {{ selectedCharMargin.top }}
-      </div>
       <div
         v-if="editorStore.isC3Mode && selectedAppendedEntry"
         class="display-width-section"
@@ -247,6 +240,16 @@
         <div class="display-width-row">
           <input
             :value="finalDisplayWidth"
+            type="number"
+            class="form-control display-width-input"
+            readonly
+          >
+        </div>
+
+        <label>{{ t('c3FinalTopOffset') }}</label>
+        <div class="display-width-row">
+          <input
+            :value="finalTopOffset"
             type="number"
             class="form-control display-width-input"
             readonly
@@ -338,6 +341,12 @@ const finalDisplayWidth = computed(() => {
   const entry = selectedAppendedEntry.value
   if (!entry) return 0
   return entry.autoDisplayWidth + editorStore.c3GlobalExtraSpacing + entry.extraSpacing
+})
+
+const finalTopOffset = computed(() => {
+  const entry = selectedAppendedEntry.value
+  if (!entry) return 0
+  return entry.distributionOffset + entry.margin.top
 })
 
 const selectedCharMargin = computed({

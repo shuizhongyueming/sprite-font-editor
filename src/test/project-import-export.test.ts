@@ -134,6 +134,7 @@ describe("project import/export", () => {
 
     const files = await buildProjectFiles(store);
 
+    expect(files.projectJson.version).toBe(2);
     expect(files.projectJson.mode).toBe("normal");
     expect(files.projectJson.state.characterEntries).toHaveLength(2);
     expect(files.imageFilename).toBe("sprite.png");
@@ -190,10 +191,12 @@ describe("project import/export", () => {
 
     const files = await buildProjectFiles(store);
 
+    expect(files.projectJson.version).toBe(2);
     expect(files.projectJson.mode).toBe("c3");
     expect(files.projectJson.c3Instance).toBe("c3-instance.json");
     expect(files.projectJson.state.c3AppendedEntries).toHaveLength(1);
     expect(files.projectJson.state.c3GlobalExtraSpacing).toBe(4);
+    expect(files.projectJson.state.c3AppendedVerticalAlignment).toBe("middle");
     expect(files.imageFilename).toBe("c3-sprite.png");
 
     const map = new Map<string, Blob>();
@@ -331,5 +334,108 @@ describe("project import/export", () => {
     await targetStore.applyProject(projectData);
 
     expect(targetStore.fontFilename).toBe("custom-font.ttf");
+  });
+
+  it("should migrate version-1 C3 projects to version 2", async () => {
+    const array = createC3Array("AB");
+
+    const v1ProjectJson = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      appVersion: "0.0.0",
+      mode: "c3",
+      image: "c3-sprite.png",
+      c3Instance: "c3-instance.json",
+      state: {
+        baseCellConfig: {
+          width: 16,
+          height: 16,
+          margin: { top: 0, right: 0, bottom: 0, left: 0 },
+          padding: { top: 0, right: 0, bottom: 0, left: 0 },
+        },
+        baseImageConfig: {
+          margin: { top: 0, right: 0, bottom: 0, left: 0 },
+          padding: { top: 0, right: 0, bottom: 0, left: 0 },
+          fontSpriteWidth: 64,
+          fontSpriteHeight: 64,
+        },
+        cellAlignment: { horizontal: "left", vertical: "middle" },
+        characterStyle: {
+          fontFamily: "Arial",
+          fontSize: 16,
+          color: "#000000",
+          outline: { enabled: false, color: "#ffffff", width: 1 },
+          pixelStyle: false,
+        },
+        insertPointConfig: { mode: "auto", startCellIndex: 0 },
+        gridConfig: {
+          enabled: true,
+          cellBorder: true,
+          cellBorderColor: "rgba(0, 255, 0, 0.5)",
+          cellBorderWidth: 1,
+          marginLines: false,
+          marginLineColor: "rgba(255, 0, 0, 0.3)",
+          paddingLines: false,
+          paddingLineColor: "rgba(0, 0, 255, 0.3)",
+        },
+        canvasBg: "white" as const,
+        canvasViewMode: "fit" as const,
+        originalImageWidth: 64,
+        originalImageHeight: 64,
+        baseImageFilename: "c3-sprite.png",
+        importedCharacterSet: "AB",
+        importedSpacingData: "[]",
+        importedCharacterSpacing: 0,
+        importedLineHeight: 0,
+        c3GlobalExtraSpacing: 0,
+        c3AppendedEntries: [
+          {
+            char: "C",
+            margin: { top: 4, right: 0, bottom: 0, left: 0 },
+            autoDisplayWidth: 8,
+            autoGlyphHeight: 12,
+            extraSpacing: 0,
+          },
+          {
+            char: "D",
+            margin: { top: 2, right: 0, bottom: 0, left: 0 },
+            autoDisplayWidth: 8,
+            autoGlyphHeight: 6,
+            extraSpacing: 0,
+          },
+        ],
+      },
+    };
+
+    const map = new Map<string, Blob>();
+    map.set(
+      "project.json",
+      new Blob([JSON.stringify(v1ProjectJson, null, 2)]),
+    );
+    map.set("c3-sprite.png", new Blob(["image"]));
+    map.set(
+      "c3-instance.json",
+      new Blob([JSON.stringify(array, null, 2)]),
+    );
+
+    const projectData = await parseProjectFiles(
+      map,
+      createMockImageLoader(64, 64),
+    );
+
+    expect(projectData.state.c3AppendedVerticalAlignment).toBe("middle");
+    expect(projectData.state.c3AppendedEntries).toHaveLength(2);
+    expect(projectData.state.c3AppendedEntries![0].margin.top).toBe(0);
+    expect(projectData.state.c3AppendedEntries![1].margin.top).toBe(0);
+    expect(projectData.state.c3AppendedEntries![0].distributionOffset).toBe(0);
+    expect(projectData.state.c3AppendedEntries![1].distributionOffset).toBe(3);
+
+    setActivePinia(createPinia());
+    const targetStore = useEditorStore();
+    await targetStore.applyProject(projectData);
+
+    expect(targetStore.c3AppendedVerticalAlignment).toBe("middle");
+    expect(targetStore.c3AppendedEntries[0].margin.top).toBe(0);
+    expect(targetStore.c3AppendedEntries[1].margin.top).toBe(0);
   });
 });

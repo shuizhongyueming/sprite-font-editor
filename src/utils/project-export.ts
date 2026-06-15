@@ -78,8 +78,17 @@ export interface ProjectJsonV1 {
   state: ProjectStateV1;
 }
 
+export interface ProjectStateV2 extends ProjectStateV1 {
+  c3AppendedVerticalAlignment?: "top" | "middle" | "bottom";
+}
+
+export interface ProjectJsonV2 extends Omit<ProjectJsonV1, "version" | "state"> {
+  version: 2;
+  state: ProjectStateV2;
+}
+
 export interface ProjectFiles {
-  projectJson: ProjectJsonV1;
+  projectJson: ProjectJsonV2;
   imageBlob: Blob;
   imageFilename: string;
   c3InstanceArray?: C3InstanceArray | null;
@@ -147,13 +156,13 @@ async function getStoredFont(
   return { blob: new Blob([fontData.data]), filename };
 }
 
-function buildProjectJson(store: ReturnType<typeof useEditorStore>): ProjectJsonV1 {
+function buildProjectJson(store: ReturnType<typeof useEditorStore>): ProjectJsonV2 {
   const mode = store.isC3Mode ? "c3" : "normal";
   const imageFilename = store.isC3Mode
     ? store.c3ImportedImageFilename || "image.png"
     : store.baseImageFilename || "image.png";
 
-  const state: ProjectStateV1 = {
+  const state: ProjectStateV2 = {
     baseCellConfig: store.baseCellConfig,
     baseImageConfig: store.baseImageConfig,
     cellAlignment: store.cellAlignment,
@@ -175,11 +184,12 @@ function buildProjectJson(store: ReturnType<typeof useEditorStore>): ProjectJson
     state.importedCharacterSpacing = store.importedCharacterSpacing;
     state.importedLineHeight = store.importedLineHeight;
     state.c3GlobalExtraSpacing = store.c3GlobalExtraSpacing;
+    state.c3AppendedVerticalAlignment = store.c3AppendedVerticalAlignment;
     state.c3AppendedEntries = store.c3AppendedEntries;
   }
 
-  const projectJson: ProjectJsonV1 = {
-    version: 1,
+  const projectJson: ProjectJsonV2 = {
+    version: 2,
     exportedAt: new Date().toISOString(),
     appVersion,
     mode,

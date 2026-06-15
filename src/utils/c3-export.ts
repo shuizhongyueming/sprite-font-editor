@@ -65,6 +65,7 @@ export interface C3AppendedEntry {
   autoDisplayWidth: number;
   autoGlyphHeight: number;
   extraSpacing: number;
+  distributionOffset: number;
 }
 
 export interface ExportC3Options {
@@ -192,13 +193,17 @@ export function exportC3SpriteFont(options: ExportC3Options): C3InstanceArray {
         baseCellWidth: baseCellConfig.width,
         baseCellHeight: baseCellConfig.height,
         renderScale: 1,
-        charMargin: entry.margin,
+        charMargin: {
+          ...entry.margin,
+          top: entry.distributionOffset + entry.margin.top,
+        },
         cellPadding: baseCellConfig.padding,
         fontFamily,
         fontSize: characterStyle.fontSize,
         color: characterStyle.color,
         outline: characterStyle.outline,
         pixelStyle: characterStyle.pixelStyle,
+        alignment: { horizontal: "left", vertical: "top" },
       });
     }
   }

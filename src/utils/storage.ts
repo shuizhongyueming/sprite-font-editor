@@ -23,6 +23,7 @@ export interface C3StoredConfig {
   importedCharacterSpacing: number;
   importedLineHeight: number;
   globalExtraSpacing: number;
+  c3AppendedVerticalAlignment?: "top" | "middle" | "bottom";
   appendedEntries: Array<{
     char: string;
     margin: {
@@ -34,6 +35,7 @@ export interface C3StoredConfig {
     autoDisplayWidth: number;
     autoGlyphHeight: number;
     extraSpacing: number;
+    distributionOffset?: number;
     // 向后兼容旧数据
     displayWidth?: number;
     isDisplayWidthManual?: boolean;

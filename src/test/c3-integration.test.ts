@@ -230,7 +230,7 @@ describe('buildC3InstanceArray', () => {
   })
 })
 
-describe('C3 appended character vertical alignment', () => {
+describe('C3 appended character vertical distribution', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
   })
@@ -239,7 +239,7 @@ describe('C3 appended character vertical alignment', () => {
     vi.restoreAllMocks()
   })
 
-  it('defaults vertical alignment to middle when importing C3 sprite font', () => {
+  it('defaults appended vertical distribution to middle when importing C3 sprite font', () => {
     const store = useEditorStore()
     const rawArray = JSON.parse(createSampleArray('AB')) as [
       string,
@@ -263,10 +263,10 @@ describe('C3 appended character vertical alignment', () => {
 
     store.importC3SpriteFont(image, rawArray, parsed)
 
-    expect(store.cellAlignment.vertical).toBe('middle')
+    expect(store.c3AppendedVerticalAlignment).toBe('middle')
   })
 
-  it('computes margin.top based on vertical alignment when appending characters', async () => {
+  it('computes distributionOffset based on appended vertical distribution and leaves margin.top at 0', async () => {
     const store = useEditorStore()
     const rawArray = JSON.parse(createSampleArray('AB')) as [
       string,
@@ -293,7 +293,9 @@ describe('C3 appended character vertical alignment', () => {
     vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({ width: 8, height: 12 })
     store.appendC3Characters(['A', 'B'])
 
-    // Same height: both top margins are 0 in middle alignment.
+    // Same height: distribution offsets are 0; manual margin remains untouched.
+    expect(store.c3AppendedEntries[0].distributionOffset).toBe(0)
+    expect(store.c3AppendedEntries[1].distributionOffset).toBe(0)
     expect(store.c3AppendedEntries[0].margin.top).toBe(0)
     expect(store.c3AppendedEntries[1].margin.top).toBe(0)
 
@@ -301,20 +303,59 @@ describe('C3 appended character vertical alignment', () => {
     store.appendC3Characters(['C'])
 
     // Heights are 12, 12, 6; max is 12.
-    expect(store.c3AppendedEntries[0].margin.top).toBe(0)
-    expect(store.c3AppendedEntries[1].margin.top).toBe(0)
-    expect(store.c3AppendedEntries[2].margin.top).toBe(3)
+    expect(store.c3AppendedEntries[0].distributionOffset).toBe(0)
+    expect(store.c3AppendedEntries[1].distributionOffset).toBe(0)
+    expect(store.c3AppendedEntries[2].distributionOffset).toBe(3)
+    expect(store.c3AppendedEntries[2].margin.top).toBe(0)
 
-    store.cellAlignment.vertical = 'bottom'
+    store.c3AppendedVerticalAlignment = 'bottom'
     await nextTick()
-    expect(store.c3AppendedEntries[2].margin.top).toBe(6)
+    expect(store.c3AppendedEntries[2].distributionOffset).toBe(6)
+    expect(store.c3AppendedEntries[2].margin.top).toBe(0)
 
-    store.cellAlignment.vertical = 'top'
+    store.c3AppendedVerticalAlignment = 'top'
     await nextTick()
+    expect(store.c3AppendedEntries[2].distributionOffset).toBe(0)
     expect(store.c3AppendedEntries[2].margin.top).toBe(0)
   })
 
-  it('recomputes vertical alignment after removing the tallest character', () => {
+  it('does not overwrite manually set margin.top when distribution changes', async () => {
+    const store = useEditorStore()
+    const rawArray = JSON.parse(createSampleArray('AB')) as [
+      string,
+      boolean,
+      number,
+      number,
+      string,
+      string,
+      number,
+      number,
+      number,
+      number,
+      number,
+      number,
+      boolean,
+      unknown,
+      boolean,
+    ]
+    const parsed = parseC3InstanceArray(createSampleArray('AB'))
+    const image = createImage(64, 64)
+
+    store.importC3SpriteFont(image, rawArray, parsed)
+
+    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({ width: 8, height: 6 })
+    store.appendC3Characters(['A'])
+    store.c3AppendedEntries[0].margin.top = 4
+
+    store.c3AppendedVerticalAlignment = 'bottom'
+    await nextTick()
+
+    expect(store.c3AppendedEntries[0].distributionOffset).toBe(0)
+    expect(store.c3AppendedEntries[0].margin.top).toBe(4)
+    expect(store.getEffectiveCharMargin(0).top).toBe(4)
+  })
+
+  it('recomputes vertical distribution after removing the tallest character', () => {
     const store = useEditorStore()
     const rawArray = JSON.parse(createSampleArray('AB')) as [
       string,
@@ -345,11 +386,13 @@ describe('C3 appended character vertical alignment', () => {
     store.appendC3Characters(['B'])
 
     // maxHeight = 12
-    expect(store.c3AppendedEntries[1].margin.top).toBe(3)
+    expect(store.c3AppendedEntries[1].distributionOffset).toBe(3)
+    expect(store.c3AppendedEntries[1].margin.top).toBe(0)
 
     store.removeC3AppendedCharacter(0)
 
     // Only the 6px character remains, so the offset becomes 0.
+    expect(store.c3AppendedEntries[0].distributionOffset).toBe(0)
     expect(store.c3AppendedEntries[0].margin.top).toBe(0)
   })
 })

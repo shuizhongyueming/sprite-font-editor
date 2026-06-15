@@ -376,7 +376,7 @@ function renderAppendedToSource(
       baseCellWidth: baseCell.width,
       baseCellHeight: baseCell.height,
       renderScale: 1,
-      charMargin: entry.margin,
+      charMargin: editorStore.getEffectiveCharMargin(i),
       cellPadding: baseCell.padding,
       fontFamily,
       fontSize: editorStore.characterStyle.fontSize,
@@ -424,6 +424,7 @@ watch(() => editorStore.baseCellConfig, renderPreview, { deep: true })
 watch(() => editorStore.baseImageConfig, renderPreview, { deep: true })
 watch(() => editorStore.c3AppendedEntries, renderPreview, { deep: true })
 watch(() => editorStore.c3GlobalExtraSpacing, renderPreview)
+watch(() => editorStore.c3AppendedVerticalAlignment, renderPreview)
 watch(() => editorStore.importedCharacterSpacing, renderPreview)
 watch(() => editorStore.importedLineHeight, renderPreview)
 watch(canvasWidth, renderPreview)

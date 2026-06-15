@@ -216,4 +216,46 @@ describe('CharacterInput C3 character list', () => {
       expect(store.selectedCharIndex).toBe(5)
     })
   })
+
+  describe('appended character margin popup', () => {
+    it('keeps margin.top editable in C3 mode', async () => {
+      const store = useEditorStore()
+      importC3Font(store)
+      store.appendC3Characters(['C'])
+
+      wrapper = mount(CharacterInput, { attachTo: document.body })
+      await nextTick()
+
+      store.selectedCharIndex = 0
+      await nextTick()
+
+      const topInput = wrapper.find('.margin-popup .spacing-input')
+      expect(topInput.exists()).toBe(true)
+      expect(topInput.attributes('readonly')).toBeUndefined()
+      expect(topInput.attributes('disabled')).toBeUndefined()
+    })
+
+    it('shows the final top offset for the selected appended character', async () => {
+      const store = useEditorStore()
+      importC3Font(store)
+      store.appendC3Characters(['C'])
+      store.c3AppendedEntries[0].distributionOffset = 5
+      store.c3AppendedEntries[0].margin.top = 3
+
+      wrapper = mount(CharacterInput, { attachTo: document.body })
+      await nextTick()
+
+      store.selectedCharIndex = 0
+      await nextTick()
+
+      const labels = wrapper.findAll('.display-width-section label')
+      const finalTopOffsetLabel = labels.find((label) => label.text() === 'Final Top Offset')
+      expect(finalTopOffsetLabel).toBeDefined()
+
+      const inputs = wrapper.findAll('.display-width-section input')
+      const finalTopOffsetInput = inputs[inputs.length - 1]
+      expect(finalTopOffsetInput.exists()).toBe(true)
+      expect((finalTopOffsetInput.element as HTMLInputElement).value).toBe('8')
+    })
+  })
 })

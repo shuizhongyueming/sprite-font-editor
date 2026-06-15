@@ -912,7 +912,7 @@ function renderC3AppendedCharacters() {
       baseCellWidth: effectiveCellConfig.value.width / scale,
       baseCellHeight: effectiveCellConfig.value.height / scale,
       renderScale: scale,
-      charMargin: entry.margin,
+      charMargin: editorStore.getEffectiveCharMargin(i),
       cellPadding: baseCell.padding,
       fontFamily,
       fontSize: editorStore.characterStyle.fontSize,

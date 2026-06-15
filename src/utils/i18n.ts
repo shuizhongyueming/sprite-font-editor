@@ -169,6 +169,8 @@ export interface Translations {
   c3ResetExtraSpacing: string;
   c3GlobalExtraSpacing: string;
   c3ResetAuto: string;
+  c3AppendedVerticalAlignment: string;
+  c3FinalTopOffset: string;
   c3Preview: string;
   c3SampleText: string;
   c3ResetSampleText: string;
@@ -355,6 +357,8 @@ export const translations: Record<Locale, Translations> = {
     c3ResetExtraSpacing: "重置额外间距",
     c3GlobalExtraSpacing: "全局追加字符额外间距",
     c3ResetAuto: "自动",
+    c3AppendedVerticalAlignment: "追加字符垂直分布",
+    c3FinalTopOffset: "最终顶部偏移",
     c3Preview: "C3 预览",
     c3SampleText: "示例文本",
     c3ResetSampleText: "重置示例文本",
@@ -541,6 +545,8 @@ export const translations: Record<Locale, Translations> = {
     c3ResetExtraSpacing: "Reset Extra Spacing",
     c3GlobalExtraSpacing: "Global Appended Extra Spacing",
     c3ResetAuto: "Auto",
+    c3AppendedVerticalAlignment: "Appended Vertical Alignment",
+    c3FinalTopOffset: "Final Top Offset",
     c3Preview: "C3 Preview",
     c3SampleText: "Sample Text",
     c3ResetSampleText: "Reset Sample Text",

@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR 0006: C3 Appended Character Vertical Alignment Separation](0006-c3-appended-vertical-alignment-separation.md)
 
 ## Context
 

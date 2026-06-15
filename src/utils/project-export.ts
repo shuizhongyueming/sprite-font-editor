@@ -9,6 +9,7 @@ import { version as appVersion } from "../../package.json";
 export type ProjectMode = "normal" | "c3";
 
 export interface ProjectStateV1 {
+  baseImageMimeType?: string;
   baseCellConfig: {
     width: number;
     height: number;
@@ -174,6 +175,7 @@ function buildProjectJson(store: ReturnType<typeof useEditorStore>): ProjectJson
     originalImageWidth: store.originalImageWidth,
     originalImageHeight: store.originalImageHeight,
     baseImageFilename: store.baseImageFilename,
+    baseImageMimeType: store.baseImageMimeType,
   };
 
   if (mode === "normal") {

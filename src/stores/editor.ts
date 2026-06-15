@@ -15,6 +15,7 @@ import { measureGlyphBounds } from "@/utils/c3-char-renderer";
 import { buildC3InstanceArray } from "@/utils/c3-export";
 import type { C3AppendedEntry } from "@/utils/c3-export";
 import type { C3InstanceArray, C3ParsedData } from "@/utils/c3-parser";
+import { getImageMimeTypeFromFilename } from "@/utils/image-format";
 import type { ProjectData } from "@/utils/project-import";
 
 // 单元格信息接口（用于插入点检测）
@@ -348,6 +349,7 @@ export const useEditorStore = defineStore("editor", () => {
   const maxCanvasHeight = ref(700);
   const currentFont = ref<FontFace | null>(null);
   const baseImageFilename = ref<string>("");
+  const baseImageMimeType = ref<string>("");
   const fontFilename = ref<string>("");
   const canvasLayer = ref<HTMLCanvasElement | null>(null);
 
@@ -426,6 +428,9 @@ export const useEditorStore = defineStore("editor", () => {
   ) {
     if (filename) {
       baseImageFilename.value = filename;
+    }
+    if (blob?.type) {
+      baseImageMimeType.value = blob.type;
     }
 
     baseImage.value = image;
@@ -529,6 +534,9 @@ export const useEditorStore = defineStore("editor", () => {
     importedLineHeight.value = parsed.lineHeight;
     c3ImportedImage.value = image;
     c3ImportedImageFilename.value = imageFilename || "";
+    baseImageMimeType.value = imageFilename
+      ? getImageMimeTypeFromFilename(imageFilename)
+      : "";
     c3AppendedVerticalAlignment.value = "middle";
     c3AppendedEntries.value = [];
 
@@ -906,6 +914,7 @@ export const useEditorStore = defineStore("editor", () => {
       canvasViewMode: canvasViewMode.value,
       isC3Mode: isC3Mode.value,
       baseImageFilename: baseImageFilename.value,
+      baseImageMimeType: baseImageMimeType.value,
       fontFilename: fontFilename.value,
     };
     localStorage.setItem("sprite-font-editor-state", JSON.stringify(state));
@@ -987,6 +996,7 @@ export const useEditorStore = defineStore("editor", () => {
         canvasViewMode.value = state.canvasViewMode || "fit";
         isC3Mode.value = state.isC3Mode || false;
         baseImageFilename.value = state.baseImageFilename || "";
+        baseImageMimeType.value = state.baseImageMimeType || "";
         fontFilename.value = state.fontFilename || "";
 
         restoreC3Config();
@@ -1125,6 +1135,7 @@ export const useEditorStore = defineStore("editor", () => {
           const img = new Image();
           img.onload = () => {
             setC3ImportedImage(img);
+            baseImageMimeType.value = c3ImageData.mimeType || c3ImageData.blob.type;
             URL.revokeObjectURL(url);
           };
           img.onerror = () => {
@@ -1146,6 +1157,7 @@ export const useEditorStore = defineStore("editor", () => {
           const img = new Image();
           img.onload = () => {
             setBaseImage(img, imageData.blob);
+            baseImageMimeType.value = imageData.mimeType || imageData.blob.type;
             URL.revokeObjectURL(url);
           };
           img.onerror = () => {
@@ -1234,6 +1246,7 @@ export const useEditorStore = defineStore("editor", () => {
     baseImage.value = null;
     currentFont.value = null;
     baseImageFilename.value = "";
+    baseImageMimeType.value = "";
     fontFilename.value = "";
     originalImageWidth.value = 0;
     originalImageHeight.value = 0;
@@ -1265,6 +1278,7 @@ export const useEditorStore = defineStore("editor", () => {
     canvasBg.value = project.state.canvasBg;
     canvasViewMode.value = project.state.canvasViewMode;
     baseImageFilename.value = project.state.baseImageFilename || "";
+    baseImageMimeType.value = project.state.baseImageMimeType || "";
 
     if (project.mode === "normal") {
       characterEntries.value = project.state.characterEntries || [];
@@ -1435,6 +1449,7 @@ export const useEditorStore = defineStore("editor", () => {
     maxCanvasHeight,
     currentFont,
     baseImageFilename,
+    baseImageMimeType,
     fontFilename,
     gridConfig,
     canvasBg,

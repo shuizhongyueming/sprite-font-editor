@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { triggerDownload, exportCanvasToPNG, exportCanvasToJPEG, dataURLToBlob, blobToDataURL } from '@/utils/download'
+import { triggerDownload, exportCanvasToPNG, exportCanvasToImage, dataURLToBlob, blobToDataURL, saveWithFilePicker } from '@/utils/download'
 
 describe('download utils', () => {
   let mockLink: {
@@ -10,7 +10,9 @@ describe('download utils', () => {
   }
   let mockCanvas: {
     toDataURL: ReturnType<typeof vi.fn>
+    toBlob: ReturnType<typeof vi.fn>
   }
+  let originalShowSaveFilePicker: typeof window.showSaveFilePicker | undefined
 
   beforeEach(() => {
     mockLink = {
@@ -30,6 +32,10 @@ describe('download utils', () => {
         }
         return 'data:image/png;base64,mock'
       }),
+      toBlob: vi.fn((callback: BlobCallback, type?: string | null) => {
+        const blob = new Blob(['mock'], { type: type || 'image/png' })
+        callback(blob)
+      }),
     }
 
     vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
@@ -44,10 +50,13 @@ describe('download utils', () => {
 
     vi.spyOn(document.body, 'appendChild').mockImplementation(() => mockLink as unknown as Node)
     vi.spyOn(document.body, 'removeChild').mockImplementation(() => mockLink as unknown as Node)
+
+    originalShowSaveFilePicker = window.showSaveFilePicker
   })
 
   afterEach(() => {
     vi.restoreAllMocks()
+    window.showSaveFilePicker = originalShowSaveFilePicker
   })
 
   describe('triggerDownload', () => {
@@ -65,20 +74,79 @@ describe('download utils', () => {
     })
   })
 
-  describe('exportCanvasToPNG', () => {
-    it('should export canvas to PNG with default filename', () => {
-      exportCanvasToPNG(mockCanvas as unknown as HTMLCanvasElement)
+  describe('saveWithFilePicker', () => {
+    it('should return false when File System Access API is not supported', async () => {
+      window.showSaveFilePicker = undefined as unknown as typeof window.showSaveFilePicker
 
-      expect(mockCanvas.toDataURL).toHaveBeenCalledWith('image/png')
-      expect(mockLink.download).toBe('sprite-font.png')
+      const blob = new Blob(['test'], { type: 'image/png' })
+      const result = await saveWithFilePicker(blob, 'test.png')
+
+      expect(result).toBe(false)
+    })
+
+    it('should save file using showSaveFilePicker when available', async () => {
+      const mockWritable = {
+        write: vi.fn(),
+        close: vi.fn(),
+      }
+      const mockHandle = {
+        createWritable: vi.fn().mockResolvedValue(mockWritable),
+      }
+      window.showSaveFilePicker = vi.fn().mockResolvedValue(mockHandle) as unknown as typeof window.showSaveFilePicker
+
+      const blob = new Blob(['test'], { type: 'image/png' })
+      const result = await saveWithFilePicker(blob, 'test.png')
+
+      expect(result).toBe(true)
+      expect(window.showSaveFilePicker).toHaveBeenCalledWith({
+        suggestedName: 'test.png',
+        types: undefined,
+      })
+      expect(mockHandle.createWritable).toHaveBeenCalled()
+      expect(mockWritable.write).toHaveBeenCalledWith(blob)
+      expect(mockWritable.close).toHaveBeenCalled()
+    })
+
+    it('should return true when user cancels the picker', async () => {
+      window.showSaveFilePicker = vi.fn().mockRejectedValue(new DOMException('User cancelled', 'AbortError')) as unknown as typeof window.showSaveFilePicker
+
+      const blob = new Blob(['test'], { type: 'image/png' })
+      const result = await saveWithFilePicker(blob, 'test.png')
+
+      expect(result).toBe(true)
     })
   })
 
-  describe('exportCanvasToJPEG', () => {
-    it('should export canvas to JPEG with default quality', () => {
-      exportCanvasToJPEG(mockCanvas as unknown as HTMLCanvasElement)
+  describe('exportCanvasToImage', () => {
+    it('should export canvas to PNG by default', async () => {
+      window.showSaveFilePicker = undefined as unknown as typeof window.showSaveFilePicker
 
-      expect(mockCanvas.toDataURL).toHaveBeenCalledWith('image/jpeg', 0.9)
+      await exportCanvasToPNG(mockCanvas as unknown as HTMLCanvasElement)
+
+      expect(mockCanvas.toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/png', undefined)
+      expect(mockLink.download).toBe('sprite-font.png')
+    })
+
+    it('should export canvas to JPEG when source mime type is image/jpeg', async () => {
+      window.showSaveFilePicker = undefined as unknown as typeof window.showSaveFilePicker
+
+      await exportCanvasToImage(mockCanvas as unknown as HTMLCanvasElement, {
+        filename: 'sprite-font.jpg',
+        sourceMimeType: 'image/jpeg',
+      })
+
+      expect(mockCanvas.toBlob).toHaveBeenCalledWith(expect.any(Function), 'image/jpeg', 0.9)
+      expect(mockLink.download).toBe('sprite-font.jpg')
+    })
+
+    it('should replace filename extension to match source mime type', async () => {
+      window.showSaveFilePicker = undefined as unknown as typeof window.showSaveFilePicker
+
+      await exportCanvasToImage(mockCanvas as unknown as HTMLCanvasElement, {
+        filename: 'sprite-font.png',
+        sourceMimeType: 'image/jpeg',
+      })
+
       expect(mockLink.download).toBe('sprite-font.jpg')
     })
   })

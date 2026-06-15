@@ -2,6 +2,12 @@ import { CanvasSpace } from "@/utils/canvas";
 import { renderC3AppendedCharacter } from "@/utils/c3-char-renderer";
 import { splitGraphemes } from "@/utils/grapheme";
 import type { C3InstanceArray } from "@/utils/c3-parser";
+import { saveWithFilePicker, triggerDownload } from "@/utils/download";
+import {
+  getImageExportFormat,
+  replaceExtension,
+  buildFilePickerType,
+} from "@/utils/image-format";
 
 /**
  * Build C3 spacingData JSON string from a display-width map.
@@ -121,14 +127,17 @@ export interface ExportC3Options {
   };
   currentFontFamily?: string;
   filename: string;
+  sourceMimeType?: string;
   onDownload?: () => void;
 }
 
 /**
  * Build the updated C3 instance array, render appended characters at original
- * size, and trigger a PNG download.
+ * size, and save the rendered PNG to a user-selected location.
  */
-export function exportC3SpriteFont(options: ExportC3Options): C3InstanceArray {
+export async function exportC3SpriteFont(
+  options: ExportC3Options,
+): Promise<C3InstanceArray> {
   const {
     originalArray,
     importedCharacterSet,
@@ -142,6 +151,7 @@ export function exportC3SpriteFont(options: ExportC3Options): C3InstanceArray {
     characterStyle,
     currentFontFamily,
     filename,
+    sourceMimeType = "image/png",
     onDownload,
   } = options;
 
@@ -208,15 +218,25 @@ export function exportC3SpriteFont(options: ExportC3Options): C3InstanceArray {
     }
   }
 
-  const dataURL = canvas.toDataURL("image/png");
-  const link = document.createElement("a");
-  link.href = dataURL;
-  link.download = filename;
-  link.style.display = "none";
+  const format = getImageExportFormat(filename, sourceMimeType);
+  const exportFilename = replaceExtension(filename, format.extension);
+  const quality = format.mimeType === "image/jpeg" ? 0.92 : undefined;
 
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  const blob = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob(resolve, format.mimeType, quality);
+  });
+  if (!blob) {
+    throw new Error("无法将 Canvas 转换为 Blob");
+  }
+
+  const saved = await saveWithFilePicker(blob, exportFilename, [
+    buildFilePickerType(format),
+  ]);
+
+  if (!saved) {
+    const dataURL = canvas.toDataURL(format.mimeType, quality);
+    triggerDownload(dataURL, exportFilename);
+  }
 
   onDownload?.();
 

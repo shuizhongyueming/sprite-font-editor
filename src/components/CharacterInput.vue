@@ -210,18 +210,13 @@
         v-if="editorStore.isC3Mode && selectedAppendedEntry"
         class="display-width-section"
       >
-        <label>{{ t('c3AutoDisplayWidth') }}</label>
-        <div class="display-width-row">
-          <input
-            :value="selectedAppendedEntry.autoDisplayWidth"
-            type="number"
-            class="form-control display-width-input"
-            readonly
-          >
+        <div class="display-width-info-row">
+          <span class="display-width-info-label">{{ t('c3AutoDisplayWidth') }}：</span>
+          <span class="display-width-info-value">{{ selectedAppendedEntry.autoDisplayWidth }}</span>
         </div>
 
-        <label>{{ t('c3ExtraSpacing') }}</label>
-        <div class="display-width-row">
+        <div class="display-width-edit-row">
+          <span class="display-width-info-label">{{ t('c3ExtraSpacing') }}：</span>
           <input
             :value="selectedAppendedEntry.extraSpacing"
             type="number"
@@ -236,24 +231,24 @@
           </button>
         </div>
 
-        <label>{{ t('c3FinalDisplayWidth') }}</label>
-        <div class="display-width-row">
-          <input
-            :value="finalDisplayWidth"
-            type="number"
-            class="form-control display-width-input"
-            readonly
-          >
+        <div class="display-width-info-row">
+          <span class="display-width-info-label">{{ t('c3FinalDisplayWidth') }}：</span>
+          <span class="display-width-info-value">{{ finalDisplayWidth }}</span>
         </div>
 
-        <label>{{ t('c3FinalTopOffset') }}</label>
-        <div class="display-width-row">
-          <input
-            :value="finalTopOffset"
-            type="number"
-            class="form-control display-width-input"
-            readonly
-          >
+        <div class="display-width-info-row">
+          <span class="display-width-info-label">{{ t('c3GlyphHeight') }}：</span>
+          <span class="display-width-info-value">{{ glyphHeight }}</span>
+        </div>
+
+        <div class="display-width-info-row">
+          <span class="display-width-info-label">{{ t('c3DistributionOffset') }}：</span>
+          <span class="display-width-info-value">{{ distributionOffset }}</span>
+        </div>
+
+        <div class="display-width-info-row">
+          <span class="display-width-info-label">{{ t('c3FinalTopOffset') }}：</span>
+          <span class="display-width-info-value">{{ finalTopOffset }}</span>
         </div>
       </div>
       <div class="popup-actions">
@@ -341,6 +336,14 @@ const finalDisplayWidth = computed(() => {
   const entry = selectedAppendedEntry.value
   if (!entry) return 0
   return entry.autoDisplayWidth + editorStore.c3GlobalExtraSpacing + entry.extraSpacing
+})
+
+const glyphHeight = computed(() => {
+  return selectedAppendedEntry.value?.autoGlyphHeight ?? 0
+})
+
+const distributionOffset = computed(() => {
+  return selectedAppendedEntry.value?.distributionOffset ?? 0
 })
 
 const finalTopOffset = computed(() => {
@@ -825,6 +828,32 @@ watch(characterEntries, () => {
 .display-width-input {
   width: 80px;
   text-align: center;
+}
+
+.display-width-info-row,
+.display-width-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.display-width-edit-row {
+  gap: 0.5rem;
+}
+
+.display-width-info-label {
+  color: #6c757d;
+  white-space: nowrap;
+}
+
+.display-width-info-value {
+  color: #495057;
+  font-weight: 500;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Consolas, monospace;
 }
 
 .auto-width-hint {

@@ -67,7 +67,7 @@
         :disabled="!canExport"
         @click="exportImage"
       >
-        {{ t('exportPNG') }}
+        {{ t('exportImage') }}
       </button>
     </div>
 
@@ -388,7 +388,7 @@ async function exportImage() {
 
       const filename = editorStore.c3ImportedImageFilename || 'c3-sprite-font.png'
 
-      const updatedArray = exportC3SpriteFont({
+      const updatedArray = await exportC3SpriteFont({
         originalArray: editorStore.c3InstanceArray,
         importedCharacterSet: editorStore.importedCharacterSet,
         characterSet: [...editorStore.c3EffectiveCharacterSet],
@@ -401,6 +401,7 @@ async function exportImage() {
         characterStyle: editorStore.characterStyle,
         currentFontFamily: editorStore.currentFont?.family,
         filename,
+        sourceMimeType: editorStore.baseImageMimeType,
       })
 
       c3ExportInstanceArray.value = updatedArray
@@ -411,7 +412,8 @@ async function exportImage() {
     }
 
     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-')
-    const filename = `sprite-font-${timestamp}.png`
+    const baseFilename = editorStore.baseImageFilename || 'sprite-font'
+    const filename = `${baseFilename}-${timestamp}`
 
     // 使用原始尺寸导出，直接使用 base 配置
     await exportWithOriginalSize(
@@ -422,7 +424,8 @@ async function exportImage() {
       editorStore.characterStyle,
       editorStore.cellAlignment,
       editorStore.insertPointConfig,
-      filename
+      filename,
+      { sourceMimeType: editorStore.baseImageMimeType }
     )
 
     notify.success(t('exportSuccess'))

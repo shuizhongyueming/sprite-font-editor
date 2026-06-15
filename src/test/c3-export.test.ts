@@ -123,6 +123,13 @@ describe('exportC3SpriteFont', () => {
       if (tagName === 'a') {
         return mockLink as unknown as HTMLElement
       }
+      if (tagName === 'canvas') {
+        const canvas = originalCreateElement(tagName) as HTMLCanvasElement
+        canvas.toBlob = vi.fn((callback: BlobCallback) => {
+          callback(new Blob(['mock'], { type: 'image/png' }))
+        }) as unknown as typeof canvas.toBlob
+        return canvas
+      }
       return originalCreateElement(tagName)
     })
 
@@ -134,14 +141,14 @@ describe('exportC3SpriteFont', () => {
     vi.restoreAllMocks()
   })
 
-  it('should trigger a PNG download and return the updated array', () => {
+  it('should trigger a PNG download and return the updated array', async () => {
     const original = createInstanceArray('ABC', '[]')
     const image = new Image()
     image.width = 64
     image.height = 64
 
     const onDownload = vi.fn()
-    const result = exportC3SpriteFont({
+    const result = await exportC3SpriteFont({
       originalArray: original,
       importedCharacterSet: 'ABC',
       characterSet: ['A', 'B', 'C', 'D'],

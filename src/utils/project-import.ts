@@ -196,6 +196,10 @@ export async function parseProjectFiles(
     throw new ProjectImportError(`缺少底图文件: ${projectJson.image}`);
   }
 
+  if (!state.baseImageMimeType && imageFile.type) {
+    state.baseImageMimeType = imageFile.type;
+  }
+
   const image = await imageLoader(imageFile);
 
   if (

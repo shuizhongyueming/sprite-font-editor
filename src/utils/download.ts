@@ -2,6 +2,12 @@
  * 下载相关工具函数
  */
 
+import {
+  getImageExportFormat,
+  replaceExtension,
+  buildFilePickerType,
+} from "@/utils/image-format";
+
 export interface CharacterEntry {
   char: string;
   margin: {
@@ -15,6 +21,46 @@ export interface CharacterEntry {
 export interface ExportOptions {
   filename?: string;
   quality?: number;
+  sourceMimeType?: string;
+}
+
+export interface FilePickerSaveOptions {
+  filename?: string;
+  types?: FilePickerAcceptType[];
+}
+
+/**
+ * 使用 File System Access API 保存文件到用户选择的位置
+ * @returns 是否成功保存（用户取消也返回 true，表示不需要 fallback）
+ */
+export async function saveWithFilePicker(
+  blob: Blob,
+  filename: string,
+  types?: FilePickerAcceptType[],
+): Promise<boolean> {
+  if (typeof window.showSaveFilePicker !== "function") {
+    return false;
+  }
+
+  try {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: filename,
+      types,
+    });
+    if (!handle) {
+      return false;
+    }
+    const writable = await handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    return true;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return true;
+    }
+    console.error("File picker save failed:", error);
+    return false;
+  }
 }
 
 /**
@@ -32,17 +78,44 @@ export function triggerDownload(url: string, filename: string): void {
 }
 
 /**
- * 导出 Canvas 为 PNG
+ * 根据原图格式导出 Canvas 为图片
  */
-export function exportCanvasToPNG(
+export async function exportCanvasToImage(
   canvas: HTMLCanvasElement,
   options: ExportOptions = {},
-): void {
-  const { filename = "sprite-font.png" } = options;
+): Promise<void> {
+  const {
+    filename = "sprite-font.png",
+    sourceMimeType = "image/png",
+    quality = 0.9,
+  } = options;
+
+  const format = getImageExportFormat(filename, sourceMimeType);
+  const exportFilename = replaceExtension(filename, format.extension);
 
   try {
-    const dataURL = canvas.toDataURL("image/png");
-    triggerDownload(dataURL, filename);
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(
+        resolve,
+        format.mimeType,
+        format.mimeType === "image/jpeg" ? quality : undefined,
+      );
+    });
+    if (!blob) {
+      throw new Error("无法将 Canvas 转换为 Blob");
+    }
+
+    const saved = await saveWithFilePicker(blob, exportFilename, [
+      buildFilePickerType(format),
+    ]);
+
+    if (!saved) {
+      const dataURL = canvas.toDataURL(
+        format.mimeType,
+        format.mimeType === "image/jpeg" ? quality : undefined,
+      );
+      triggerDownload(dataURL, exportFilename);
+    }
   } catch (error) {
     console.error("Failed to export canvas:", error);
     throw new Error("导出失败，请检查 Canvas 状态");
@@ -50,21 +123,23 @@ export function exportCanvasToPNG(
 }
 
 /**
- * 导出 Canvas 为 JPEG
+ * 导出 Canvas 为 PNG（兼容旧代码，实际按原图格式导出）
  */
-export function exportCanvasToJPEG(
+export async function exportCanvasToPNG(
   canvas: HTMLCanvasElement,
   options: ExportOptions = {},
-): void {
-  const { filename = "sprite-font.jpg", quality = 0.9 } = options;
+): Promise<void> {
+  return exportCanvasToImage(canvas, options);
+}
 
-  try {
-    const dataURL = canvas.toDataURL("image/jpeg", quality);
-    triggerDownload(dataURL, filename);
-  } catch (error) {
-    console.error("Failed to export canvas:", error);
-    throw new Error("导出失败，请检查 Canvas 状态");
-  }
+/**
+ * 导出 Canvas 为 JPEG（兼容旧代码，实际按原图格式导出）
+ */
+export async function exportCanvasToJPEG(
+  canvas: HTMLCanvasElement,
+  options: ExportOptions = {},
+): Promise<void> {
+  return exportCanvasToImage(canvas, options);
 }
 
 /**
@@ -78,6 +153,10 @@ export function exportCanvasToJPEG(
  * @param insertPointConfig 插入点配置
  * @param filename 导出文件名
  */
+export interface ExportWithOriginalSizeOptions {
+  sourceMimeType?: string;
+}
+
 export async function exportWithOriginalSize(
   originalImage: HTMLImageElement,
   baseCellConfig: {
@@ -104,12 +183,111 @@ export async function exportWithOriginalSize(
   },
   insertPointConfig: { mode: "auto" | "manual"; startCellIndex?: number },
   filename: string = "sprite-font.png",
+  options: ExportWithOriginalSizeOptions = {},
+): Promise<void> {
+  const { sourceMimeType = "image/png" } = options;
+
+  return exportImageWithCanvas(
+    originalImage,
+    async (_canvas, ctx) => {
+      // 动态导入 char-renderer
+      const { renderCharacterToCell } = await import("./char-renderer");
+
+      // 绘制原始图片
+      ctx.drawImage(originalImage, 0, 0);
+
+      if (characterEntries.length === 0) {
+        return;
+      }
+
+      // 计算网格行列数
+      const cellTotalWidth =
+        baseCellConfig.width +
+        baseCellConfig.margin.left +
+        baseCellConfig.margin.right;
+      const cellTotalHeight =
+        baseCellConfig.height +
+        baseCellConfig.margin.top +
+        baseCellConfig.margin.bottom;
+      const usableWidth =
+        originalImage.width -
+        baseImageConfig.margin.left -
+        baseImageConfig.margin.right -
+        baseImageConfig.padding.left -
+        baseImageConfig.padding.right;
+      const usableHeight =
+        originalImage.height -
+        baseImageConfig.margin.top -
+        baseImageConfig.margin.bottom -
+        baseImageConfig.padding.top -
+        baseImageConfig.padding.bottom;
+      const cols = Math.floor(usableWidth / cellTotalWidth);
+      const rows = Math.floor(usableHeight / cellTotalHeight);
+
+      // 确定起始单元格
+      const startIndex = insertPointConfig.startCellIndex || 0;
+      let currentIndex = startIndex;
+
+      // 遍历所有字符
+      for (const charEntry of characterEntries) {
+        if (currentIndex >= rows * cols) break;
+
+        const row = Math.floor(currentIndex / cols);
+        const col = currentIndex % cols;
+
+        // 计算单元格位置
+        const cellX =
+          baseImageConfig.margin.left +
+          baseImageConfig.padding.left +
+          col * cellTotalWidth +
+          baseCellConfig.margin.left;
+        const cellY =
+          baseImageConfig.margin.top +
+          baseImageConfig.padding.top +
+          row * cellTotalHeight +
+          baseCellConfig.margin.top;
+
+        // 渲染字符
+        renderCharacterToCell(
+          charEntry.char,
+          ctx,
+          cellX,
+          cellY,
+          baseCellConfig.width,
+          baseCellConfig.height,
+          charEntry.margin || { top: 0, right: 0, bottom: 0, left: 0 },
+          baseCellConfig.padding,
+          {
+            fontFamily: characterStyle.fontFamily,
+            fontSize: characterStyle.fontSize,
+            color: characterStyle.color,
+            outline: characterStyle.outline,
+            alignment: cellAlignment,
+          },
+          characterStyle.pixelStyle,
+        );
+
+        currentIndex++;
+      }
+    },
+    filename,
+    sourceMimeType,
+  );
+}
+
+async function exportImageWithCanvas(
+  originalImage: HTMLImageElement,
+  draw: (
+    canvas: HTMLCanvasElement,
+    ctx: CanvasRenderingContext2D,
+  ) => Promise<void> | void,
+  filename: string,
+  sourceMimeType: string = "image/png",
 ): Promise<void> {
   try {
-    // 动态导入 char-renderer
-    const { renderCharacterToCell } = await import("./char-renderer");
+    const format = getImageExportFormat(filename, sourceMimeType);
+    const exportFilename = replaceExtension(filename, format.extension);
 
-    // 创建与原始图片尺寸相同的 canvas
     const exportCanvas = document.createElement("canvas");
     exportCanvas.width = originalImage.width;
     exportCanvas.height = originalImage.height;
@@ -119,90 +297,24 @@ export async function exportWithOriginalSize(
       throw new Error("无法获取 Canvas 上下文");
     }
 
-    // 绘制原始图片
-    ctx.drawImage(originalImage, 0, 0);
+    await draw(exportCanvas, ctx);
 
-    // 如果有字符需要渲染
-    if (characterEntries.length === 0) {
-      // 没有字符，只导出图片
-      const dataURL = exportCanvas.toDataURL("image/png");
-      triggerDownload(dataURL, filename);
-      return;
+    const quality = format.mimeType === "image/jpeg" ? 0.92 : undefined;
+    const blob = await new Promise<Blob | null>((resolve) => {
+      exportCanvas.toBlob(resolve, format.mimeType, quality);
+    });
+    if (!blob) {
+      throw new Error("无法将 Canvas 转换为 Blob");
     }
 
-    // 计算网格行列数
-    const cellTotalWidth =
-      baseCellConfig.width +
-      baseCellConfig.margin.left +
-      baseCellConfig.margin.right;
-    const cellTotalHeight =
-      baseCellConfig.height +
-      baseCellConfig.margin.top +
-      baseCellConfig.margin.bottom;
-    const usableWidth =
-      originalImage.width -
-      baseImageConfig.margin.left -
-      baseImageConfig.margin.right -
-      baseImageConfig.padding.left -
-      baseImageConfig.padding.right;
-    const usableHeight =
-      originalImage.height -
-      baseImageConfig.margin.top -
-      baseImageConfig.margin.bottom -
-      baseImageConfig.padding.top -
-      baseImageConfig.padding.bottom;
-    const cols = Math.floor(usableWidth / cellTotalWidth);
-    const rows = Math.floor(usableHeight / cellTotalHeight);
+    const saved = await saveWithFilePicker(blob, exportFilename, [
+      buildFilePickerType(format),
+    ]);
 
-    // 确定起始单元格
-    const startIndex = insertPointConfig.startCellIndex || 0;
-    let currentIndex = startIndex;
-
-    // 遍历所有字符
-    for (const charEntry of characterEntries) {
-      if (currentIndex >= rows * cols) break;
-
-      const row = Math.floor(currentIndex / cols);
-      const col = currentIndex % cols;
-
-      // 计算单元格位置
-      const cellX =
-        baseImageConfig.margin.left +
-        baseImageConfig.padding.left +
-        col * cellTotalWidth +
-        baseCellConfig.margin.left;
-      const cellY =
-        baseImageConfig.margin.top +
-        baseImageConfig.padding.top +
-        row * cellTotalHeight +
-        baseCellConfig.margin.top;
-
-      // 渲染字符
-      renderCharacterToCell(
-        charEntry.char,
-        ctx,
-        cellX,
-        cellY,
-        baseCellConfig.width,
-        baseCellConfig.height,
-        charEntry.margin || { top: 0, right: 0, bottom: 0, left: 0 },
-        baseCellConfig.padding,
-        {
-          fontFamily: characterStyle.fontFamily,
-          fontSize: characterStyle.fontSize,
-          color: characterStyle.color,
-          outline: characterStyle.outline,
-          alignment: cellAlignment,
-        },
-        characterStyle.pixelStyle,
-      );
-
-      currentIndex++;
+    if (!saved) {
+      const dataURL = exportCanvas.toDataURL(format.mimeType, quality);
+      triggerDownload(dataURL, exportFilename);
     }
-
-    // 导出
-    const dataURL = exportCanvas.toDataURL("image/png");
-    triggerDownload(dataURL, filename);
   } catch (error) {
     console.error("Failed to export with original size:", error);
     throw new Error("导出失败，请检查配置");

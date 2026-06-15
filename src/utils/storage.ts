@@ -158,13 +158,14 @@ export const ImageStorage = {
     await save(this.key, "image", blob, { width, height, mimeType: blob.type });
   },
 
-  async load(): Promise<{ blob: Blob; width: number; height: number } | null> {
+  async load(): Promise<{ blob: Blob; width: number; height: number; mimeType?: string } | null> {
     const result = await get(this.key);
     if (result && result.type === "image" && result.data instanceof Blob) {
       return {
         blob: result.data,
         width: (result.metadata.width as number) || 0,
         height: (result.metadata.height as number) || 0,
+        mimeType: (result.metadata.mimeType as string) || undefined,
       };
     }
     return null;
@@ -217,13 +218,14 @@ export const C3ImageStorage = {
     });
   },
 
-  async load(): Promise<{ blob: Blob; width: number; height: number } | null> {
+  async load(): Promise<{ blob: Blob; width: number; height: number; mimeType?: string } | null> {
     const result = await get(this.key);
     if (result && result.type === "image" && result.data instanceof Blob) {
       return {
         blob: result.data,
         width: (result.metadata.width as number) || 0,
         height: (result.metadata.height as number) || 0,
+        mimeType: (result.metadata.mimeType as string) || undefined,
       };
     }
     return null;

@@ -248,14 +248,39 @@ describe('CharacterInput C3 character list', () => {
       store.selectedCharIndex = 0
       await nextTick()
 
-      const labels = wrapper.findAll('.display-width-section label')
-      const finalTopOffsetLabel = labels.find((label) => label.text() === 'Final Top Offset')
-      expect(finalTopOffsetLabel).toBeDefined()
+      const rows = wrapper.findAll('.display-width-info-row')
+      const finalTopOffsetRow = rows.find((row) =>
+        row.find('.display-width-info-label').text().includes('Final Top Offset')
+      )
+      expect(finalTopOffsetRow).toBeDefined()
+      expect(finalTopOffsetRow!.find('.display-width-info-value').text()).toBe('8')
+    })
 
-      const inputs = wrapper.findAll('.display-width-section input')
-      const finalTopOffsetInput = inputs[inputs.length - 1]
-      expect(finalTopOffsetInput.exists()).toBe(true)
-      expect((finalTopOffsetInput.element as HTMLInputElement).value).toBe('8')
+    it('shows glyph height and distribution offset for the selected appended character', async () => {
+      const store = useEditorStore()
+      importC3Font(store)
+      store.appendC3Characters(['C'])
+      store.c3AppendedEntries[0].autoGlyphHeight = 14
+      store.c3AppendedEntries[0].distributionOffset = 4
+
+      wrapper = mount(CharacterInput, { attachTo: document.body })
+      await nextTick()
+
+      store.selectedCharIndex = 0
+      await nextTick()
+
+      const rows = wrapper.findAll('.display-width-info-row')
+      const heightRow = rows.find((row) =>
+        row.find('.display-width-info-label').text().includes('Glyph Height')
+      )
+      const offsetRow = rows.find((row) =>
+        row.find('.display-width-info-label').text().includes('Distribution Offset')
+      )
+
+      expect(heightRow).toBeDefined()
+      expect(offsetRow).toBeDefined()
+      expect(heightRow!.find('.display-width-info-value').text()).toBe('14')
+      expect(offsetRow!.find('.display-width-info-value').text()).toBe('4')
     })
   })
 })

@@ -11,7 +11,7 @@ export interface Translations {
   // Toolbar
   uploadImage: string;
   uploadFont: string;
-  exportPNG: string;
+  exportImage: string;
   insertPoint: string;
   autoMode: string;
   manualMode: string;
@@ -165,6 +165,8 @@ export interface Translations {
   c3DisplayWidth: string;
   c3AutoDisplayWidth: string;
   c3FinalDisplayWidth: string;
+  c3GlyphHeight: string;
+  c3DistributionOffset: string;
   c3ExtraSpacing: string;
   c3ResetExtraSpacing: string;
   c3GlobalExtraSpacing: string;
@@ -198,7 +200,7 @@ export const translations: Record<Locale, Translations> = {
     // Toolbar
     uploadImage: "上传图片",
     uploadFont: "上传字体",
-    exportPNG: "导出PNG",
+    exportImage: "导出图片",
     insertPoint: "插入点:",
     autoMode: "自动",
     manualMode: "手动",
@@ -353,6 +355,8 @@ export const translations: Record<Locale, Translations> = {
     c3DisplayWidth: "显示宽度",
     c3AutoDisplayWidth: "自动宽度",
     c3FinalDisplayWidth: "最终显示宽度",
+    c3GlyphHeight: "字符高度",
+    c3DistributionOffset: "分布偏移",
     c3ExtraSpacing: "额外间距",
     c3ResetExtraSpacing: "重置额外间距",
     c3GlobalExtraSpacing: "全局追加字符额外间距",
@@ -384,7 +388,7 @@ export const translations: Record<Locale, Translations> = {
     // Toolbar
     uploadImage: "Upload Image",
     uploadFont: "Upload Font",
-    exportPNG: "Export PNG",
+    exportImage: "Export Image",
     insertPoint: "Insert Point:",
     autoMode: "Auto",
     manualMode: "Manual",
@@ -541,6 +545,8 @@ export const translations: Record<Locale, Translations> = {
     c3DisplayWidth: "Display Width",
     c3AutoDisplayWidth: "Auto Width",
     c3FinalDisplayWidth: "Final Display Width",
+    c3GlyphHeight: "Glyph Height",
+    c3DistributionOffset: "Distribution Offset",
     c3ExtraSpacing: "Extra Spacing",
     c3ResetExtraSpacing: "Reset Extra Spacing",
     c3GlobalExtraSpacing: "Global Appended Extra Spacing",

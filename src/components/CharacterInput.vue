@@ -282,7 +282,7 @@ const duplicateChars = ref<string[]>([])
 const hasSpaceError = ref(false)
 const isImportedExpanded = ref(false)
 const isAppendedExpanded = ref(false)
-const COLLAPSED_CHARACTER_COUNT = 10
+const COLLAPSED_CHARACTER_COUNT = 12
 
 const characterEntries = computed(() => editorStore.characterEntries)
 const appendedEntries = computed(() => editorStore.c3AppendedEntries)

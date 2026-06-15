@@ -74,9 +74,9 @@ describe('CharacterInput C3 character list', () => {
   })
 
   describe('imported characters', () => {
-    it('shows only the first 10 imported characters by default when there are more', async () => {
+    it('shows only the first 12 imported characters by default when there are more', async () => {
       const store = useEditorStore()
-      const chars = Array.from({ length: 12 }, (_, i) => String.fromCharCode(65 + i)).join('')
+      const chars = Array.from({ length: 14 }, (_, i) => String.fromCharCode(65 + i)).join('')
       importC3Font(store, chars)
 
       wrapper = mount(CharacterInput, { attachTo: document.body })
@@ -84,7 +84,7 @@ describe('CharacterInput C3 character list', () => {
 
       const importedSection = wrapper.findAll('.character-section')[0]
       const items = importedSection.findAll('.character-item')
-      expect(items.length).toBe(10)
+      expect(items.length).toBe(12)
 
       const toggleBtn = importedSection.find('.button-group--toggle-only .btn-outline-secondary')
       expect(toggleBtn.exists()).toBe(true)
@@ -93,7 +93,7 @@ describe('CharacterInput C3 character list', () => {
 
     it('shows all imported characters after clicking show more', async () => {
       const store = useEditorStore()
-      const chars = Array.from({ length: 12 }, (_, i) => String.fromCharCode(65 + i)).join('')
+      const chars = Array.from({ length: 14 }, (_, i) => String.fromCharCode(65 + i)).join('')
       importC3Font(store, chars)
 
       wrapper = mount(CharacterInput, { attachTo: document.body })
@@ -105,20 +105,20 @@ describe('CharacterInput C3 character list', () => {
       await nextTick()
 
       const items = importedSection.findAll('.character-item')
-      expect(items.length).toBe(12)
+      expect(items.length).toBe(14)
       expect(toggleBtn.text()).toBe('Show less')
     })
 
-    it('does not show the toggle button when imported characters are 10 or fewer', async () => {
+    it('does not show the toggle button when imported characters are 12 or fewer', async () => {
       const store = useEditorStore()
-      importC3Font(store, 'ABCDE')
+      importC3Font(store, 'ABCDEFGHIJKL')
 
       wrapper = mount(CharacterInput, { attachTo: document.body })
       await nextTick()
 
       const importedSection = wrapper.findAll('.character-section')[0]
       const items = importedSection.findAll('.character-item')
-      expect(items.length).toBe(5)
+      expect(items.length).toBe(12)
 
       const toggleBtn = importedSection.find('.button-group--toggle-only .btn-outline-secondary')
       expect(toggleBtn.exists()).toBe(false)
@@ -126,17 +126,17 @@ describe('CharacterInput C3 character list', () => {
   })
 
   describe('appended characters', () => {
-    it('shows only the first 10 appended characters by default when there are more', async () => {
+    it('shows only the first 12 appended characters by default when there are more', async () => {
       const store = useEditorStore()
       importC3Font(store)
-      store.appendC3Characters(Array.from({ length: 12 }, (_, i) => String.fromCharCode(65 + i)))
+      store.appendC3Characters(Array.from({ length: 14 }, (_, i) => String.fromCharCode(65 + i)))
 
       wrapper = mount(CharacterInput, { attachTo: document.body })
       await nextTick()
 
       const appendedSection = wrapper.findAll('.character-section')[1]
       const items = appendedSection.findAll('.character-item')
-      expect(items.length).toBe(10)
+      expect(items.length).toBe(12)
 
       const toggleBtn = appendedSection.find('.button-group__actions .btn-outline-secondary')
       expect(toggleBtn.exists()).toBe(true)
@@ -146,7 +146,7 @@ describe('CharacterInput C3 character list', () => {
     it('shows all appended characters after clicking show more', async () => {
       const store = useEditorStore()
       importC3Font(store)
-      store.appendC3Characters(Array.from({ length: 12 }, (_, i) => String.fromCharCode(65 + i)))
+      store.appendC3Characters(Array.from({ length: 14 }, (_, i) => String.fromCharCode(65 + i)))
 
       wrapper = mount(CharacterInput, { attachTo: document.body })
       await nextTick()
@@ -157,21 +157,21 @@ describe('CharacterInput C3 character list', () => {
       await nextTick()
 
       const items = appendedSection.findAll('.character-item')
-      expect(items.length).toBe(12)
+      expect(items.length).toBe(14)
       expect(toggleBtn.text()).toBe('Show less')
     })
 
-    it('does not show the toggle button when appended characters are 10 or fewer', async () => {
+    it('does not show the toggle button when appended characters are 12 or fewer', async () => {
       const store = useEditorStore()
       importC3Font(store)
-      store.appendC3Characters(['C', 'D', 'E'])
+      store.appendC3Characters(['C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L'])
 
       wrapper = mount(CharacterInput, { attachTo: document.body })
       await nextTick()
 
       const appendedSection = wrapper.findAll('.character-section')[1]
       const items = appendedSection.findAll('.character-item')
-      expect(items.length).toBe(3)
+      expect(items.length).toBe(10)
 
       const toggleBtn = appendedSection.find('.button-group__actions .btn-outline-secondary')
       expect(toggleBtn.exists()).toBe(false)
@@ -180,7 +180,7 @@ describe('CharacterInput C3 character list', () => {
     it('resets expansion when clearing all appended characters', async () => {
       const store = useEditorStore()
       importC3Font(store)
-      store.appendC3Characters(Array.from({ length: 12 }, (_, i) => String.fromCharCode(65 + i)))
+      store.appendC3Characters(Array.from({ length: 14 }, (_, i) => String.fromCharCode(65 + i)))
 
       wrapper = mount(CharacterInput, { attachTo: document.body })
       await nextTick()
@@ -190,7 +190,7 @@ describe('CharacterInput C3 character list', () => {
       await toggleBtn.trigger('click')
       await nextTick()
 
-      expect(appendedSection.findAll('.character-item').length).toBe(12)
+      expect(appendedSection.findAll('.character-item').length).toBe(14)
 
       const clearBtn = appendedSection.find('.button-group__actions .btn-outline-danger')
       await clearBtn.trigger('click')
@@ -203,7 +203,7 @@ describe('CharacterInput C3 character list', () => {
     it('selects the correct appended character by original index when collapsed', async () => {
       const store = useEditorStore()
       importC3Font(store)
-      store.appendC3Characters(Array.from({ length: 12 }, (_, i) => String.fromCharCode(65 + i)))
+      store.appendC3Characters(Array.from({ length: 14 }, (_, i) => String.fromCharCode(65 + i)))
 
       wrapper = mount(CharacterInput, { attachTo: document.body })
       await nextTick()

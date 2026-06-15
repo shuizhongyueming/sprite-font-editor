@@ -30,12 +30,27 @@
         </div>
         <div class="character-items character-items--readonly">
           <div
-            v-for="(char, index) in importedCharacters"
+            v-for="(char, index) in visibleImportedCharacters"
             :key="`imported-${index}`"
             class="character-item character-item--readonly"
           >
             <span class="character-char">{{ char }}</span>
           </div>
+        </div>
+
+        <div
+          v-if="hasMoreImported"
+          class="button-group button-group--toggle-only"
+        >
+          <span class="character-count">
+            {{ t('c3ImportedCount', { count: importedCharacters.length }) }}
+          </span>
+          <button
+            class="btn btn-sm btn-outline-secondary"
+            @click="toggleImportedExpanded"
+          >
+            {{ isImportedExpanded ? t('c3ShowLess') : t('c3ShowMore') }}
+          </button>
         </div>
       </div>
 
@@ -49,7 +64,7 @@
         </div>
         <div class="character-items">
           <div
-            v-for="(entry, index) in appendedEntries"
+            v-for="{ entry, index } in visibleAppendedEntries"
             :key="`appended-${index}`"
             class="character-item"
             :class="{ active: editorStore.selectedCharIndex === index }"
@@ -74,12 +89,21 @@
           <span class="character-count">
             {{ t('c3AppendedCount', { count: appendedEntries.length }) }}
           </span>
-          <button
-            class="btn btn-sm btn-outline-danger"
-            @click="clearAppendedCharacters"
-          >
-            {{ t('clear') }}
-          </button>
+          <div class="button-group__actions">
+            <button
+              v-if="hasMoreAppended"
+              class="btn btn-sm btn-outline-secondary"
+              @click="toggleAppendedExpanded"
+            >
+              {{ isAppendedExpanded ? t('c3ShowLess') : t('c3ShowMore') }}
+            </button>
+            <button
+              class="btn btn-sm btn-outline-danger"
+              @click="clearAppendedCharacters"
+            >
+              {{ t('clear') }}
+            </button>
+          </div>
         </div>
       </div>
     </template>
@@ -256,10 +280,33 @@ const appendInput = ref('')
 const marginPopup = ref<HTMLElement>()
 const duplicateChars = ref<string[]>([])
 const hasSpaceError = ref(false)
+const isImportedExpanded = ref(false)
+const isAppendedExpanded = ref(false)
+const COLLAPSED_CHARACTER_COUNT = 10
 
 const characterEntries = computed(() => editorStore.characterEntries)
 const appendedEntries = computed(() => editorStore.c3AppendedEntries)
 const importedCharacters = computed(() => splitGraphemes(editorStore.importedCharacterSet))
+
+const visibleImportedCharacters = computed(() => {
+  if (isImportedExpanded.value || importedCharacters.value.length <= COLLAPSED_CHARACTER_COUNT) {
+    return importedCharacters.value
+  }
+  return importedCharacters.value.slice(0, COLLAPSED_CHARACTER_COUNT)
+})
+
+const hasMoreImported = computed(() => importedCharacters.value.length > COLLAPSED_CHARACTER_COUNT)
+
+const visibleAppendedEntries = computed(() => {
+  if (isAppendedExpanded.value || appendedEntries.value.length <= COLLAPSED_CHARACTER_COUNT) {
+    return appendedEntries.value.map((entry, index) => ({ entry, index }))
+  }
+  return appendedEntries.value
+    .slice(0, COLLAPSED_CHARACTER_COUNT)
+    .map((entry, index) => ({ entry, index }))
+})
+
+const hasMoreAppended = computed(() => appendedEntries.value.length > COLLAPSED_CHARACTER_COUNT)
 
 const hasValidationError = computed(() => duplicateChars.value.length > 0 || hasSpaceError.value)
 const validationMessage = computed(() => {
@@ -396,6 +443,15 @@ function deleteAppendedCharacter(index: number) {
 
 function clearAppendedCharacters() {
   editorStore.clearC3AppendedCharacters()
+  isAppendedExpanded.value = false
+}
+
+function toggleAppendedExpanded() {
+  isAppendedExpanded.value = !isAppendedExpanded.value
+}
+
+function toggleImportedExpanded() {
+  isImportedExpanded.value = !isImportedExpanded.value
 }
 
 function saveMargin() {
@@ -680,6 +736,16 @@ watch(characterEntries, () => {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+}
+
+.button-group__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.button-group--toggle-only {
+  margin-top: 0.5rem;
 }
 
 .character-count {

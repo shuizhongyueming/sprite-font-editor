@@ -174,6 +174,8 @@ export interface Translations {
   c3ResetSampleText: string;
   c3CollapsePreview: string;
   c3ExpandPreview: string;
+  c3ShowMore: string;
+  c3ShowLess: string;
   c3ExportTitle: string;
   c3ExportCopy: string;
   c3ExportCopied: string;
@@ -358,6 +360,8 @@ export const translations: Record<Locale, Translations> = {
     c3ResetSampleText: "重置示例文本",
     c3CollapsePreview: "收起预览",
     c3ExpandPreview: "展开预览",
+    c3ShowMore: "显示全部",
+    c3ShowLess: "收起",
     c3ExportTitle: "导出 C3 Sprite Font",
     c3ExportCopy: "复制到剪贴板",
     c3ExportCopied: "已复制",
@@ -542,6 +546,8 @@ export const translations: Record<Locale, Translations> = {
     c3ResetSampleText: "Reset Sample Text",
     c3CollapsePreview: "Collapse Preview",
     c3ExpandPreview: "Expand Preview",
+    c3ShowMore: "Show more",
+    c3ShowLess: "Show less",
     c3ExportTitle: "Export C3 Sprite Font",
     c3ExportCopy: "Copy to Clipboard",
     c3ExportCopied: "Copied",

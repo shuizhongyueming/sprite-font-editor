@@ -31,6 +31,7 @@ export interface ProjectData {
   c3InstanceArray?: C3InstanceArray | null;
   c3ParsedData?: C3ParsedData;
   font?: ProjectFontData;
+  directoryHandle?: FileSystemDirectoryHandle;
 }
 
 async function blobToText(blob: Blob): Promise<string> {
@@ -261,6 +262,7 @@ export async function parseProjectFiles(
     c3InstanceArray,
     c3ParsedData,
     font,
+    directoryHandle: undefined,
   };
 }
 
@@ -279,6 +281,21 @@ export function buildFileMapFromFileList(fileList: FileList): Map<string, File> 
     const relative = parts[1];
     if (relative) {
       map.set(relative, file);
+    }
+  }
+
+  return map;
+}
+
+export async function readDirectoryEntries(
+  dirHandle: FileSystemDirectoryHandle,
+): Promise<Map<string, File>> {
+  const map = new Map<string, File>();
+
+  for await (const entry of dirHandle.values()) {
+    if (entry.kind === "file") {
+      const file = await entry.getFile();
+      map.set(file.name, file);
     }
   }
 

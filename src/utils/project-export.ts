@@ -243,15 +243,11 @@ async function writeFileToDirectory(
   await writable.close();
 }
 
-export async function exportProjectToDirectory(
+async function saveProjectFilesToDirectory(
   store: ReturnType<typeof useEditorStore>,
+  dirHandle: FileSystemDirectoryHandle,
 ): Promise<void> {
-  if (typeof window.showDirectoryPicker !== "function") {
-    throw new Error("File System Access API 不受支持");
-  }
-
   const files = await buildProjectFiles(store);
-  const dirHandle = await window.showDirectoryPicker();
 
   await writeFileToDirectory(
     dirHandle,
@@ -275,6 +271,24 @@ export async function exportProjectToDirectory(
   if (files.fontBlob && files.fontFilename) {
     await writeFileToDirectory(dirHandle, files.fontFilename, files.fontBlob);
   }
+}
+
+export async function exportProjectToDirectory(
+  store: ReturnType<typeof useEditorStore>,
+): Promise<void> {
+  if (typeof window.showDirectoryPicker !== "function") {
+    throw new Error("File System Access API 不受支持");
+  }
+
+  const dirHandle = await window.showDirectoryPicker();
+  await saveProjectFilesToDirectory(store, dirHandle);
+}
+
+export async function saveProjectToDirectory(
+  store: ReturnType<typeof useEditorStore>,
+  dirHandle: FileSystemDirectoryHandle,
+): Promise<void> {
+  await saveProjectFilesToDirectory(store, dirHandle);
 }
 
 export async function exportProjectToZip(

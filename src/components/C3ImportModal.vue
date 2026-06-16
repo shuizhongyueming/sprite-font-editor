@@ -328,6 +328,7 @@ async function importFont() {
       selectedFile.value.name,
       spriteSize?.width,
       spriteSize?.height,
+      selectedFile.value.type,
     )
 
     const blob = selectedFile.value.slice(0, selectedFile.value.size, selectedFile.value.type)

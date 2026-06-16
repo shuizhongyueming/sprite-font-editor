@@ -267,6 +267,9 @@ export const useEditorStore = defineStore("editor", () => {
   );
   const c3AppendedEntries = ref<C3AppendedEntry[]>([]);
 
+  // 项目导入来源（文件夹句柄，仅通过 showDirectoryPicker 导入时存在）
+  const projectDirectoryHandle = ref<FileSystemDirectoryHandle | null>(null);
+
   // C3 模式派生数据
   const c3EffectiveCharacterSet = computed(() => {
     return (
@@ -522,6 +525,7 @@ export const useEditorStore = defineStore("editor", () => {
     imageFilename?: string,
     fontSpriteWidth?: number,
     fontSpriteHeight?: number,
+    imageMimeType?: string,
   ) {
     // 重置为干净状态，避免与普通模式数据混合
     clearState();
@@ -534,9 +538,9 @@ export const useEditorStore = defineStore("editor", () => {
     importedLineHeight.value = parsed.lineHeight;
     c3ImportedImage.value = image;
     c3ImportedImageFilename.value = imageFilename || "";
-    baseImageMimeType.value = imageFilename
+    baseImageMimeType.value = imageMimeType || (imageFilename
       ? getImageMimeTypeFromFilename(imageFilename)
-      : "";
+      : "");
     c3AppendedVerticalAlignment.value = "middle";
     c3AppendedEntries.value = [];
 
@@ -1252,6 +1256,7 @@ export const useEditorStore = defineStore("editor", () => {
     originalImageHeight.value = 0;
     displayedCanvasWidth.value = 0;
     displayedCanvasHeight.value = 0;
+    projectDirectoryHandle.value = null;
     clearC3State();
     localStorage.removeItem("sprite-font-editor-state");
     C3ConfigStorage.remove();
@@ -1279,6 +1284,8 @@ export const useEditorStore = defineStore("editor", () => {
     canvasViewMode.value = project.state.canvasViewMode;
     baseImageFilename.value = project.state.baseImageFilename || "";
     baseImageMimeType.value = project.state.baseImageMimeType || "";
+
+    projectDirectoryHandle.value = project.directoryHandle ?? null;
 
     if (project.mode === "normal") {
       characterEntries.value = project.state.characterEntries || [];
@@ -1451,6 +1458,7 @@ export const useEditorStore = defineStore("editor", () => {
     baseImageFilename,
     baseImageMimeType,
     fontFilename,
+    projectDirectoryHandle,
     gridConfig,
     canvasBg,
     canvasViewMode,

@@ -8,7 +8,10 @@
           @click="toggleProjectDropdown"
         >
           {{ t('projectMenu') }}
-          <span class="dropdown-arrow">▼</span>
+          <span
+            class="dropdown-arrow"
+            :class="{ 'dropdown-arrow--rotated': showProjectDropdown }"
+          />
         </button>
         <div
           v-show="showProjectDropdown"
@@ -25,6 +28,14 @@
             @click="exportProject"
           >
             <span>{{ isExporting ? t('exportingProject') : t('exportProject') }}</span>
+          </div>
+          <div
+            v-if="canSaveProject"
+            class="dropdown-item"
+            @click="saveProject"
+          >
+            <span>{{ t('saveProject') }}</span>
+            <span class="dropdown-shortcut">{{ saveProjectShortcut }}</span>
           </div>
           <div class="dropdown-separator" />
           <div
@@ -99,7 +110,10 @@
           @click="toggleDropdown"
         >
           {{ t('switchLanguage') }}
-          <span class="dropdown-arrow">▼</span>
+          <span
+            class="dropdown-arrow"
+            :class="{ 'dropdown-arrow--rotated': showDropdown }"
+          />
         </button>
         <div
           v-show="showDropdown"
@@ -195,8 +209,13 @@ import { isValidImageFile, isValidFontFile } from '@/utils/file'
 import { exportWithOriginalSize, triggerDownload } from '@/utils/download'
 import { exportC3SpriteFont, type C3AppendedEntry } from '@/utils/c3-export'
 import type { C3InstanceArray } from '@/utils/c3-parser'
-import { exportProjectToDirectory, exportProjectToZip } from '@/utils/project-export'
-import { parseProjectFiles, buildFileMapFromFileList, readZipProject } from '@/utils/project-import'
+import { exportProjectToDirectory, exportProjectToZip, saveProjectToDirectory } from '@/utils/project-export'
+import {
+  parseProjectFiles,
+  buildFileMapFromFileList,
+  readZipProject,
+  readDirectoryEntries,
+} from '@/utils/project-import'
 import { notify } from '@/utils/notification'
 import { t, getLocale, setLanguage } from '@/utils/i18n'
 import SegmentControl from './SegmentControl.vue'
@@ -219,6 +238,15 @@ const showC3ExportModal = ref(false)
 const c3ExportInstanceArray = ref<C3InstanceArray | null>(null)
 const isExporting = ref(false)
 const currentLocale = computed(() => getLocale())
+
+const canSaveProject = computed(() =>
+  !!editorStore.projectDirectoryHandle && editorStore.hasProjectData,
+)
+
+const saveProjectShortcut = computed(() => {
+  const isMac = navigator.platform.toLowerCase().includes('mac')
+  return isMac ? '⌘S' : 'Ctrl+S'
+})
 
 const insertPointMode = computed({
   get: () => editorStore.insertPointConfig.mode,
@@ -304,12 +332,32 @@ function handleClickOutside(event: MouseEvent) {
   }
 }
 
+function handleKeydown(event: KeyboardEvent) {
+  const isSaveShortcut = event.metaKey || event.ctrlKey
+  if (!isSaveShortcut || event.key.toLowerCase() !== 's') {
+    return
+  }
+
+  if (canSaveProject.value) {
+    event.preventDefault()
+    saveProject()
+    return
+  }
+
+  if (editorStore.hasProjectData) {
+    event.preventDefault()
+    exportProjectFallback()
+  }
+}
+
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+  document.addEventListener('keydown', handleKeydown)
 })
 
 onUnmounted(() => {
   document.removeEventListener('click', handleClickOutside)
+  document.removeEventListener('keydown', handleKeydown)
 })
 
 async function handleImageUpload(event: Event) {
@@ -436,7 +484,10 @@ async function exportImage() {
   }
 }
 
-async function importProjectFromFiles(files: Map<string, Blob>) {
+async function importProjectFromFiles(
+  files: Map<string, Blob>,
+  directoryHandle?: FileSystemDirectoryHandle,
+) {
   if (editorStore.hasProjectData) {
     const confirmed = confirm(t('confirmImportProject'))
     if (!confirmed) {
@@ -446,6 +497,9 @@ async function importProjectFromFiles(files: Map<string, Blob>) {
 
   try {
     const projectData = await parseProjectFiles(files)
+    if (directoryHandle) {
+      projectData.directoryHandle = directoryHandle
+    }
     await editorStore.applyProject(projectData)
     notify.success(t('projectImportSuccess'))
   } catch (error) {
@@ -455,8 +509,24 @@ async function importProjectFromFiles(files: Map<string, Blob>) {
   }
 }
 
-function importProject() {
+async function importProject() {
   showProjectDropdown.value = false
+
+  if (typeof window.showDirectoryPicker === 'function') {
+    try {
+      const dirHandle = await window.showDirectoryPicker()
+      const files = await readDirectoryEntries(dirHandle)
+      await importProjectFromFiles(files, dirHandle)
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return
+      }
+      console.error('Project folder import failed:', error)
+      const message = error instanceof Error ? error.message : String(error)
+      notify.error(t('projectImportFailed', { message }))
+    }
+    return
+  }
 
   const supportsDirectory =
     projectFolderInput.value &&
@@ -469,20 +539,7 @@ function importProject() {
   }
 }
 
-async function handleProjectFolderImport(event: Event) {
-  const target = event.target as HTMLInputElement
-  const files = target.files
 
-  if (!files || files.length === 0) {
-    return
-  }
-
-  const map = buildFileMapFromFileList(files)
-  await importProjectFromFiles(map)
-
-  // 重置 input 以便可以再次选择同一文件夹
-  target.value = ''
-}
 
 async function handleProjectZipImport(event: Event) {
   const target = event.target as HTMLInputElement
@@ -502,6 +559,44 @@ async function handleProjectZipImport(event: Event) {
   }
 
   target.value = ''
+}
+
+async function handleProjectFolderImport(event: Event) {
+  const target = event.target as HTMLInputElement
+  const files = target.files
+
+  if (!files || files.length === 0) {
+    return
+  }
+
+  const map = buildFileMapFromFileList(files)
+  await importProjectFromFiles(map)
+
+  // 重置 input 以便可以再次选择同一文件夹
+  target.value = ''
+}
+
+async function saveProject() {
+  showProjectDropdown.value = false
+
+  const dirHandle = editorStore.projectDirectoryHandle
+  if (!dirHandle) {
+    notify.error(t('saveProjectFailed', { message: '没有可用的项目文件夹' }))
+    return
+  }
+
+  isExporting.value = true
+
+  try {
+    await saveProjectToDirectory(editorStore, dirHandle)
+    notify.success(t('saveProjectSuccess'))
+  } catch (error) {
+    console.error('Project save failed:', error)
+    const message = error instanceof Error ? error.message : String(error)
+    notify.error(t('saveProjectFailed', { message }))
+  } finally {
+    isExporting.value = false
+  }
 }
 
 async function exportProject() {
@@ -529,6 +624,38 @@ async function exportProject() {
     notify.success(t('projectExportSuccess'))
   } catch (error) {
     console.error('Project export failed:', error)
+    const message = error instanceof Error ? error.message : String(error)
+    notify.error(t('projectExportFailed', { message }))
+  } finally {
+    isExporting.value = false
+  }
+}
+
+async function exportProjectFallback() {
+  showProjectDropdown.value = false
+
+  if (!editorStore.hasProjectData) {
+    notify.warning(t('pleaseUploadImage'))
+    return
+  }
+
+  isExporting.value = true
+
+  try {
+    if (typeof window.showDirectoryPicker === 'function') {
+      await exportProjectToDirectory(editorStore)
+    } else {
+      const blob = await exportProjectToZip(editorStore)
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-')
+      const filename = `sprite-font-project-${timestamp}.zip`
+      const url = URL.createObjectURL(blob)
+      triggerDownload(url, filename)
+      URL.revokeObjectURL(url)
+    }
+
+    notify.success(t('projectExportSuccess'))
+  } catch (error) {
+    console.error('Project export fallback failed:', error)
     const message = error instanceof Error ? error.message : String(error)
     notify.error(t('projectExportFailed', { message }))
   } finally {
@@ -620,8 +747,17 @@ function clearAll() {
 }
 
 .dropdown-arrow {
-  font-size: 0.625rem;
+  width: 0;
+  height: 0;
   margin-left: 0.25rem;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 4px solid currentColor;
+  transition: transform 0.2s ease;
+}
+
+.dropdown-arrow--rotated {
+  transform: rotate(180deg);
 }
 
 .btn-success {
@@ -689,6 +825,12 @@ function clearAll() {
   min-width: 120px;
   z-index: 1000;
   overflow: hidden;
+  white-space: nowrap;
+}
+
+.project-dropdown .dropdown-menu {
+  left: 0;
+  right: auto;
 }
 
 .dropdown-item {
@@ -707,6 +849,17 @@ function clearAll() {
 .dropdown-item.active {
   background-color: #007bff;
   color: white;
+}
+
+.dropdown-shortcut {
+  margin-left: 0.75rem;
+  font-size: 0.75rem;
+  color: #6c757d;
+  opacity: 0.8;
+}
+
+.dropdown-item:hover .dropdown-shortcut {
+  color: #495057;
 }
 
 .dropdown-item--danger {

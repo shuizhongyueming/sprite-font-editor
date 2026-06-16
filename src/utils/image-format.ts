@@ -106,7 +106,7 @@ export function replaceExtension(filename: string, extension: string): string {
  * 构建 File System Access API 的文件类型过滤器
  */
 export function buildFilePickerType(format: ImageExportFormat): FilePickerAcceptType {
-  const accept: Record<string, string[]> = {};
+  const accept: FilePickerAcceptType["accept"] = {};
   switch (format.mimeType) {
     case "image/jpeg":
       accept["image/jpeg"] = [".jpg", ".jpeg"];

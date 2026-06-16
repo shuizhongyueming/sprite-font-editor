@@ -56,7 +56,7 @@ describe('download utils', () => {
 
   afterEach(() => {
     vi.restoreAllMocks()
-    window.showSaveFilePicker = originalShowSaveFilePicker
+    window.showSaveFilePicker = originalShowSaveFilePicker as typeof window.showSaveFilePicker
   })
 
   describe('triggerDownload', () => {

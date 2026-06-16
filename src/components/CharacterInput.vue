@@ -10,7 +10,7 @@
           :class="{ 'is-invalid': hasValidationError }"
           :placeholder="t('c3AppendPlaceholder')"
           rows="2"
-          @input="handleAppendInput"
+          @keydown.enter.prevent="handleAppendInput"
         />
         <div
           v-if="validationMessage"
@@ -18,6 +18,27 @@
         >
           {{ validationMessage }}
         </div>
+        <div
+          v-if="hasWarning"
+          class="warning-feedback"
+          :class="{ 'warning-feedback--fading': warningFading }"
+        >
+          {{ warningMessage }}
+        </div>
+        <div
+          v-if="hasSuccess"
+          class="success-feedback"
+          :class="{ 'success-feedback--fading': successFading }"
+        >
+          {{ successMessage }}
+        </div>
+        <button
+          class="btn btn-success append-btn"
+          :disabled="!canAppend"
+          @click="handleAppendInput"
+        >
+          {{ t('c3AppendButton') }}
+        </button>
       </div>
 
       <!-- 已导入字符 -->
@@ -40,7 +61,7 @@
 
         <div
           v-if="hasMoreImported"
-          class="button-group button-group--toggle-only"
+          class="button-group button-group--sticky button-group--toggle-only"
         >
           <span class="character-count">
             {{ t('c3ImportedCount', { count: importedCharacters.length }) }}
@@ -85,7 +106,7 @@
           </div>
         </div>
 
-        <div class="button-group">
+        <div class="button-group button-group--sticky">
           <span class="character-count">
             {{ t('c3AppendedCount', { count: appendedEntries.length }) }}
           </span>
@@ -277,7 +298,14 @@ const textInput = ref('')
 const appendInput = ref('')
 const marginPopup = ref<HTMLElement>()
 const duplicateChars = ref<string[]>([])
-const hasSpaceError = ref(false)
+const skippedDuplicateChars = ref<string[]>([])
+const warningVisible = ref(false)
+const warningFading = ref(false)
+const warningTimer = ref<ReturnType<typeof setTimeout> | null>(null)
+const appendedCount = ref(0)
+const successVisible = ref(false)
+const successFading = ref(false)
+const successTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const isImportedExpanded = ref(false)
 const isAppendedExpanded = ref(false)
 const COLLAPSED_CHARACTER_COUNT = 12
@@ -306,16 +334,29 @@ const visibleAppendedEntries = computed(() => {
 
 const hasMoreAppended = computed(() => appendedEntries.value.length > COLLAPSED_CHARACTER_COUNT)
 
-const hasValidationError = computed(() => duplicateChars.value.length > 0 || hasSpaceError.value)
+const hasValidationError = computed(() => duplicateChars.value.length > 0)
 const validationMessage = computed(() => {
-  if (hasSpaceError.value) {
-    return t('c3SpaceNotAllowed')
-  }
   if (duplicateChars.value.length > 0) {
     return t('c3DuplicateChars', { chars: duplicateChars.value.join(', ') })
   }
   return ''
 })
+
+const warningMessage = computed(() => {
+  if (skippedDuplicateChars.value.length > 0) {
+    return t('c3DuplicateCharsSkipped', {
+      chars: skippedDuplicateChars.value.join(', '),
+    })
+  }
+  return ''
+})
+
+const hasWarning = computed(() => warningMessage.value.length > 0)
+
+const successMessage = computed(() =>
+  t('c3AppendSuccess', { count: appendedCount.value }),
+)
+const hasSuccess = computed(() => successVisible.value)
 
 const selectedChar = computed(() => {
   if (editorStore.selectedCharIndex === null) return ''
@@ -398,31 +439,95 @@ function handleTextInput() {
   editorStore.selectedCharIndex = null
 }
 
+function hideWarning() {
+  if (warningTimer.value) {
+    clearTimeout(warningTimer.value)
+    warningTimer.value = null
+  }
+  warningFading.value = false
+  warningVisible.value = false
+  skippedDuplicateChars.value = []
+}
+
+function showWarning() {
+  if (warningTimer.value) {
+    clearTimeout(warningTimer.value)
+    warningTimer.value = null
+  }
+  warningFading.value = false
+  warningVisible.value = true
+  warningTimer.value = setTimeout(() => {
+    warningFading.value = true
+    warningTimer.value = setTimeout(() => {
+      hideWarning()
+    }, 300)
+  }, 3000)
+}
+
+function hideSuccess() {
+  if (successTimer.value) {
+    clearTimeout(successTimer.value)
+    successTimer.value = null
+  }
+  successFading.value = false
+  successVisible.value = false
+  appendedCount.value = 0
+}
+
+function showSuccess(count: number) {
+  if (successTimer.value) {
+    clearTimeout(successTimer.value)
+    successTimer.value = null
+  }
+  appendedCount.value = count
+  successVisible.value = true
+  successFading.value = false
+  successTimer.value = setTimeout(() => {
+    successFading.value = true
+    successTimer.value = setTimeout(() => {
+      hideSuccess()
+    }, 300)
+  }, 3000)
+}
+
+const canAppend = computed(() => appendInput.value.trim().length > 0)
+
 function handleAppendInput() {
   duplicateChars.value = []
-  hasSpaceError.value = false
 
-  const graphemes = splitGraphemes(appendInput.value)
+  const filteredInput = appendInput.value.replace(/\s+/gu, '')
+  const graphemes = splitGraphemes(filteredInput)
 
   if (graphemes.length === 0) return
-
-  if (graphemes.some((g) => g === ' ')) {
-    hasSpaceError.value = true
-    return
-  }
 
   const existing = new Set([
     ...splitGraphemes(editorStore.importedCharacterSet),
     ...appendedEntries.value.map((entry) => entry.char),
   ])
-  const duplicates = graphemes.filter((g) => existing.has(g))
 
-  if (duplicates.length > 0) {
-    duplicateChars.value = [...new Set(duplicates)]
-    return
+  const uniqueGraphemes = [...new Set(graphemes)]
+  const duplicates: string[] = []
+  const newChars: string[] = []
+
+  for (const g of uniqueGraphemes) {
+    if (existing.has(g)) {
+      duplicates.push(g)
+      continue
+    }
+    newChars.push(g)
   }
 
-  editorStore.appendC3Characters(graphemes)
+  skippedDuplicateChars.value = duplicates
+
+  if (duplicates.length > 0) {
+    showWarning()
+  }
+
+  if (newChars.length > 0) {
+    editorStore.appendC3Characters(newChars)
+    showSuccess(newChars.length)
+  }
+
   appendInput.value = ''
 }
 
@@ -587,6 +692,43 @@ watch(characterEntries, () => {
 .invalid-feedback {
   color: #dc3545;
   font-size: 0.875rem;
+}
+
+.warning-feedback {
+  color: #856404;
+  font-size: 0.875rem;
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 4px;
+  padding: 0.375rem 0.75rem;
+  margin-top: 0.25rem;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.warning-feedback--fading {
+  opacity: 0;
+}
+
+.success-feedback {
+  color: #155724;
+  font-size: 0.875rem;
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+  border-radius: 4px;
+  padding: 0.375rem 0.75rem;
+  margin-top: 0.25rem;
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+
+.success-feedback--fading {
+  opacity: 0;
+}
+
+.append-btn {
+  margin-top: 0.5rem;
+  align-self: flex-start;
 }
 
 .character-section {
@@ -758,6 +900,14 @@ watch(characterEntries, () => {
 
 .button-group--toggle-only {
   margin-top: 0.5rem;
+}
+
+.button-group--sticky {
+  position: sticky;
+  bottom: 0;
+  background-color: #f8f9fa;
+  padding: 0.5rem 0;
+  z-index: 1;
 }
 
 .character-count {

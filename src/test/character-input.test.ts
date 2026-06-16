@@ -123,6 +123,23 @@ describe('CharacterInput C3 character list', () => {
       const toggleBtn = importedSection.find('.button-group--toggle-only .btn-outline-secondary')
       expect(toggleBtn.exists()).toBe(false)
     })
+
+    it('makes the imported characters button group sticky', async () => {
+      const store = useEditorStore()
+      const chars = Array.from({ length: 14 }, (_, i) => String.fromCharCode(65 + i)).join('')
+      importC3Font(store, chars)
+
+      wrapper = mount(CharacterInput, { attachTo: document.body })
+      await nextTick()
+
+      const importedSection = wrapper.findAll('.character-section')[0]
+      const buttonGroup = importedSection.find('.button-group')
+      const style = getComputedStyle(buttonGroup.element)
+
+      expect(style.position).toBe('sticky')
+      expect(style.bottom).toBe('0px')
+      expect(style.backgroundColor).toBe('rgb(248, 249, 250)')
+    })
   })
 
   describe('appended characters', () => {
@@ -177,6 +194,23 @@ describe('CharacterInput C3 character list', () => {
       expect(toggleBtn.exists()).toBe(false)
     })
 
+    it('makes the appended characters button group sticky', async () => {
+      const store = useEditorStore()
+      importC3Font(store)
+      store.appendC3Characters(['C', 'D'])
+
+      wrapper = mount(CharacterInput, { attachTo: document.body })
+      await nextTick()
+
+      const appendedSection = wrapper.findAll('.character-section')[1]
+      const buttonGroup = appendedSection.find('.button-group')
+      const style = getComputedStyle(buttonGroup.element)
+
+      expect(style.position).toBe('sticky')
+      expect(style.bottom).toBe('0px')
+      expect(style.backgroundColor).toBe('rgb(248, 249, 250)')
+    })
+
     it('resets expansion when clearing all appended characters', async () => {
       const store = useEditorStore()
       importC3Font(store)
@@ -214,6 +248,116 @@ describe('CharacterInput C3 character list', () => {
       await nextTick()
 
       expect(store.selectedCharIndex).toBe(5)
+    })
+  })
+
+  describe('append input', () => {
+    it('appends characters when clicking the append button', async () => {
+      const store = useEditorStore()
+      importC3Font(store)
+
+      wrapper = mount(CharacterInput, { attachTo: document.body })
+      await nextTick()
+
+      const textarea = wrapper.find('.form-group textarea')
+      await textarea.setValue('CD')
+      await nextTick()
+
+      const appendBtn = wrapper.find('.append-btn')
+      expect(appendBtn.exists()).toBe(true)
+      expect(appendBtn.attributes('disabled')).toBeUndefined()
+
+      await appendBtn.trigger('click')
+      await nextTick()
+
+      expect(store.c3AppendedEntries.map((e) => e.char)).toEqual(['C', 'D'])
+      expect(wrapper.find('.success-feedback').exists()).toBe(true)
+    })
+
+    it('disables the append button when input is empty', async () => {
+      const store = useEditorStore()
+      importC3Font(store)
+
+      wrapper = mount(CharacterInput, { attachTo: document.body })
+      await nextTick()
+
+      const appendBtn = wrapper.find('.append-btn')
+      expect(appendBtn.attributes('disabled')).toBeDefined()
+    })
+
+    it('skips duplicate characters and shows a warning', async () => {
+      const store = useEditorStore()
+      importC3Font(store)
+      store.appendC3Characters(['C'])
+
+      wrapper = mount(CharacterInput, { attachTo: document.body })
+      await nextTick()
+
+      const textarea = wrapper.find('.form-group textarea')
+      await textarea.setValue('CDE')
+      await nextTick()
+
+      await wrapper.find('.append-btn').trigger('click')
+      await nextTick()
+
+      expect(store.c3AppendedEntries.map((e) => e.char)).toEqual(['C', 'D', 'E'])
+      const warning = wrapper.find('.warning-feedback')
+      expect(warning.exists()).toBe(true)
+      expect(warning.text()).toContain('C')
+    })
+
+    it('strips space characters on append without warning', async () => {
+      const store = useEditorStore()
+      importC3Font(store)
+
+      wrapper = mount(CharacterInput, { attachTo: document.body })
+      await nextTick()
+
+      const textarea = wrapper.find('.form-group textarea')
+      await textarea.setValue('C D')
+      await nextTick()
+
+      await wrapper.find('.append-btn').trigger('click')
+      await nextTick()
+
+      expect(store.c3AppendedEntries.map((e) => e.char)).toEqual(['C', 'D'])
+      expect(wrapper.find('.warning-feedback').exists()).toBe(false)
+    })
+
+    it('strips all Unicode whitespace characters on append', async () => {
+      const store = useEditorStore()
+      importC3Font(store)
+
+      wrapper = mount(CharacterInput, { attachTo: document.body })
+      await nextTick()
+
+      const textarea = wrapper.find('.form-group textarea')
+      // tab, newline, non-breaking space, ideographic space
+      await textarea.setValue('C\t\n\u00A0\u3000D')
+      await nextTick()
+
+      await wrapper.find('.append-btn').trigger('click')
+      await nextTick()
+
+      expect(store.c3AppendedEntries.map((e) => e.char)).toEqual(['C', 'D'])
+      expect(wrapper.find('.warning-feedback').exists()).toBe(false)
+    })
+
+    it('deduplicates characters within the input itself', async () => {
+      const store = useEditorStore()
+      importC3Font(store)
+
+      wrapper = mount(CharacterInput, { attachTo: document.body })
+      await nextTick()
+
+      const textarea = wrapper.find('.form-group textarea')
+      await textarea.setValue('CCDD')
+      await nextTick()
+
+      await wrapper.find('.append-btn').trigger('click')
+      await nextTick()
+
+      expect(store.c3AppendedEntries.map((e) => e.char)).toEqual(['C', 'D'])
     })
   })
 

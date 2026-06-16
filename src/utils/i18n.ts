@@ -130,6 +130,9 @@ export interface Translations {
   projectMenu: string;
   importProject: string;
   exportProject: string;
+  saveProject: string;
+  saveProjectSuccess: string;
+  saveProjectFailed: string;
   exportingProject: string;
   projectImportSuccess: string;
   projectImportFailed: string;
@@ -161,7 +164,9 @@ export interface Translations {
   c3StorageVersionMismatch: string;
   c3AppendPlaceholder: string;
   c3DuplicateChars: string;
-  c3SpaceNotAllowed: string;
+  c3DuplicateCharsSkipped: string;
+  c3AppendButton: string;
+  c3AppendSuccess: string;
   c3DisplayWidth: string;
   c3AutoDisplayWidth: string;
   c3FinalDisplayWidth: string;
@@ -205,9 +210,12 @@ export const translations: Record<Locale, Translations> = {
     autoMode: "自动",
     manualMode: "手动",
     clearAll: "清空",
-    projectMenu: "项目 ▼",
+    projectMenu: "项目",
     importProject: "导入项目",
     exportProject: "导出项目",
+    saveProject: "保存项目",
+    saveProjectSuccess: "项目已保存",
+    saveProjectFailed: "项目保存失败：{message}",
     exportingProject: "导出中...",
     projectImportSuccess: "项目导入成功！",
     projectImportFailed: "项目导入失败：{message}",
@@ -351,7 +359,9 @@ export const translations: Record<Locale, Translations> = {
     c3StorageVersionMismatch: "C3 项目存储版本不匹配，请重新导入",
     c3AppendPlaceholder: "输入要追加的字符...",
     c3DuplicateChars: "以下字符已存在：{chars}",
-    c3SpaceNotAllowed: "不能追加空格字符",
+    c3DuplicateCharsSkipped: "以下字符已存在，已跳过：{chars}",
+    c3AppendButton: "追加",
+    c3AppendSuccess: "成功追加 {count} 个字符",
     c3DisplayWidth: "显示宽度",
     c3AutoDisplayWidth: "自动宽度",
     c3FinalDisplayWidth: "最终显示宽度",
@@ -393,9 +403,12 @@ export const translations: Record<Locale, Translations> = {
     autoMode: "Auto",
     manualMode: "Manual",
     clearAll: "Clear All",
-    projectMenu: "Project ▼",
+    projectMenu: "Project",
     importProject: "Import Project",
     exportProject: "Export Project",
+    saveProject: "Save Project",
+    saveProjectSuccess: "Project saved",
+    saveProjectFailed: "Project save failed: {message}",
     exportingProject: "Exporting...",
     projectImportSuccess: "Project imported successfully!",
     projectImportFailed: "Project import failed: {message}",
@@ -541,7 +554,9 @@ export const translations: Record<Locale, Translations> = {
       "C3 project storage version mismatch, please re-import",
     c3AppendPlaceholder: "Enter characters to append...",
     c3DuplicateChars: "Characters already exist: {chars}",
-    c3SpaceNotAllowed: "Space characters cannot be appended",
+    c3DuplicateCharsSkipped: "Characters already exist, skipped: {chars}",
+    c3AppendButton: "Append",
+    c3AppendSuccess: "{count} character(s) appended",
     c3DisplayWidth: "Display Width",
     c3AutoDisplayWidth: "Auto Width",
     c3FinalDisplayWidth: "Final Display Width",

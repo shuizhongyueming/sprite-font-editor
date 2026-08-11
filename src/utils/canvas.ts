@@ -315,3 +315,27 @@ export class CanvasSpace {
     return centers;
   }
 }
+
+/**
+ * 计算刚好容纳全部单元格的最小画布尺寸（宽度不变，高度按行扩展）
+ * 参数非法时返回 null
+ */
+export function computeAutoFitSpriteSize(options: {
+  totalCells: number;
+  cellWidth: number;
+  cellHeight: number;
+  width: number;
+}): { width: number; height: number } | null {
+  const { totalCells, cellWidth, cellHeight, width } = options;
+
+  if (cellWidth <= 0 || cellHeight <= 0 || width <= 0 || totalCells < 0) {
+    return null;
+  }
+
+  const columns = Math.floor(width / cellWidth);
+  if (columns <= 0) return null;
+
+  const rows = Math.ceil(totalCells / columns);
+
+  return { width, height: rows * cellHeight };
+}

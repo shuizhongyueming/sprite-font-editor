@@ -269,7 +269,16 @@ const uiLayerStyle = computed(() => ({
 const canvasSpace = computed(() => {
   if (!hasImage.value) return null
 
-  console.log('computed canvasSpace', effectiveCellConfig.value, imageConfig.value);
+  // C3 模式下 fontSprite 以 base 单位存储，需转换为显示单位，
+  // 避免与显示单位的 canvasWidth/margin/padding 混用
+  const scale = editorStore.canvasScale
+  const fontSpriteWidth = editorStore.isC3Mode && editorStore.baseImageConfig.fontSpriteWidth
+    ? Math.round(editorStore.baseImageConfig.fontSpriteWidth * scale)
+    : editorStore.baseImageConfig.fontSpriteWidth || undefined
+  const fontSpriteHeight = editorStore.isC3Mode && editorStore.baseImageConfig.fontSpriteHeight
+    ? Math.round(editorStore.baseImageConfig.fontSpriteHeight * scale)
+    : editorStore.baseImageConfig.fontSpriteHeight || undefined
+
   return new CanvasSpace(
     canvasWidth.value,
     canvasHeight.value,
@@ -278,8 +287,8 @@ const canvasSpace = computed(() => {
     effectiveCellConfig.value.margin,
     imageConfig.value.margin,
     imageConfig.value.padding,
-    editorStore.baseImageConfig.fontSpriteWidth || undefined,
-    editorStore.baseImageConfig.fontSpriteHeight || undefined
+    fontSpriteWidth,
+    fontSpriteHeight
   )
 })
 
@@ -489,8 +498,8 @@ function handleResize() {
   const maxSize = computeMaxCanvasSize(
     containerMaxSize.value.width,
     containerMaxSize.value.height,
-    editorStore.originalImageWidth,
-    editorStore.originalImageHeight
+    editorStore.canvasBaseWidth,
+    editorStore.canvasBaseHeight
   )
 
   editorStore.maxCanvasWidth = maxSize.width
@@ -514,12 +523,12 @@ watch(() => editorStore.baseImage, async (newImage) => {
   await nextTick()
 
   if (newImage && canvasLayer.value) {
-    if (canvasArea.value && editorStore.originalImageWidth && editorStore.originalImageHeight) {
+    if (canvasArea.value && editorStore.canvasBaseWidth && editorStore.canvasBaseHeight) {
       const maxSize = computeMaxCanvasSize(
         canvasArea.value.clientWidth,
         canvasArea.value.clientHeight,
-        editorStore.originalImageWidth,
-        editorStore.originalImageHeight
+        editorStore.canvasBaseWidth,
+        editorStore.canvasBaseHeight
       )
 
       editorStore.maxCanvasWidth = maxSize.width
@@ -562,6 +571,22 @@ watch(() => [editorStore.characterStyle, editorStore.cellAlignment, editorStore.
     })
   },
   { deep: true }
+)
+
+// C3 模式下 fontSprite 尺寸变化时，重算画布显示尺寸并重绘
+watch(
+  () => [
+    editorStore.baseImageConfig.fontSpriteWidth,
+    editorStore.baseImageConfig.fontSpriteHeight,
+  ],
+  async () => {
+    if (!editorStore.isC3Mode || !editorStore.baseImage) return
+    editorStore.refreshCanvasSize()
+    await nextTick()
+    if (canvasLayer.value) {
+      drawBaseImage()
+    }
+  }
 )
 
 // 监听会影响插入点检测的配置变化，自动重新检测
@@ -645,8 +670,15 @@ function drawBaseImage() {
     // 绘制画布背景
     drawCanvasBackground(ctx, canvas)
 
-    // 绘制底图
-    ctx.drawImage(editorStore.baseImage, 0, 0, canvas.width, canvas.height)
+    // 绘制底图（按原始宽高比绘制，画布大于图片时扩展区域保持背景）
+    const scale = editorStore.canvasScale
+    ctx.drawImage(
+      editorStore.baseImage,
+      0,
+      0,
+      editorStore.baseImage.width * scale,
+      editorStore.baseImage.height * scale,
+    )
 
     // 渲染字符
     renderCharacters()
@@ -886,10 +918,17 @@ function renderC3AppendedCharacters() {
     return
   }
 
-  // 重置画布为导入的底图
+  // 重置画布为导入的底图（按原始宽高比绘制，扩展区域保持透明）
   ctx.clearRect(0, 0, canvas.width, canvas.height)
   const sourceImage = editorStore.c3ImportedImage || editorStore.baseImage
-  ctx.drawImage(sourceImage, 0, 0, canvas.width, canvas.height)
+  const sourceScale = editorStore.canvasScale
+  ctx.drawImage(
+    sourceImage,
+    0,
+    0,
+    sourceImage.width * sourceScale,
+    sourceImage.height * sourceScale,
+  )
 
   if (editorStore.c3AppendedEntries.length === 0 || !canvasSpace.value) return
 

@@ -177,6 +177,8 @@ export interface Translations {
   c3GlobalExtraSpacing: string;
   c3ResetAuto: string;
   c3AppendedVerticalAlignment: string;
+  c3AutoFitSpriteSize: string;
+  c3SpriteSizeOverflowWarning: string;
   c3FinalTopOffset: string;
   c3Preview: string;
   c3SampleText: string;
@@ -372,6 +374,9 @@ export const translations: Record<Locale, Translations> = {
     c3GlobalExtraSpacing: "全局追加字符额外间距",
     c3ResetAuto: "自动",
     c3AppendedVerticalAlignment: "追加字符垂直分布",
+    c3AutoFitSpriteSize: "自动适配全部字符",
+    c3SpriteSizeOverflowWarning:
+      "字符数量已超出当前图片容量，请调大 Font Sprite 尺寸或点击「自动适配全部字符」",
     c3FinalTopOffset: "最终顶部偏移",
     c3Preview: "C3 预览",
     c3SampleText: "示例文本",
@@ -567,6 +572,9 @@ export const translations: Record<Locale, Translations> = {
     c3GlobalExtraSpacing: "Global Appended Extra Spacing",
     c3ResetAuto: "Auto",
     c3AppendedVerticalAlignment: "Appended Vertical Alignment",
+    c3AutoFitSpriteSize: "Auto-fit All Characters",
+    c3SpriteSizeOverflowWarning:
+      "Character count exceeds current image capacity. Increase the Font Sprite Size or click \"Auto-fit All Characters\".",
     c3FinalTopOffset: "Final Top Offset",
     c3Preview: "C3 Preview",
     c3SampleText: "Sample Text",

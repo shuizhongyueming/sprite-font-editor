@@ -163,8 +163,15 @@ export async function exportC3SpriteFont(
 
   const sourceImage = c3ImportedImage || baseImage;
   const canvas = document.createElement("canvas");
-  canvas.width = sourceImage.width;
-  canvas.height = sourceImage.height;
+  // C3 模式下画布尺寸为 max(导入图片, fontSprite)，扩展区域保持透明
+  canvas.width = Math.max(
+    sourceImage.width,
+    baseImageConfig.fontSpriteWidth || 0,
+  );
+  canvas.height = Math.max(
+    sourceImage.height,
+    baseImageConfig.fontSpriteHeight || 0,
+  );
 
   const ctx = canvas.getContext("2d");
   if (!ctx) {

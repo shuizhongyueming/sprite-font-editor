@@ -12,6 +12,14 @@
         @update:height="updateFontSpriteHeight"
         @change="saveConfig"
       />
+      <button
+        v-if="editorStore.isC3Mode"
+        type="button"
+        class="auto-fit-btn"
+        @click="autoFitSpriteSize"
+      >
+        {{ t('c3AutoFitSpriteSize') }}
+      </button>
     </div>
 
     <div class="form-group">
@@ -69,6 +77,10 @@ function updatePadding(padding: { top: number; right: number; bottom: number; le
 function saveConfig() {
   editorStore.saveToLocalStorage()
 }
+
+function autoFitSpriteSize() {
+  editorStore.autoFitC3FontSpriteSize()
+}
 </script>
 
 <style scoped>
@@ -88,6 +100,21 @@ function saveConfig() {
   font-weight: 500;
   font-size: 0.875rem;
   color: #495057;
+}
+
+.auto-fit-btn {
+  padding: 0.375rem 0.75rem;
+  background-color: #fff;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  color: #495057;
+  cursor: pointer;
+  transition: background-color 0.15s ease-in-out;
+}
+
+.auto-fit-btn:hover {
+  background-color: #e9ecef;
 }
 
 .form-control {

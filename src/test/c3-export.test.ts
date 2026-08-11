@@ -182,4 +182,62 @@ describe('exportC3SpriteFont', () => {
     expect(mockLink.download).toBe('test-export.png')
     expect(onDownload).toHaveBeenCalled()
   })
+
+  it('should size the export canvas to max(image, fontSprite) per axis', async () => {
+    const original = createInstanceArray('ABC', '[]')
+    const image = new Image()
+    image.width = 64
+    image.height = 64
+
+    const createdCanvases: HTMLCanvasElement[] = []
+    vi.spyOn(document, 'createElement').mockImplementation((tagName: string) => {
+      if (tagName === 'a') {
+        return mockLink as unknown as HTMLElement
+      }
+      if (tagName === 'canvas') {
+        const canvas = originalCreateElement(tagName) as HTMLCanvasElement
+        canvas.toBlob = vi.fn((callback: BlobCallback) => {
+          callback(new Blob(['mock'], { type: 'image/png' }))
+        }) as unknown as typeof canvas.toBlob
+        createdCanvases.push(canvas)
+        return canvas
+      }
+      return originalCreateElement(tagName)
+    })
+
+    await exportC3SpriteFont({
+      originalArray: original,
+      importedCharacterSet: 'ABC',
+      characterSet: ['A', 'B', 'C'],
+      spacingData: '[]',
+      baseImage: image,
+      c3ImportedImage: null,
+      baseCellConfig: {
+        width: 16,
+        height: 16,
+        margin: { top: 0, right: 0, bottom: 0, left: 0 },
+        padding: { top: 0, right: 0, bottom: 0, left: 0 },
+      },
+      baseImageConfig: {
+        margin: { top: 0, right: 0, bottom: 0, left: 0 },
+        padding: { top: 0, right: 0, bottom: 0, left: 0 },
+        fontSpriteWidth: 64,
+        fontSpriteHeight: 128,
+      },
+      appendedEntries: [] as C3AppendedEntry[],
+      characterStyle: {
+        fontFamily: 'Arial',
+        fontSize: 16,
+        color: '#000000',
+        outline: { enabled: false, color: '#ffffff', width: 1 },
+        pixelStyle: false,
+      },
+      filename: 'test-export.png',
+    })
+
+    const exportCanvas = createdCanvases.find(
+      (canvas) => canvas.width === 64 && canvas.height === 128,
+    )
+    expect(exportCanvas).toBeDefined()
+  })
 })

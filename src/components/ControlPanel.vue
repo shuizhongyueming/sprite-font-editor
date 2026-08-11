@@ -32,6 +32,12 @@
         <div class="c3-info__item">
           <span class="c3-info__label">{{ t('c3AppendedCount', { count: appendedCount }) }}</span>
         </div>
+        <div
+          v-if="isOverCapacity"
+          class="c3-info__item c3-info__item--warning"
+        >
+          <span class="c3-info__warning">{{ t('c3SpriteSizeOverflowWarning') }}</span>
+        </div>
         <div class="c3-info__item c3-info__item--input">
           <label for="c3-global-extra-spacing">{{ t('c3GlobalExtraSpacing') }}</label>
           <input
@@ -90,6 +96,22 @@ const importedCount = computed(() => {
 
 const appendedCount = computed(() => {
   return editorStore.c3AppendedEntries.length
+})
+
+// 当前 fontSprite 尺寸下的格子容量
+const c3Capacity = computed(() => {
+  const width =
+    editorStore.baseImageConfig.fontSpriteWidth || editorStore.originalImageWidth
+  const height =
+    editorStore.baseImageConfig.fontSpriteHeight || editorStore.originalImageHeight
+  const cellWidth = editorStore.baseCellConfig.width
+  const cellHeight = editorStore.baseCellConfig.height
+  if (!width || !height || !cellWidth || !cellHeight) return 0
+  return Math.floor(width / cellWidth) * Math.floor(height / cellHeight)
+})
+
+const isOverCapacity = computed(() => {
+  return importedCount.value + appendedCount.value > c3Capacity.value
 })
 
 const characterInputRef = ref()
@@ -167,6 +189,15 @@ defineExpose({
 
 .c3-info__item--input {
   gap: 0.5rem;
+}
+
+.c3-info__item--warning {
+  background-color: #fff3cd;
+}
+
+.c3-info__warning {
+  font-size: 0.8125rem;
+  color: #856404;
 }
 
 .c3-info__item--input label {

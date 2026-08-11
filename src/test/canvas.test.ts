@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { CanvasSpace } from '@/utils/canvas'
+import { CanvasSpace, computeAutoFitSpriteSize } from '@/utils/canvas'
 
 describe('CanvasSpace', () => {
   it('should initialize with correct properties', () => {
@@ -57,5 +57,50 @@ describe('CanvasSpace', () => {
     const pos = space.getCellPosition(0, 0)
     expect(pos.x).toBe(10)
     expect(pos.y).toBe(10)
+  })
+})
+
+describe('computeAutoFitSpriteSize', () => {
+  it('should expand height to fit all cells, keeping width unchanged', () => {
+    // 64px 宽 / 16px 格 = 4 列，9 个字符需要 3 行 → 高度 48
+    const result = computeAutoFitSpriteSize({
+      totalCells: 9,
+      cellWidth: 16,
+      cellHeight: 16,
+      width: 64,
+    })
+
+    expect(result).toEqual({ width: 64, height: 48 })
+  })
+
+  it('should fit exactly when cells fill complete rows', () => {
+    const result = computeAutoFitSpriteSize({
+      totalCells: 8,
+      cellWidth: 16,
+      cellHeight: 16,
+      width: 64,
+    })
+
+    expect(result).toEqual({ width: 64, height: 32 })
+  })
+
+  it('should return null when width fits no column', () => {
+    const result = computeAutoFitSpriteSize({
+      totalCells: 4,
+      cellWidth: 16,
+      cellHeight: 16,
+      width: 8,
+    })
+
+    expect(result).toBeNull()
+  })
+
+  it('should return null for invalid inputs', () => {
+    expect(
+      computeAutoFitSpriteSize({ totalCells: 4, cellWidth: 0, cellHeight: 16, width: 64 }),
+    ).toBeNull()
+    expect(
+      computeAutoFitSpriteSize({ totalCells: 4, cellWidth: 16, cellHeight: 16, width: 0 }),
+    ).toBeNull()
   })
 })

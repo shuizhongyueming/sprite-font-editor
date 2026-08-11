@@ -306,8 +306,8 @@ function buildSourceCanvas(): HTMLCanvasElement | null {
   const baseImageCfg = editorStore.baseImageConfig
 
   const canvasSpace = new CanvasSpace(
-    image.width,
-    image.height,
+    Math.max(image.width, baseImageCfg.fontSpriteWidth || 0),
+    Math.max(image.height, baseImageCfg.fontSpriteHeight || 0),
     baseCell.width,
     baseCell.height,
     baseCell.margin,

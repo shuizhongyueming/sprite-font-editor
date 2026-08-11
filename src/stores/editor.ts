@@ -11,6 +11,7 @@ import { detectGridFast } from "@/utils/grid-detector";
 import { notify } from "@/utils/notification";
 import { t } from "@/utils/i18n";
 import { splitGraphemes } from "@/utils/grapheme";
+import { computeAutoFitSpriteSize } from "@/utils/canvas";
 import { measureGlyphBounds } from "@/utils/c3-char-renderer";
 import { buildC3InstanceArray } from "@/utils/c3-export";
 import type { C3AppendedEntry } from "@/utils/c3-export";
@@ -157,11 +158,29 @@ export const useEditorStore = defineStore("editor", () => {
     );
   });
 
+  // 画布基础尺寸：C3 模式下为 max(导入图片尺寸, fontSprite 尺寸)，
+  // 普通模式下等于图片尺寸（行为不变）
+  const canvasBaseWidth = computed(() => {
+    if (!isC3Mode.value) return originalImageWidth.value;
+    return Math.max(
+      originalImageWidth.value,
+      baseImageConfig.value.fontSpriteWidth || 0,
+    );
+  });
+
+  const canvasBaseHeight = computed(() => {
+    if (!isC3Mode.value) return originalImageHeight.value;
+    return Math.max(
+      originalImageHeight.value,
+      baseImageConfig.value.fontSpriteHeight || 0,
+    );
+  });
+
   // 计算当前缩放比例
   const canvasScale = computed(() => {
-    if (!originalImageWidth.value || !originalImageHeight.value) return 1;
+    if (!canvasBaseWidth.value || !canvasBaseHeight.value) return 1;
     if (displayedCanvasWidth.value === 0) return 1;
-    return displayedCanvasWidth.value / originalImageWidth.value;
+    return displayedCanvasWidth.value / canvasBaseWidth.value;
   });
 
   // 显示用的配置（基于当前 canvas 尺寸，用于 UI 渲染）
@@ -358,9 +377,9 @@ export const useEditorStore = defineStore("editor", () => {
 
   // 缩放百分比
   const zoomPercentage = computed(() => {
-    if (!originalImageWidth.value || displayedCanvasWidth.value === 0) return 100;
+    if (!canvasBaseWidth.value || displayedCanvasWidth.value === 0) return 100;
     return Math.round(
-      (displayedCanvasWidth.value / originalImageWidth.value) * 100,
+      (displayedCanvasWidth.value / canvasBaseWidth.value) * 100,
     );
   });
 
@@ -440,27 +459,32 @@ export const useEditorStore = defineStore("editor", () => {
     originalImageWidth.value = image.width;
     originalImageHeight.value = image.height;
 
-    // 缩放计算使用原图尺寸（Canvas 始终显示整张图片）
-    let scale = 1;
-    if (canvasViewMode.value === "fit") {
-      const widthRatio = maxCanvasWidth.value / image.width;
-      const heightRatio = maxCanvasHeight.value / image.height;
-
-      if (
-        image.width > maxCanvasWidth.value ||
-        image.height > maxCanvasHeight.value
-      ) {
-        scale = Math.min(widthRatio, heightRatio);
-      }
-    }
-
-    displayedCanvasWidth.value = Math.floor(image.width * scale);
-    displayedCanvasHeight.value = Math.floor(image.height * scale);
+    refreshCanvasSize();
 
     // 保存到 IndexedDB
     if (blob) {
       await ImageStorage.save(blob, image.width, image.height);
     }
+  }
+
+  // 按画布基础尺寸（C3 模式下为 max(图片, fontSprite)）与视图模式重算显示尺寸
+  function refreshCanvasSize() {
+    const baseWidth = canvasBaseWidth.value;
+    const baseHeight = canvasBaseHeight.value;
+    if (!baseWidth || !baseHeight) return;
+
+    let scale = 1;
+    if (canvasViewMode.value === "fit") {
+      const widthRatio = maxCanvasWidth.value / baseWidth;
+      const heightRatio = maxCanvasHeight.value / baseHeight;
+
+      if (baseWidth > maxCanvasWidth.value || baseHeight > maxCanvasHeight.value) {
+        scale = Math.min(widthRatio, heightRatio);
+      }
+    }
+
+    displayedCanvasWidth.value = Math.floor(baseWidth * scale);
+    displayedCanvasHeight.value = Math.floor(baseHeight * scale);
   }
 
   // 设置字体
@@ -544,8 +568,6 @@ export const useEditorStore = defineStore("editor", () => {
     c3AppendedVerticalAlignment.value = "middle";
     c3AppendedEntries.value = [];
 
-    setBaseImage(image);
-
     baseCellConfig.value = {
       ...baseCellConfig.value,
       width: parsed.characterWidth,
@@ -560,6 +582,10 @@ export const useEditorStore = defineStore("editor", () => {
       fontSpriteHeight: fontSpriteHeight ?? image.height,
     };
 
+    // baseImageConfig 需先于 setBaseImage 设置，
+    // 保证画布基础尺寸按 C3 fontSprite 计算
+    setBaseImage(image);
+
     cellAlignment.value = {
       horizontal: "left",
       vertical: "middle",
@@ -567,6 +593,39 @@ export const useEditorStore = defineStore("editor", () => {
 
     renderTrigger.value++;
     saveToLocalStorage();
+  }
+
+  // 自动扩展 fontSprite 尺寸，使其刚好容纳全部字符（已导入 + 已追加）
+  function autoFitC3FontSpriteSize() {
+    if (!isC3Mode.value) return;
+
+    const cellWidth = baseCellConfig.value.width;
+    const cellHeight = baseCellConfig.value.height;
+    if (cellWidth <= 0 || cellHeight <= 0) return;
+
+    const width =
+      baseImageConfig.value.fontSpriteWidth || originalImageWidth.value;
+    if (width <= 0) return;
+
+    const total =
+      splitGraphemes(importedCharacterSet.value).length +
+      c3AppendedEntries.value.length;
+    if (total === 0) return;
+
+    const fit = computeAutoFitSpriteSize({
+      totalCells: total,
+      cellWidth,
+      cellHeight,
+      width,
+    });
+    if (!fit) return;
+
+    baseImageConfig.value.fontSpriteWidth = fit.width;
+    baseImageConfig.value.fontSpriteHeight = fit.height;
+
+    refreshCanvasSize();
+    saveToLocalStorage();
+    renderTrigger.value++;
   }
 
   // 追加 C3 字符（自动计算显示宽度与可见高度）
@@ -1450,6 +1509,8 @@ export const useEditorStore = defineStore("editor", () => {
     canvasHeight: displayedCanvasHeight,
     originalImageWidth,
     originalImageHeight,
+    canvasBaseWidth,
+    canvasBaseHeight,
     effectiveSpriteWidth,
     effectiveSpriteHeight,
     maxCanvasWidth,
@@ -1483,6 +1544,7 @@ export const useEditorStore = defineStore("editor", () => {
     c3ExportInstanceArray,
     // actions
     setBaseImage,
+    refreshCanvasSize,
     setFont,
     setCanvas,
     setC3ImportedImage,
@@ -1497,6 +1559,7 @@ export const useEditorStore = defineStore("editor", () => {
     clearC3AppendedCharacters,
     setC3GlobalExtraSpacing,
     setC3AppendedVerticalAlignment,
+    autoFitC3FontSpriteSize,
     getEffectiveCharMargin,
     recalculateC3AppendedDisplayWidths,
     recalculateC3AppendedVerticalMetrics,

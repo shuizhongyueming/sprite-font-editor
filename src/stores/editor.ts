@@ -5,7 +5,10 @@ import {
   FontStorage,
   C3ImageStorage,
   C3ConfigStorage,
+  C3GenerationStorage,
+  C3_STORAGE_VERSION,
   type C3StoredConfig,
+  type C3ImageDraft,
 } from "@/utils/storage";
 import { detectGridFast } from "@/utils/grid-detector";
 import { notify } from "@/utils/notification";
@@ -16,6 +19,24 @@ import { measureGlyphBounds } from "@/utils/c3-char-renderer";
 import { buildC3InstanceArray } from "@/utils/c3-export";
 import type { C3AppendedEntry } from "@/utils/c3-export";
 import type { C3InstanceArray, C3ParsedData } from "@/utils/c3-parser";
+import {
+  analyzeC3SpriteCompaction,
+  repackC3ImportedCells,
+  migrateC3SpacingData,
+  verifyCanvasAlphaRoundTrip,
+  computeOldGrid,
+  type C3CompactionPlan,
+  type C3CompactionSource,
+  type C3CompactionErrorCode,
+  type C3CompactionNoSavings,
+  type C3CompactionError,
+} from "@/utils/c3-compaction";
+import {
+  encodeC3RepackedImage,
+  decodeC3PngBlob,
+  imageElementToPngBlob,
+  imageToImageData,
+} from "@/utils/c3-compaction-dom";
 import { getImageMimeTypeFromFilename } from "@/utils/image-format";
 import type { ProjectData } from "@/utils/project-import";
 
@@ -129,6 +150,41 @@ export interface InsertPointConfig {
   mode: "auto" | "manual";
   startCellIndex?: number;
 }
+
+/** applyC3SpriteCompaction 的成功结果 */
+export interface C3CompactionApplySuccess {
+  ok: true;
+  plan: C3CompactionPlan;
+}
+
+/** applyC3SpriteCompaction 的失败结果（typed fail-closed，UI 层据此映射文案） */
+export interface C3CompactionApplyFailure {
+  ok: false;
+  code: C3CompactionErrorCode;
+}
+
+export type C3CompactionApplyResult =
+  | C3CompactionApplySuccess
+  | C3CompactionApplyFailure;
+
+/** prepareC3Compaction 成功时携带的完整候选 */
+export interface C3CompactionPreparationPlan {
+  kind: "plan";
+  plan: C3CompactionPlan;
+  repacked: ImageData;
+  source: C3CompactionSource;
+  /** 旧网格映射元数据（origin + 有效列数，与核心 analyze 唯一一致） */
+  oldGrid: {
+    originX: number;
+    originY: number;
+    columns: number;
+  };
+}
+
+export type C3CompactionPreparationResult =
+  | C3CompactionPreparationPlan
+  | C3CompactionNoSavings
+  | C3CompactionError;
 
 export const useEditorStore = defineStore("editor", () => {
   // 基于原始图片尺寸的绝对配置（用于持久化）
@@ -542,7 +598,7 @@ export const useEditorStore = defineStore("editor", () => {
   }
 
   // 导入 C3 Sprite Font
-  function importC3SpriteFont(
+  async function importC3SpriteFont(
     image: HTMLImageElement,
     array: C3InstanceArray,
     parsed: C3ParsedData,
@@ -550,6 +606,7 @@ export const useEditorStore = defineStore("editor", () => {
     fontSpriteWidth?: number,
     fontSpriteHeight?: number,
     imageMimeType?: string,
+    imageBlob?: Blob,
   ) {
     // 重置为干净状态，避免与普通模式数据混合
     clearState();
@@ -591,8 +648,19 @@ export const useEditorStore = defineStore("editor", () => {
       vertical: "middle",
     };
 
+    // 建立 coherent generation：图片 asset + state + config 原子提交，
+    // 避免 import 与持久化各自独立写固定 key；无法编码图片时 fail closed
+    const blob = imageBlob ?? (await imageElementToPngBlob(image));
+    if (!blob) {
+      throw new Error("无法将导入图片编码为 PNG，导入失败");
+    }
+    await persistC3Generation({
+      blob,
+      width: image.naturalWidth || image.width,
+      height: image.naturalHeight || image.height,
+    });
+
     renderTrigger.value++;
-    saveToLocalStorage();
   }
 
   // 自动扩展 fontSprite 尺寸，使其刚好容纳全部字符（已导入 + 已追加）
@@ -963,9 +1031,9 @@ export const useEditorStore = defineStore("editor", () => {
     return isEmpty;
   }
 
-  // 保存到 localStorage（保存基础配置）
-  function saveToLocalStorage() {
-    const state = {
+  // 组装通用编辑器状态（普通模式固定 key 与 C3 generation 的 generalState 共用）
+  function buildGeneralState() {
+    return {
       baseCellConfig: baseCellConfig.value,
       baseImageConfig: baseImageConfig.value,
       cellAlignment: cellAlignment.value,
@@ -980,10 +1048,12 @@ export const useEditorStore = defineStore("editor", () => {
       baseImageMimeType: baseImageMimeType.value,
       fontFilename: fontFilename.value,
     };
-    localStorage.setItem("sprite-font-editor-state", JSON.stringify(state));
+  }
 
-    C3ConfigStorage.save({
-      version: CURRENT_C3_STORAGE_VERSION,
+  // 组装 C3 配置（v3，可携带版本化图片 asset id）
+  function buildC3Config(imageAssetId?: string): C3StoredConfig {
+    return {
+      version: C3_STORAGE_VERSION,
       instanceArrayJson: c3InstanceArray.value
         ? JSON.stringify(c3InstanceArray.value)
         : "",
@@ -997,79 +1067,200 @@ export const useEditorStore = defineStore("editor", () => {
       originalImageWidth: originalImageWidth.value,
       originalImageHeight: originalImageHeight.value,
       imageFilename: c3ImportedImageFilename.value,
+      imageAssetId,
+    };
+  }
+
+  /**
+   * C3 generation 提交串行化：stage → commit → prune 按序执行，
+   * 避免并发 fire-and-forget 保存捕获同一旧 active 而产生孤儿 generation，
+   * 也保证最终 active 为最后一次提交。
+   */
+  let c3CommitChain: Promise<unknown> = Promise.resolve();
+  function runExclusiveC3Commit<T>(task: () => Promise<T>): Promise<T> {
+    const run = c3CommitChain.then(task);
+    c3CommitChain = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  }
+
+  /**
+   * 通过新的 generation/pointer 提交当前 C3 状态（唯一提交点）。
+   * 提供 image 时写入新的版本化 IndexedDB asset；缺省时复用 active generation 的 asset。
+   * 持久化失败会丢弃 staged 数据并抛出（由调用方记录/传播），active 状态保持不变。
+   * commit 成功后绝不回滚或 discard 新 generation；清理一律 best-effort。
+   */
+  function persistC3Generation(image?: C3ImageDraft): Promise<void> {
+    if (!isC3Mode.value) {
+      return Promise.resolve();
+    }
+    return runExclusiveC3Commit(async () => {
+      const activeId = C3GenerationStorage.readActiveC3GenerationId();
+      const active = activeId
+        ? C3GenerationStorage.readC3Generation(activeId)
+        : null;
+      const reuseAssetId = image ? undefined : active?.c3Config.imageAssetId;
+
+      if (!image && !reuseAssetId) {
+        throw new Error("没有可复用的 C3 图片 asset，无法持久化 C3 状态");
+      }
+
+      const stagedId = await C3GenerationStorage.stage({
+        generalState: buildGeneralState(),
+        c3Config: buildC3Config(reuseAssetId),
+        image: image ?? null,
+      });
+      try {
+        C3GenerationStorage.commit(stagedId);
+      } catch (error) {
+        // 指针未写入前失败：清理 staged 数据并传播
+        await C3GenerationStorage.discard(stagedId);
+        throw error;
+      }
+      // commit 已成功：清理所有非 active generation（best-effort，绝不回滚已提交状态）
+      try {
+        C3GenerationStorage.prune();
+      } catch (error) {
+        console.error("[Editor] Failed to prune stale generations:", error);
+      }
     });
   }
 
-  // 从 localStorage 恢复
+  // 保存到 localStorage（保存基础配置）
+  function saveToLocalStorage() {
+    if (isC3Mode.value) {
+      // C3 模式：通过 generation/pointer 原子提交，不复归固定 key 独立写入
+      persistC3Generation().catch((error) => {
+        console.error("[Editor] Failed to persist C3 state on save:", error);
+        notify.error(t("c3SaveFailed"));
+      });
+      return;
+    }
+
+    const state = buildGeneralState();
+    localStorage.setItem("sprite-font-editor-state", JSON.stringify(state));
+
+    C3ConfigStorage.save({
+      version: C3_STORAGE_VERSION,
+      instanceArrayJson: "",
+      importedCharacterSet: "",
+      importedSpacingData: "",
+      importedCharacterSpacing: 0,
+      importedLineHeight: 0,
+      globalExtraSpacing: 0,
+      appendedEntries: [],
+      originalImageWidth: originalImageWidth.value,
+      originalImageHeight: originalImageHeight.value,
+    });
+
+    // 普通模式不使用 generation；清除残留的 C3 generations，
+    // 防止刷新时误恢复 C3 状态（普通模式持久化语义不变）
+    C3GenerationStorage.clearAll().catch((error) => {
+      console.error("[Editor] Failed to clear stale C3 generations:", error);
+    });
+  }
+
+  // 把解析后的通用状态对象应用到 refs（兼容新旧格式）
+  function applyGeneralState(state: Record<string, unknown>) {
+    // 兼容新格式
+    if (state.baseCellConfig) {
+      baseCellConfig.value = state.baseCellConfig as BaseCellConfig;
+    } else if (state.cellConfig) {
+      // 旧格式转换为新格式
+      const old = state.cellConfig as {
+        width: number;
+        height: number;
+        margin: { top: number; right: number; bottom: number; left: number };
+        padding: { top: number; right: number; bottom: number; left: number };
+      };
+      baseCellConfig.value = {
+        width: old.width,
+        height: old.height,
+        margin: {
+          top: old.margin.top,
+          right: old.margin.right,
+          bottom: old.margin.bottom,
+          left: old.margin.left,
+        },
+        padding: {
+          top: old.padding.top,
+          right: old.padding.right,
+          bottom: old.padding.bottom,
+          left: old.padding.left,
+        },
+      };
+    }
+
+    if (state.baseImageConfig) {
+      baseImageConfig.value = state.baseImageConfig as BaseImageConfig;
+    } else if (state.imageConfig) {
+      const old = state.imageConfig as {
+        margin: { top: number; right: number; bottom: number; left: number };
+        padding: { top: number; right: number; bottom: number; left: number };
+      };
+      baseImageConfig.value = {
+        margin: {
+          top: old.margin.top,
+          right: old.margin.right,
+          bottom: old.margin.bottom,
+          left: old.margin.left,
+        },
+        padding: {
+          top: old.padding.top,
+          right: old.padding.right,
+          bottom: old.padding.bottom,
+          left: old.padding.left,
+        },
+      };
+    }
+
+    cellAlignment.value =
+      (state.cellAlignment as CellAlignmentConfig) || cellAlignment.value;
+    characterStyle.value =
+      (state.characterStyle as GlobalCharacterStyle) || characterStyle.value;
+    insertPointConfig.value =
+      (state.insertPointConfig as InsertPointConfig) ||
+      insertPointConfig.value;
+    characterEntries.value = (state.characterEntries as CharacterEntry[]) || [];
+    gridConfig.value =
+      (state.gridConfig as typeof gridConfig.value) || gridConfig.value;
+    canvasBg.value = (state.canvasBg as "white" | "black" | "checkerboard") || "white";
+    canvasViewMode.value = (state.canvasViewMode as "fit" | "actual") || "fit";
+    isC3Mode.value = state.isC3Mode === true;
+    baseImageFilename.value = (state.baseImageFilename as string) || "";
+    baseImageMimeType.value = (state.baseImageMimeType as string) || "";
+    fontFilename.value = (state.fontFilename as string) || "";
+  }
+
+  // 从 localStorage 恢复。
+  // 优先恢复 active generation（同一组状态 + C3 配置，不拼接不同 generation）；
+  // 无 generation 时回退 legacy 固定 key（普通状态 + C3 v1/v2 固定配置）。
   function loadFromLocalStorage() {
+    const activeId = C3GenerationStorage.readActiveC3GenerationId();
+    if (activeId) {
+      const generation = C3GenerationStorage.readC3Generation(activeId);
+      if (generation) {
+        applyGeneralState(generation.generalState as Record<string, unknown>);
+        restoreC3ConfigFromConfig(generation.c3Config);
+        return;
+      }
+      console.warn(
+        "[Editor] Active C3 generation is corrupt; falling back to legacy storage",
+      );
+    }
+
     const saved = localStorage.getItem("sprite-font-editor-state");
     if (saved) {
       try {
-        const state = JSON.parse(saved);
-
-        // 兼容新格式
-        if (state.baseCellConfig) {
-          baseCellConfig.value = state.baseCellConfig;
-        } else if (state.cellConfig) {
-          // 旧格式转换为新格式
-          baseCellConfig.value = {
-            width: state.cellConfig.width,
-            height: state.cellConfig.height,
-            margin: {
-              top: state.cellConfig.margin.top,
-              right: state.cellConfig.margin.right,
-              bottom: state.cellConfig.margin.bottom,
-              left: state.cellConfig.margin.left,
-            },
-            padding: {
-              top: state.cellConfig.padding.top,
-              right: state.cellConfig.padding.right,
-              bottom: state.cellConfig.padding.bottom,
-              left: state.cellConfig.padding.left,
-            },
-          };
-        }
-
-        if (state.baseImageConfig) {
-          baseImageConfig.value = state.baseImageConfig;
-        } else if (state.imageConfig) {
-          baseImageConfig.value = {
-            margin: {
-              top: state.imageConfig.margin.top,
-              right: state.imageConfig.margin.right,
-              bottom: state.imageConfig.margin.bottom,
-              left: state.imageConfig.margin.left,
-            },
-            padding: {
-              top: state.imageConfig.padding.top,
-              right: state.imageConfig.padding.right,
-              bottom: state.imageConfig.padding.bottom,
-              left: state.imageConfig.padding.left,
-            },
-          };
-        }
-
-        cellAlignment.value = state.cellAlignment || cellAlignment.value;
-        characterStyle.value = state.characterStyle || characterStyle.value;
-        insertPointConfig.value =
-          state.insertPointConfig || insertPointConfig.value;
-        characterEntries.value = state.characterEntries || [];
-        gridConfig.value = state.gridConfig || gridConfig.value;
-        canvasBg.value = state.canvasBg || "white";
-        canvasViewMode.value = state.canvasViewMode || "fit";
-        isC3Mode.value = state.isC3Mode || false;
-        baseImageFilename.value = state.baseImageFilename || "";
-        baseImageMimeType.value = state.baseImageMimeType || "";
-        fontFilename.value = state.fontFilename || "";
-
-        restoreC3Config();
+        applyGeneralState(JSON.parse(saved));
+        restoreC3ConfigFromConfig(C3ConfigStorage.load());
       } catch (error) {
         console.warn("Failed to load state from localStorage:", error);
       }
     }
   }
-
-  const CURRENT_C3_STORAGE_VERSION = 2;
 
   function migrateC3StorageV1ToV2(
     config: C3StoredConfig & { version: 1 },
@@ -1099,8 +1290,8 @@ export const useEditorStore = defineStore("editor", () => {
     };
   }
 
-  function restoreC3Config() {
-    let c3Config = C3ConfigStorage.load();
+  // 把一份 C3 配置应用到 C3 refs（v1/v2/v3 均接受：v1 先迁移到 v2）
+  function restoreC3ConfigFromConfig(c3Config: C3StoredConfig | null) {
     if (!c3Config) {
       if (isC3Mode.value) {
         clearC3State();
@@ -1108,37 +1299,38 @@ export const useEditorStore = defineStore("editor", () => {
       return;
     }
 
-    if (c3Config.version === 1) {
-      c3Config = migrateC3StorageV1ToV2(c3Config as C3StoredConfig & { version: 1 });
+    let config = c3Config;
+    if (config.version === 1) {
+      config = migrateC3StorageV1ToV2(
+        config as C3StoredConfig & { version: 1 },
+      );
     }
 
-    if (c3Config.version !== CURRENT_C3_STORAGE_VERSION) {
-      console.warn(
-        `[Editor] C3 storage version mismatch: ${c3Config.version}`,
-      );
+    if (config.version < 1 || config.version > C3_STORAGE_VERSION) {
+      console.warn(`[Editor] C3 storage version mismatch: ${config.version}`);
       notify.warning(t("c3StorageVersionMismatch"));
       clearC3State();
       return;
     }
 
     try {
-      c3InstanceArray.value = c3Config.instanceArrayJson
-        ? (JSON.parse(c3Config.instanceArrayJson) as C3InstanceArray)
+      c3InstanceArray.value = config.instanceArrayJson
+        ? (JSON.parse(config.instanceArrayJson) as C3InstanceArray)
         : null;
     } catch {
       c3InstanceArray.value = null;
     }
 
-    importedCharacterSet.value = c3Config.importedCharacterSet || "";
-    importedSpacingData.value = c3Config.importedSpacingData || "";
-    importedCharacterSpacing.value = c3Config.importedCharacterSpacing || 0;
-    importedLineHeight.value = c3Config.importedLineHeight || 0;
-    c3ImportedImageFilename.value = c3Config.imageFilename || "";
-    c3GlobalExtraSpacing.value = c3Config.globalExtraSpacing || 0;
+    importedCharacterSet.value = config.importedCharacterSet || "";
+    importedSpacingData.value = config.importedSpacingData || "";
+    importedCharacterSpacing.value = config.importedCharacterSpacing || 0;
+    importedLineHeight.value = config.importedLineHeight || 0;
+    c3ImportedImageFilename.value = config.imageFilename || "";
+    c3GlobalExtraSpacing.value = config.globalExtraSpacing || 0;
     c3AppendedVerticalAlignment.value =
-      c3Config.c3AppendedVerticalAlignment || "middle";
+      config.c3AppendedVerticalAlignment || "middle";
     c3AppendedEntries.value = migrateAppendedEntries(
-      c3Config.appendedEntries || [],
+      config.appendedEntries || [],
     );
   }
 
@@ -1190,25 +1382,65 @@ export const useEditorStore = defineStore("editor", () => {
   // 从 IndexedDB 恢复图片和字体
   async function restoreAssets() {
     if (isC3Mode.value) {
-      // 恢复 C3 图片
-      const c3ImageData = await C3ImageStorage.load();
-      if (c3ImageData) {
+      const activeId = C3GenerationStorage.readActiveC3GenerationId();
+      const activeReadable =
+        activeId !== null &&
+        C3GenerationStorage.readC3Generation(activeId) !== null;
+      let imageAsset = await C3GenerationStorage.loadActiveC3ImageAsset();
+
+      // active generation 不可读，或引用的图片 asset 缺失（不完整 generation）
+      // → 回退 legacy 固定图片并固化迁移；两者皆无 → fail-closed 清空 C3 状态，
+      // 绝不呈现半恢复项目
+      if (!activeReadable || !imageAsset) {
+        const legacyImage = await C3ImageStorage.load();
+        if (legacyImage) {
+          try {
+            await persistC3Generation({
+              blob: legacyImage.blob,
+              width: legacyImage.width,
+              height: legacyImage.height,
+            });
+            // 固化成功后才清理 legacy 固定数据，避免迁移失败丢数据
+            await C3ImageStorage.remove();
+            localStorage.removeItem("sprite-font-editor-state");
+            C3ConfigStorage.remove();
+          } catch (error) {
+            console.warn("Failed to migrate legacy C3 storage:", error);
+          }
+        } else {
+          console.warn(
+            "[Editor] C3 image asset missing and no legacy data; clearing C3 state",
+          );
+          clearC3State();
+          isC3Mode.value = false;
+          refreshCanvasSize();
+        }
+        imageAsset = await C3GenerationStorage.loadActiveC3ImageAsset();
+      }
+
+      if (imageAsset) {
         try {
-          const url = URL.createObjectURL(c3ImageData.blob);
+          const url = URL.createObjectURL(imageAsset.blob);
           const img = new Image();
           img.onload = () => {
             setC3ImportedImage(img);
-            baseImageMimeType.value = c3ImageData.mimeType || c3ImageData.blob.type;
+            baseImageMimeType.value =
+              imageAsset.mimeType || imageAsset.blob.type;
             URL.revokeObjectURL(url);
           };
           img.onerror = () => {
             URL.revokeObjectURL(url);
-            C3ImageStorage.remove();
+            // asset 存在但解码失败：fail-closed 清空，绝不呈现半恢复项目
+            console.warn(
+              "[Editor] Failed to decode C3 image asset; clearing C3 state",
+            );
+            clearC3State();
+            isC3Mode.value = false;
+            refreshCanvasSize();
           };
           img.src = url;
         } catch (error) {
           console.warn("Failed to restore C3 image:", error);
-          await C3ImageStorage.remove();
         }
       }
     } else {
@@ -1258,6 +1490,7 @@ export const useEditorStore = defineStore("editor", () => {
       FontStorage.remove(),
       C3ImageStorage.remove(),
       C3ConfigStorage.remove(),
+      C3GenerationStorage.clearAll(),
     ]);
   }
 
@@ -1319,6 +1552,7 @@ export const useEditorStore = defineStore("editor", () => {
     clearC3State();
     localStorage.removeItem("sprite-font-editor-state");
     C3ConfigStorage.remove();
+    void C3GenerationStorage.clearAll();
   }
 
   // 应用导入的项目（事务性：在替换前完成所有校验）
@@ -1369,15 +1603,16 @@ export const useEditorStore = defineStore("editor", () => {
       );
       c3ImportedImageFilename.value = project.imageFilename;
 
-      recalculateC3AppendedVerticalMetrics();
-      applyC3AppendedVerticalDistribution();
+      // 不重测/重分布：已持久化的 appended metrics（autoDisplayWidth、
+      // autoGlyphHeight、extraSpacing、distributionOffset）原样保留。
+      // 旧数据缺省字段由 migrateAppendedEntries 补齐。
 
       setC3ImportedImage(project.image);
-      await C3ImageStorage.save(
-        project.imageBlob,
-        project.image.naturalWidth,
-        project.image.naturalHeight,
-      );
+      await persistC3Generation({
+        blob: project.imageBlob,
+        width: project.image.naturalWidth,
+        height: project.image.naturalHeight,
+      });
     }
 
     if (project.font) {
@@ -1393,8 +1628,291 @@ export const useEditorStore = defineStore("editor", () => {
       }
     }
 
-    saveToLocalStorage();
+    if (project.mode === "normal") {
+      saveToLocalStorage();
+    }
     renderTrigger.value++;
+  }
+
+  /** 组装与当前 store 状态一致的 C3CompactionSource（非 C3 模式返回 null） */
+  function buildCompactionSource(): C3CompactionSource | null {
+    if (!isC3Mode.value || !c3ImportedImage.value || !c3InstanceArray.value) {
+      return null;
+    }
+    return {
+      fontSpriteWidth:
+        baseImageConfig.value.fontSpriteWidth || originalImageWidth.value,
+      fontSpriteHeight:
+        baseImageConfig.value.fontSpriteHeight || originalImageHeight.value,
+      characterWidth: baseCellConfig.value.width,
+      characterHeight: baseCellConfig.value.height,
+      imageMargin: baseImageConfig.value.margin,
+      imagePadding: baseImageConfig.value.padding,
+      importedCharacterSet: splitGraphemes(importedCharacterSet.value),
+      appendedCharacterCount: c3AppendedEntries.value.length,
+    };
+  }
+
+  /**
+   * 只读 seam：从当前 store 状态组装 source，执行 alpha 自检、像素读取、
+   * analyze 与 repack，一次性产出精简候选。不修改任何状态/持久化。
+   */
+  function prepareC3Compaction(): C3CompactionPreparationResult {
+    if (!isC3Mode.value || !c3ImportedImage.value || !c3InstanceArray.value) {
+      return { kind: "error", code: "invalid-grid" };
+    }
+    if (!verifyCanvasAlphaRoundTrip()) {
+      return { kind: "error", code: "alpha-roundtrip-failed" };
+    }
+    const source = buildCompactionSource();
+    if (!source) {
+      return { kind: "error", code: "invalid-grid" };
+    }
+    // 进入像素分析前先校验 imported spacing（fail closed，不静默降级）
+    const spacingMigration = migrateC3SpacingData(
+      importedSpacingData.value,
+      source.characterWidth,
+    );
+    if (spacingMigration.kind === "error") {
+      return { kind: "error", code: spacingMigration.code };
+    }
+    const imageData = imageToImageData(c3ImportedImage.value);
+    if (!imageData) {
+      return { kind: "error", code: "unreliable-canvas" };
+    }
+    const analysis = analyzeC3SpriteCompaction(imageData, source);
+    if (analysis.kind !== "plan") {
+      return analysis;
+    }
+    const repack = repackC3ImportedCells(imageData, analysis, source);
+    if (repack.kind !== "ok") {
+      return repack;
+    }
+    const grid = computeOldGrid(imageData, source);
+    if (!grid) {
+      return { kind: "error", code: "invalid-grid" };
+    }
+    return {
+      kind: "plan",
+      plan: analysis,
+      repacked: repack.image,
+      source,
+      oldGrid: {
+        originX: source.imageMargin.left + source.imagePadding.left,
+        originY: source.imageMargin.top + source.imagePadding.top,
+        columns: grid.columns,
+      },
+    };
+  }
+
+  // 校验 apply 输入与当前 store 状态一致（fail closed）。
+  // 不重新做像素分析/重排（那是 Task-1 已验收核心的职责），
+  // 只确保 repacked 数据、plan 与当前 store 组装出的 source 一致。
+  function validateCompactionApplyInputs(
+    plan: C3CompactionPlan,
+    repacked: ImageData,
+    source: C3CompactionSource,
+  ): C3CompactionErrorCode | null {
+    if (
+      !repacked ||
+      repacked.width <= 0 ||
+      repacked.height <= 0 ||
+      repacked.data.length !== repacked.width * repacked.height * 4
+    ) {
+      return "unreliable-canvas";
+    }
+    if (
+      repacked.width !== plan.newImageWidth ||
+      repacked.height !== plan.newImageHeight
+    ) {
+      return "invalid-output-dimensions";
+    }
+    if (plan.importedCount !== source.importedCharacterSet.length) {
+      return "invalid-output-dimensions";
+    }
+    if (plan.newImageWidth !== source.fontSpriteWidth) {
+      return "invalid-output-dimensions";
+    }
+    const newColumns = plan.newColumns;
+    if (
+      newColumns < 1 ||
+      plan.newCharacterWidth <= 0 ||
+      plan.newCharacterHeight <= 0
+    ) {
+      return "invalid-output-dimensions";
+    }
+    // newColumns = floor(fontSpriteWidth / newCharacterWidth)（newImageWidth 保持 fontSpriteWidth）
+    if (plan.newColumns !== Math.floor(plan.newImageWidth / plan.newCharacterWidth)) {
+      return "invalid-output-dimensions";
+    }
+    // newImageHeight = ceil(importedCount / newColumns) × newCharacterHeight
+    const rows = Math.ceil(plan.importedCount / plan.newColumns);
+    if (
+      plan.newImageHeight % rows !== 0 ||
+      plan.newCharacterHeight !== plan.newImageHeight / rows
+    ) {
+      return "invalid-output-dimensions";
+    }
+    // plan 必须与当前 store 的 cell 配置一致（防御 store 状态与 plan 期不一致）：
+    // crop 等式校验可发现 plan 生成后配置被改动的情况
+    if (
+      plan.newCharacterWidth !==
+        source.characterWidth - plan.crop.left - plan.crop.right ||
+      plan.newCharacterHeight !==
+        source.characterHeight - plan.crop.top - plan.crop.bottom
+    ) {
+      return "invalid-output-dimensions";
+    }
+    // 新 cell 必须至少有一边严格小于旧 cell（允许仅单边有收益的精简）
+    if (
+      plan.newCharacterWidth >= source.characterWidth &&
+      plan.newCharacterHeight >= source.characterHeight
+    ) {
+      return "invalid-output-dimensions";
+    }
+    // 最终组合纹理高度（导入 + 追加）不能小于导入图片高度
+    if (plan.newFinalTextureHeight < plan.newImageHeight) {
+      return "invalid-output-dimensions";
+    }
+    return null;
+  }
+
+  /**
+   * 原子应用 C3 精简方案（issue #9 seam）。
+   *
+   * 事务边界：在修改任何 Pinia refs 之前完成全部校验与候选构造——
+   * verifyCanvasAlphaRoundTrip、plan/repacked 校验、spacing 迁移、
+   * PNG 无损编码、重新解码为可加载图片、候选持久化 stage + 指针 commit。
+   * 指针提交成功后同步替换 refs（不可失败），旧 generation 尽力清理。
+   * 任何失败：内存与持久化原状态均保持不变，返回 typed fail-closed 错误。
+   */
+  async function applyC3SpriteCompaction(
+    plan: C3CompactionPlan,
+    repacked: ImageData,
+  ): Promise<C3CompactionApplyResult> {
+    if (!isC3Mode.value || !c3InstanceArray.value || !c3ImportedImage.value) {
+      return { ok: false, code: "invalid-grid" };
+    }
+
+    if (!verifyCanvasAlphaRoundTrip()) {
+      return { ok: false, code: "alpha-roundtrip-failed" };
+    }
+
+    const source = buildCompactionSource();
+    if (!source) {
+      return { ok: false, code: "invalid-grid" };
+    }
+    const oldCharacterWidth = source.characterWidth;
+
+    const validationError = validateCompactionApplyInputs(plan, repacked, source);
+    if (validationError) {
+      return { ok: false, code: validationError };
+    }
+
+    // spacing 迁移：只删除等于旧 characterWidth 的冗余项，其余原样保留
+    const migrated = migrateC3SpacingData(
+      importedSpacingData.value,
+      oldCharacterWidth,
+    );
+    if (migrated.kind === "error") {
+      return { ok: false, code: migrated.code };
+    }
+    const cleanedSpacing = migrated.spacingData;
+
+    // 无损编码 + 重新解码（可注入 seam）
+    const pngBlob = await encodeC3RepackedImage(repacked);
+    if (!pngBlob) {
+      return { ok: false, code: "unreliable-canvas" };
+    }
+    const decodedImage = await decodeC3PngBlob(pngBlob);
+    if (!decodedImage) {
+      return { ok: false, code: "unreliable-canvas" };
+    }
+
+    // 构造完整候选（新导入基线，全部字段就绪后才触碰持久化与 refs）
+    const newInstanceArray = [
+      ...c3InstanceArray.value,
+    ] as unknown as C3InstanceArray;
+    newInstanceArray[2] = plan.newCharacterWidth;
+    newInstanceArray[3] = plan.newCharacterHeight;
+    newInstanceArray[4] = importedCharacterSet.value;
+    newInstanceArray[5] = cleanedSpacing;
+
+    const newCellConfig: BaseCellConfig = {
+      width: plan.newCharacterWidth,
+      height: plan.newCharacterHeight,
+      margin: { top: 0, right: 0, bottom: 0, left: 0 },
+      padding: { ...baseCellConfig.value.padding },
+    };
+
+    const newImageConfig: BaseImageConfig = {
+      margin: { top: 0, right: 0, bottom: 0, left: 0 },
+      padding: { top: 0, right: 0, bottom: 0, left: 0 },
+      fontSpriteWidth: source.fontSpriteWidth,
+      fontSpriteHeight: plan.newFinalTextureHeight,
+    };
+
+    // 候选持久化：stage 全部成功后 commit 指针（唯一提交点），
+    // 与其它 generation 提交串行；commit 成功后仅做 best-effort 清理
+    const stagedId = await runExclusiveC3Commit(async () => {
+      const id = await C3GenerationStorage.stage({
+        generalState: {
+          ...buildGeneralState(),
+          baseCellConfig: newCellConfig,
+          baseImageConfig: newImageConfig,
+          baseImageMimeType: "image/png",
+        },
+        c3Config: {
+          ...buildC3Config(),
+          instanceArrayJson: JSON.stringify(newInstanceArray),
+          importedSpacingData: cleanedSpacing,
+          originalImageWidth: repacked.width,
+          originalImageHeight: repacked.height,
+        },
+        image: {
+          blob: pngBlob,
+          width: repacked.width,
+          height: repacked.height,
+        },
+      });
+      try {
+        C3GenerationStorage.commit(id);
+      } catch (error) {
+        await C3GenerationStorage.discard(id);
+        throw error;
+      }
+      try {
+        C3GenerationStorage.prune();
+      } catch (error) {
+        console.error("[Editor] Failed to prune stale generations:", error);
+      }
+      return id;
+    }).catch((error) => {
+      console.error("[Editor] Failed to persist compaction generation:", error);
+      return null;
+    });
+
+    if (!stagedId) {
+      return { ok: false, code: "persistence-failed" };
+    }
+
+    // 提交成功：同步替换 refs（不可失败的整体替换）
+    c3InstanceArray.value = newInstanceArray;
+    importedSpacingData.value = cleanedSpacing;
+    baseCellConfig.value = newCellConfig;
+    baseImageConfig.value = newImageConfig;
+    c3ImportedImage.value = decodedImage;
+    baseImage.value = decodedImage;
+    originalImageWidth.value = repacked.width;
+    originalImageHeight.value = repacked.height;
+    baseImageMimeType.value = "image/png";
+
+    // 清除瞬时选择态，刷新画布尺寸并触发一次重绘
+    selectedCharIndex.value = null;
+    refreshCanvasSize();
+    renderTrigger.value++;
+
+    return { ok: true, plan };
   }
 
   // 自动检测网格
@@ -1572,6 +2090,8 @@ export const useEditorStore = defineStore("editor", () => {
     detectInsertPoints,
     autoDetectGrid,
     applyProject,
+    applyC3SpriteCompaction,
+    prepareC3Compaction,
     // canvas ref
     canvasLayer,
   };

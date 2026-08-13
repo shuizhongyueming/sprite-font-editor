@@ -1,5 +1,9 @@
 // 测试环境设置
 import { vi } from 'vitest'
+import { installFakeIndexedDB } from './fake-indexeddb'
+
+// 安装内存 IndexedDB（storage.ts 的真实代码需要 IndexedDB）
+installFakeIndexedDB()
 
 // 模拟 localStorage
 const localStorageMock = {
@@ -99,11 +103,18 @@ HTMLCanvasElement.prototype.getContext = vi.fn((contextType: string) => {
       fillText: vi.fn(),
       strokeText: vi.fn(),
       measureText: vi.fn(() => ({ width: 16 })),
+      putImageData: vi.fn(),
       getImageData: vi.fn(() => ({
         data: new Uint8ClampedArray(10000),
         width: 100,
         height: 100,
       })),
+      // 严格裁切与常规 2D 状态栈（renderC3AppendedCharacter 等依赖）
+      save: vi.fn(),
+      restore: vi.fn(),
+      beginPath: vi.fn(),
+      rect: vi.fn(),
+      clip: vi.fn(),
       fillStyle: '',
       strokeStyle: '',
       lineWidth: 1,
@@ -116,6 +127,11 @@ HTMLCanvasElement.prototype.getContext = vi.fn((contextType: string) => {
 
 // 模拟 Canvas toDataURL
 HTMLCanvasElement.prototype.toDataURL = vi.fn(() => 'data:image/png;base64,mock')
+
+// 模拟 Canvas toBlob（imageElementToPngBlob 等依赖它；c3-export 测试的实例级 spy 覆盖此默认）
+HTMLCanvasElement.prototype.toBlob = vi.fn((callback: BlobCallback) => {
+  callback(new Blob(['mock-png'], { type: 'image/png' }))
+}) as unknown as typeof HTMLCanvasElement.prototype.toBlob
 
 // 模拟 URL.createObjectURL
 URL.createObjectURL = vi.fn(() => 'blob:mock')

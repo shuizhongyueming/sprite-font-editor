@@ -149,24 +149,35 @@ function migrateProjectState(
   }
 
   if (v2.c3AppendedEntries && v2.c3AppendedEntries.length > 0) {
-    const entries = migrateAppendedEntries(v2.c3AppendedEntries).map(
-      (entry) => ({
-        ...entry,
-        margin: { ...entry.margin, top: 0 },
-      }),
+    // v1 → v2 迁移仅对旧数据执行（旧条目缺少 distributionOffset）；
+    // v2 完整条目保留已存的 metrics/margin/distribution，不重测覆盖。
+    const needsV1Migration = v2.c3AppendedEntries.some(
+      (entry) => entry.distributionOffset === undefined,
     );
 
-    const maxHeight = Math.max(
-      ...entries.map((entry) => entry.autoGlyphHeight),
-      0,
-    );
-    for (const entry of entries) {
-      entry.distributionOffset = Math.round(
-        (maxHeight - entry.autoGlyphHeight) / 2,
+    if (needsV1Migration) {
+      const entries = migrateAppendedEntries(v2.c3AppendedEntries).map(
+        (entry) => ({
+          ...entry,
+          margin: { ...entry.margin, top: 0 },
+        }),
       );
-    }
 
-    v2.c3AppendedEntries = entries;
+      const maxHeight = Math.max(
+        ...entries.map((entry) => entry.autoGlyphHeight),
+        0,
+      );
+      for (const entry of entries) {
+        entry.distributionOffset = Math.round(
+          (maxHeight - entry.autoGlyphHeight) / 2,
+        );
+      }
+
+      v2.c3AppendedEntries = entries;
+    } else {
+      // v2 完整数据：仅补缺省字段，不做重测/重分布
+      v2.c3AppendedEntries = migrateAppendedEntries(v2.c3AppendedEntries);
+    }
   }
 
   return v2;

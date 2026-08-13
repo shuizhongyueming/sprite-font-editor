@@ -336,6 +336,153 @@ export function renderCharacterToCell(
   );
 }
 
+export interface MeasureGlyphExtentOptions {
+  text: string;
+  fontFamily: string;
+  fontSize: number;
+  outline?: { enabled: boolean; width: number };
+}
+
+export interface GlyphExtent {
+  width: number;
+  height: number;
+}
+
+/**
+ * 估算字形的测量上界（含 outline 与安全边缘），用于不缩放渲染的离屏画布尺寸。
+ * 基于 CanvasTextMetrics 的 actualBoundingBox* / fontBoundingBox*，
+ * 缺失时回退到 fontSize 与 metrics.width；cell 尺寸只作为最小离屏尺寸。
+ * context 缺失 / measureText 抛错属于兼容回退：记录 console.warn 后返回
+ * 基于 fontSize 的保守上界（不静默）。
+ */
+export function measureGlyphExtent(
+  options: MeasureGlyphExtentOptions,
+): GlyphExtent {
+  const ctx = document.createElement("canvas").getContext("2d");
+  if (!ctx) {
+    console.warn(
+      "[CharRenderer] measureGlyphExtent: canvas context unavailable; falling back to fontSize bounds",
+    );
+    return { width: options.fontSize * 2, height: options.fontSize * 2 };
+  }
+  ctx.font = `${options.fontSize}px ${options.fontFamily}`;
+  let metrics: TextMetrics;
+  try {
+    metrics = ctx.measureText(options.text);
+  } catch (error) {
+    console.warn(
+      "[CharRenderer] measureGlyphExtent: measureText failed; falling back to fontSize bounds",
+      error,
+    );
+    metrics = { width: options.fontSize } as TextMetrics;
+  }
+  const ascent =
+    metrics.actualBoundingBoxAscent ??
+    metrics.fontBoundingBoxAscent ??
+    options.fontSize;
+  const descent =
+    metrics.actualBoundingBoxDescent ??
+    metrics.fontBoundingBoxDescent ??
+    Math.ceil(options.fontSize * 0.2);
+  const left = metrics.actualBoundingBoxLeft ?? 0;
+  const right =
+    metrics.actualBoundingBoxRight ??
+    Math.max(metrics.width ?? 0, options.fontSize);
+
+  const outlinePad = options.outline?.enabled ? options.outline.width * 2 : 0;
+  // renderCharacterOnCanvas 从 (2,2) 起画；额外安全边缘覆盖负 bearing 与描边
+  const SAFETY = 4;
+  return {
+    width: Math.ceil(
+      Math.max(0, left < 0 ? -left : left) + right + outlinePad + SAFETY,
+    ),
+    height: Math.ceil(ascent + descent + outlinePad + SAFETY),
+  };
+}
+
+/**
+ * 将字符按原尺寸渲染到目标位置（不做 fit 缩放，供 C3 追加字符使用）。
+ *
+ * 与 renderCharacterToCellScaled 的区别：跳过 calculateCharRenderSize，
+ * 字形按测量出的原始尺寸绘制，溢出部分由调用方的 cell clip 截断，而不是
+ * 按比例缩小到可用区域。离屏画布尺寸由字形测量上界（measureGlyphExtent）
+ * 决定，cell 尺寸只作为最小离屏尺寸——因此 cell 缩小（如 149 → 34）不会
+ * 提前截断字形，传给目标 drawImage 的 glyph 尺寸保持不变。
+ * cell padding / margin 与对齐定位语义与 scaled 版本保持一致。
+ */
+export function renderCharacterToCellUnscaled(
+  character: string,
+  targetCtx: CanvasRenderingContext2D,
+  baseCellX: number,
+  baseCellY: number,
+  baseCellWidth: number,
+  baseCellHeight: number,
+  renderScale: number,
+  charMargin: { top: number; right: number; bottom: number; left: number },
+  cellPadding: { top: number; right: number; bottom: number; left: number },
+  options: Omit<
+    RenderCharacterOptions,
+    "text" | "contentWidth" | "contentHeight"
+  >,
+  pixelStyle: boolean = false,
+): void {
+  const targetX = baseCellX * renderScale;
+  const targetY = baseCellY * renderScale;
+
+  const contentWidth = baseCellWidth - cellPadding.left - cellPadding.right;
+  const contentHeight = baseCellHeight - cellPadding.top - cellPadding.bottom;
+
+  // 离屏画布尺寸由字形测量上界决定（cell 只作最小尺寸），
+  // 保证 cell 缩小不会在离屏边缘提前截断字形
+  const extent = measureGlyphExtent({
+    text: character,
+    fontFamily: options.fontFamily,
+    fontSize: options.fontSize,
+    outline: options.outline,
+  });
+  const offscreenWidth = Math.max(baseCellWidth, extent.width);
+  const offscreenHeight = Math.max(baseCellHeight, extent.height);
+
+  const rendered = renderCharacterOnCanvas({
+    ...options,
+    text: character,
+    contentWidth: offscreenWidth,
+    contentHeight: offscreenHeight,
+  });
+
+  // 原尺寸（不做 object-fit 缩放）
+  const renderSize = {
+    width: rendered.sourceWidth,
+    height: rendered.sourceHeight,
+  };
+
+  const position = calculateAlignment(
+    renderSize.width,
+    renderSize.height,
+    contentWidth,
+    contentHeight,
+    options.alignment.horizontal,
+    options.alignment.vertical,
+  );
+
+  const baseTargetX = cellPadding.left + position.x + charMargin.left;
+  const baseTargetY = cellPadding.top + position.y + charMargin.top;
+
+  drawCharacterToCanvas(
+    rendered.canvas,
+    targetCtx,
+    rendered.sourceX,
+    rendered.sourceY,
+    rendered.sourceWidth,
+    rendered.sourceHeight,
+    targetX + baseTargetX * renderScale,
+    targetY + baseTargetY * renderScale,
+    renderSize.width * renderScale,
+    renderSize.height * renderScale,
+    pixelStyle,
+  );
+}
+
 /**
  * 将字符渲染到目标位置（支持整体缩放）
  * 先按原始尺寸渲染，然后使用 drawImage 缩放到目标尺寸

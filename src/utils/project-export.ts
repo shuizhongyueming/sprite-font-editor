@@ -1,6 +1,11 @@
 import JSZip from "jszip";
 import { dataURLToBlob } from "@/utils/download";
-import { ImageStorage, C3ImageStorage, FontStorage } from "@/utils/storage";
+import {
+  ImageStorage,
+  C3ImageStorage,
+  C3GenerationStorage,
+  FontStorage,
+} from "@/utils/storage";
 import type { C3InstanceArray } from "@/utils/c3-parser";
 import type { C3AppendedEntry } from "@/utils/c3-export";
 import type { useEditorStore } from "@/stores/editor";
@@ -99,6 +104,22 @@ export interface ProjectFiles {
 
 const RESERVED_NAMES = new Set(["project.json", "c3-instance.json"]);
 
+/**
+ * 决定 C3 图片的 Project 导出文件名。仅当实际导出的 blob 是 PNG
+ * （含精简基线——其内部持久化必然是 PNG）时才强制 .png 扩展名；
+ * 其他格式（如透明 WebP 原样导入）保留原逻辑文件名，避免
+ * "PNG 扩展名 + 非 PNG blob" 的 MIME/扩展名不一致。
+ */
+function resolveC3ImageFilename(filename: string, mimeType?: string): string {
+  if (mimeType === "image/png") {
+    if (filename.toLowerCase().endsWith(".png")) {
+      return filename;
+    }
+    return filename.replace(/\.[^.]+$/, "") + ".png";
+  }
+  return filename;
+}
+
 function resolveAssetFilename(filename: string): string {
   const lower = filename.toLowerCase();
   if (RESERVED_NAMES.has(lower)) {
@@ -125,6 +146,12 @@ async function getStoredImageBlob(
   store: ReturnType<typeof useEditorStore>,
 ): Promise<Blob> {
   if (store.isC3Mode) {
+    // 优先读取 active generation 的版本化图片 asset（含精简后的 PNG）
+    const generationAsset = await C3GenerationStorage.loadActiveC3ImageAsset();
+    if (generationAsset) {
+      return generationAsset.blob;
+    }
+    // legacy fallback：固定 key 的 C3 图片
     const c3Data = await C3ImageStorage.load();
     if (c3Data) {
       return c3Data.blob;
@@ -157,10 +184,15 @@ async function getStoredFont(
   return { blob: new Blob([fontData.data]), filename };
 }
 
-function buildProjectJson(store: ReturnType<typeof useEditorStore>): ProjectJsonV2 {
+function buildProjectJson(
+  store: ReturnType<typeof useEditorStore>,
+  imageMimeType?: string,
+): ProjectJsonV2 {
   const mode = store.isC3Mode ? "c3" : "normal";
   const imageFilename = store.isC3Mode
-    ? store.c3ImportedImageFilename || "image.png"
+    ? store.c3ImportedImageFilename
+      ? resolveC3ImageFilename(store.c3ImportedImageFilename, imageMimeType)
+      : "image.png"
     : store.baseImageFilename || "image.png";
 
   const state: ProjectStateV2 = {
@@ -209,8 +241,8 @@ function buildProjectJson(store: ReturnType<typeof useEditorStore>): ProjectJson
 export async function buildProjectFiles(
   store: ReturnType<typeof useEditorStore>,
 ): Promise<ProjectFiles> {
-  const projectJson = buildProjectJson(store);
   const imageBlob = await getStoredImageBlob(store);
+  const projectJson = buildProjectJson(store, imageBlob.type);
 
   const files: ProjectFiles = {
     projectJson,

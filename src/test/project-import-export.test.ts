@@ -32,6 +32,19 @@ vi.mock("@/utils/storage", () => ({
     load: vi.fn().mockReturnValue(null),
     remove: vi.fn(),
   },
+  C3GenerationStorage: {
+    stage: vi.fn().mockImplementation(async () => "gen-test"),
+    commit: vi.fn(),
+    readActiveC3GenerationId: vi.fn().mockReturnValue(null),
+    readC3Generation: vi.fn().mockReturnValue(null),
+    readActiveC3Generation: vi.fn().mockReturnValue(null),
+    loadActiveC3ImageAsset: vi.fn().mockResolvedValue(null),
+    discard: vi.fn().mockResolvedValue(undefined),
+    cleanup: vi.fn(),
+    prune: vi.fn(),
+    clearAll: vi.fn().mockResolvedValue(undefined),
+  },
+  C3_STORAGE_VERSION: 3,
   clearAll: vi.fn().mockResolvedValue(undefined),
 }));
 

@@ -105,7 +105,6 @@
 import { ref, computed, watch } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { parseC3InstanceArray, type C3ParsedData } from '@/utils/c3-parser'
-import { C3ImageStorage } from '@/utils/storage'
 import { notify } from '@/utils/notification'
 import { t } from '@/utils/i18n'
 
@@ -321,7 +320,7 @@ async function importFont() {
 
     const spriteSize = getFontSpriteSize()
 
-    editorStore.importC3SpriteFont(
+    await editorStore.importC3SpriteFont(
       selectedImage.value,
       array,
       parsedData.value,
@@ -329,10 +328,8 @@ async function importFont() {
       spriteSize?.width,
       spriteSize?.height,
       selectedFile.value.type,
+      selectedFile.value,
     )
-
-    const blob = selectedFile.value.slice(0, selectedFile.value.size, selectedFile.value.type)
-    await C3ImageStorage.save(blob, selectedImage.value.width, selectedImage.value.height)
 
     notify.success(t('c3ImportSuccess'))
     close()

@@ -1,4 +1,4 @@
-import { renderCharacterToCellScaled } from "@/utils/char-renderer";
+import { renderCharacterToCellUnscaled } from "@/utils/char-renderer";
 import type { RenderCharacterOptions } from "@/utils/char-renderer";
 
 /**
@@ -150,33 +150,56 @@ export interface RenderC3AppendedCharacterOptions {
 }
 
 /**
- * Render one appended character at the correct C3 cell position.
+ * Render one appended character at the correct C3 cell position,
+ * strictly clipped to the current cell boundary.
  * Horizontal alignment is always left to match C3's cell drawing,
  * but vertical alignment can be adjusted to even out glyph baselines.
+ *
+ * The glyph is rendered at its measured original size (no fit-scaling —
+ * appended characters keep font/fontSize/padding/margin/outline as configured;
+ * see renderCharacterToCellUnscaled). Any part overflowing the cell is cut off
+ * by `save → clip(cell rect × renderScale) → render → finally restore`, and a
+ * render failure still restores the context in the finally block.
  */
 export function renderC3AppendedCharacter(
   options: RenderC3AppendedCharacterOptions,
 ): void {
-  renderCharacterToCellScaled(
-    options.char,
-    options.targetCtx,
-    options.baseCellX,
-    options.baseCellY,
-    options.baseCellWidth,
-    options.baseCellHeight,
-    options.renderScale,
-    options.charMargin,
-    options.cellPadding,
-    {
-      fontFamily: options.fontFamily,
-      fontSize: options.fontSize,
-      color: options.color,
-      outline: options.outline,
-      alignment: {
-        horizontal: "left",
-        vertical: options.alignment?.vertical ?? "top",
+  const { targetCtx, renderScale } = options;
+  targetCtx.save();
+  try {
+    targetCtx.beginPath();
+    // 裁剪区域必须与渲染的绘制坐标一致（按 renderScale 缩放），
+    // 否则缩放画布（CanvasArea 传 canvasScale）时裁切矩形会错位/过小。
+    targetCtx.rect(
+      options.baseCellX * renderScale,
+      options.baseCellY * renderScale,
+      options.baseCellWidth * renderScale,
+      options.baseCellHeight * renderScale,
+    );
+    targetCtx.clip();
+    renderCharacterToCellUnscaled(
+      options.char,
+      targetCtx,
+      options.baseCellX,
+      options.baseCellY,
+      options.baseCellWidth,
+      options.baseCellHeight,
+      options.renderScale,
+      options.charMargin,
+      options.cellPadding,
+      {
+        fontFamily: options.fontFamily,
+        fontSize: options.fontSize,
+        color: options.color,
+        outline: options.outline,
+        alignment: {
+          horizontal: "left",
+          vertical: options.alignment?.vertical ?? "top",
+        },
       },
-    },
-    options.pixelStyle ?? false,
-  );
+      options.pixelStyle ?? false,
+    );
+  } finally {
+    targetCtx.restore();
+  }
 }

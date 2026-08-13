@@ -61,6 +61,16 @@
         {{ t('importC3SpriteFont') }}
       </button>
       <button
+        v-if="canCompact"
+        class="btn btn-warning btn-compact"
+        :disabled="isCompacting"
+        :title="t('c3CompactButtonTooltip')"
+        :aria-label="t('c3CompactButtonTitle')"
+        @click="compactC3SpriteFont"
+      >
+        {{ isCompacting ? t('c3CompactionAnalyzing') : t('c3CompactButton') }}
+      </button>
+      <button
         class="btn btn-secondary"
         @click="uploadFont"
       >
@@ -199,11 +209,20 @@
       v-model="showC3ExportModal"
       :instance-array="c3ExportInstanceArray"
     />
+    <C3CompactionModal
+      v-if="compactionCandidate"
+      :visible="showC3CompactionModal"
+      :plan="compactionCandidate.plan"
+      :repacked="compactionCandidate.repacked"
+      :source="compactionCandidate.source"
+      :old-grid="compactionCandidate.oldGrid"
+      @close="closeCompactionModal"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useEditorStore } from '@/stores/editor'
 import { isValidImageFile, isValidFontFile } from '@/utils/file'
 import { exportWithOriginalSize, triggerDownload } from '@/utils/download'
@@ -218,9 +237,12 @@ import {
 } from '@/utils/project-import'
 import { notify } from '@/utils/notification'
 import { t, getLocale, setLanguage } from '@/utils/i18n'
+import { compactionErrorMessage } from '@/utils/c3-compaction-errors'
+import type { C3CompactionPreparationPlan } from '@/stores/editor'
 import SegmentControl from './SegmentControl.vue'
 import C3ImportModal from './C3ImportModal.vue'
 import C3ExportModal from './C3ExportModal.vue'
+import C3CompactionModal from './C3CompactionModal.vue'
 
 type Locale = 'zh-CN' | 'en-US'
 type CanvasBgType = 'white' | 'black' | 'checkerboard'
@@ -237,6 +259,9 @@ const showC3ImportModal = ref(false)
 const showC3ExportModal = ref(false)
 const c3ExportInstanceArray = ref<C3InstanceArray | null>(null)
 const isExporting = ref(false)
+const isCompacting = ref(false)
+const showC3CompactionModal = ref(false)
+const compactionCandidate = ref<C3CompactionPreparationPlan | null>(null)
 const currentLocale = computed(() => getLocale())
 
 const canSaveProject = computed(() =>
@@ -292,6 +317,49 @@ const canExport = computed(() => {
 const hasBaseImage = computed(() => {
   return editorStore.baseImage !== null
 })
+
+/** 「精简」仅 C3 模式且有导入基线时可用 */
+const canCompact = computed(() => {
+  return (
+    editorStore.isC3Mode &&
+    editorStore.c3ImportedImage !== null &&
+    editorStore.c3InstanceArray !== null
+  )
+})
+
+async function compactC3SpriteFont() {
+  if (isCompacting.value || !canCompact.value) {
+    return
+  }
+  isCompacting.value = true
+  try {
+    // 让出至少一个 macrotask，使「分析中」disabled 状态有机会真正绘制出来
+    await nextTick()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    const result = editorStore.prepareC3Compaction()
+    if (result.kind === 'no-savings') {
+      notify.info(t('c3CompactionNoSavings'))
+      return
+    }
+    if (result.kind === 'error') {
+      notify.error(compactionErrorMessage(result.code))
+      return
+    }
+    compactionCandidate.value = result
+    showC3CompactionModal.value = true
+  } catch (error) {
+    console.error('[Toolbar] Failed to prepare C3 compaction:', error)
+    notify.error(t('c3CompactionAnalyzeFailed'))
+  } finally {
+    isCompacting.value = false
+  }
+}
+
+function closeCompactionModal() {
+  showC3CompactionModal.value = false
+  // 每次打开都会重新分析，关闭后丢弃候选避免持有过期数据
+  compactionCandidate.value = null
+}
 
 function uploadImage() {
   imageInput.value?.click()
@@ -791,6 +859,17 @@ function clearAll() {
 .btn-danger:hover:not(:disabled) {
   background-color: #bd2130;
   border-color: #bd2130;
+}
+
+.btn-warning {
+  background-color: #e0a800;
+  color: white;
+  border-color: #e0a800;
+}
+
+.btn-warning:hover:not(:disabled) {
+  background-color: #c99700;
+  border-color: #c99700;
 }
 
 /* 语言下拉框样式 */

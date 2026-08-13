@@ -162,6 +162,7 @@ export interface Translations {
   c3ImageTooSmallError: string;
   c3ParseSuccess: string;
   c3StorageVersionMismatch: string;
+  c3SaveFailed: string;
   c3AppendPlaceholder: string;
   c3DuplicateChars: string;
   c3DuplicateCharsSkipped: string;
@@ -191,6 +192,54 @@ export interface Translations {
   c3ExportCopy: string;
   c3ExportCopied: string;
   c3ExportSuccess: string;
+
+  // C3 精简（issue #10）
+  c3CompactButton: string;
+  c3CompactButtonTitle: string;
+  c3CompactButtonTooltip: string;
+  c3CompactionAnalyzing: string;
+  c3CompactionNoSavings: string;
+  c3CompactionModalTitle: string;
+  c3CompactionModalSubtitle: string;
+  c3CompactionMetricCell: string;
+  c3CompactionMetricColumns: string;
+  c3CompactionMetricImported: string;
+  c3CompactionMetricFinal: string;
+  c3CompactionMetricRgba: string;
+  c3CompactionMetricSavings: string;
+  c3CompactionBottleneckTitle: string;
+  c3CompactionBottleneckWidth: string;
+  c3CompactionBottleneckHeight: string;
+  c3CompactionBottleneckThumbAlt: string;
+  c3CompactionTabSprite: string;
+  c3CompactionTabText: string;
+  c3CompactionOldBaseline: string;
+  c3CompactionNewBaseline: string;
+  c3CompactionZoomFit: string;
+  c3CompactionZoomActual: string;
+  c3CompactionZoom: string;
+  c3CompactionSampleText: string;
+  c3CompactionResetSample: string;
+  c3CompactionConfigDetails: string;
+  c3CompactionConfigCharSet: string;
+  c3CompactionConfigSpacing: string;
+  c3CompactionConfigKeep: string;
+  c3CompactionCaveatSpacing: string;
+  c3CompactionCaveatNoScale: string;
+  c3CompactionCaveatStrictClip: string;
+  c3CompactionCaveatNoUndo: string;
+  c3CompactionApply: string;
+  c3CompactionApplySuccess: string;
+  c3CompactionApplyFailed: string;
+  c3CompactionAnalyzeFailed: string;
+  c3CompactionErrorUnreliableCanvas: string;
+  c3CompactionErrorAlphaRoundtrip: string;
+  c3CompactionErrorInvalidGrid: string;
+  c3CompactionErrorNoImportedContent: string;
+  c3CompactionErrorContentOutside: string;
+  c3CompactionErrorInvalidDimensions: string;
+  c3CompactionErrorInvalidSpacing: string;
+  c3CompactionErrorPersistence: string;
 
   // DimensionsInput
   width: string;
@@ -359,6 +408,7 @@ export const translations: Record<Locale, Translations> = {
       "图片只能容纳 {capacity} 个字符，当前字符集有 {count} 个，超出部分将被省略",
     c3ParseSuccess: "验证成功：{count} 个字符",
     c3StorageVersionMismatch: "C3 项目存储版本不匹配，请重新导入",
+    c3SaveFailed: "C3 项目保存失败，最近的修改可能无法在刷新后保留",
     c3AppendPlaceholder: "输入要追加的字符...",
     c3DuplicateChars: "以下字符已存在：{chars}",
     c3DuplicateCharsSkipped: "以下字符已存在，已跳过：{chars}",
@@ -389,6 +439,54 @@ export const translations: Record<Locale, Translations> = {
     c3ExportCopy: "复制到剪贴板",
     c3ExportCopied: "已复制",
     c3ExportSuccess: "C3 Sprite Font 导出成功！",
+    c3CompactButton: "精简",
+    c3CompactButtonTitle: "精简 Font Sprite（C3）",
+    c3CompactButtonTooltip:
+      "分析导入图片的透明留白，缩小 cell 与最终纹理高度并重排导入字符；显式 spacing 保留，追加字符不缩放，应用后不可撤销",
+    c3CompactionAnalyzing: "正在分析导入图片…",
+    c3CompactionNoSavings: "当前图片无可精简收益（无透明留白可裁或纹理高度不减少）",
+    c3CompactionModalTitle: "精简 Font Sprite — 应用前确认",
+    c3CompactionModalSubtitle:
+      "Imported Character Set {imported} 字符 + 追加 {appended} 字符（仍动态渲染）",
+    c3CompactionMetricCell: "cell 尺寸",
+    c3CompactionMetricColumns: "列数",
+    c3CompactionMetricImported: "导入基线",
+    c3CompactionMetricFinal: "最终纹理",
+    c3CompactionMetricRgba: "RGBA 估算",
+    c3CompactionMetricSavings: "纹理高度节省",
+    c3CompactionBottleneckTitle: "瓶颈字符（仅导入字符，前三名次并列全列出）",
+    c3CompactionBottleneckWidth: "横向最宽",
+    c3CompactionBottleneckHeight: "竖向最高",
+    c3CompactionBottleneckThumbAlt: "字符 cell 缩略图",
+    c3CompactionTabSprite: "Sprite",
+    c3CompactionTabText: "C3 文本",
+    c3CompactionOldBaseline: "旧当前基线",
+    c3CompactionNewBaseline: "新精简后基线",
+    c3CompactionZoomFit: "适应窗口",
+    c3CompactionZoomActual: "1:1",
+    c3CompactionZoom: "缩放",
+    c3CompactionSampleText: "示例文本",
+    c3CompactionResetSample: "重置",
+    c3CompactionConfigDetails: "配置变化（C3 indices 2/3/4/5 · spacing 迁移）",
+    c3CompactionConfigCharSet: "仍只含 Imported Character Set（{count} 字符，不烘焙追加）",
+    c3CompactionConfigSpacing: "显式步进保留（仅删除等于旧 characterWidth {width} 的冗余项）",
+    c3CompactionConfigKeep: "保持同值",
+    c3CompactionCaveatSpacing: "spacingData 显式步进原样保留（仅删除等于旧 characterWidth 的冗余项）",
+    c3CompactionCaveatNoScale: "追加字符的字体/字号/间距/测量数据不重新计算、不缩放",
+    c3CompactionCaveatStrictClip: "超出新 cell 的内容会被严格裁切在各自 cell 内",
+    c3CompactionCaveatNoUndo: "应用精简后无法撤销（旧导入图与旧配置将被替换）",
+    c3CompactionApply: "应用精简",
+    c3CompactionApplySuccess: "精简已应用",
+    c3CompactionApplyFailed: "应用精简失败",
+    c3CompactionAnalyzeFailed: "精简分析失败，请重试",
+    c3CompactionErrorUnreliableCanvas: "无法可靠读取画布像素，请重试",
+    c3CompactionErrorAlphaRoundtrip: "当前画布无法无损保留透明通道（alpha round-trip 失败），已阻止精简",
+    c3CompactionErrorInvalidGrid: "当前 C3 网格配置无效，无法分析",
+    c3CompactionErrorNoImportedContent: "导入图片中未检测到可见字符内容",
+    c3CompactionErrorContentOutside: "导入字符 cell 之外存在像素内容，已阻止精简",
+    c3CompactionErrorInvalidDimensions: "精简输出尺寸无效",
+    c3CompactionErrorInvalidSpacing: "spacing 数据无效，无法迁移",
+    c3CompactionErrorPersistence: "候选数据保存失败，请重试",
 
     // DimensionsInput
     width: "宽度",
@@ -557,6 +655,8 @@ export const translations: Record<Locale, Translations> = {
     c3ParseSuccess: "Validation successful: {count} characters",
     c3StorageVersionMismatch:
       "C3 project storage version mismatch, please re-import",
+    c3SaveFailed:
+      "Failed to save the C3 project; recent changes may not survive a refresh",
     c3AppendPlaceholder: "Enter characters to append...",
     c3DuplicateChars: "Characters already exist: {chars}",
     c3DuplicateCharsSkipped: "Characters already exist, skipped: {chars}",
@@ -587,6 +687,61 @@ export const translations: Record<Locale, Translations> = {
     c3ExportCopy: "Copy to Clipboard",
     c3ExportCopied: "Copied",
     c3ExportSuccess: "C3 Sprite Font exported successfully!",
+    c3CompactButton: "Compact",
+    c3CompactButtonTitle: "Compact C3 Font Sprite",
+    c3CompactButtonTooltip:
+      "Analyze transparent margins of the imported image, shrink cells and the final texture height, and re-layout imported characters; explicit spacing is kept, appended characters are not scaled, and the change is not undoable",
+    c3CompactionAnalyzing: "Analyzing the imported image…",
+    c3CompactionNoSavings:
+      "No compaction benefit (no transparent margin to crop or texture height does not shrink)",
+    c3CompactionModalTitle: "Compact Font Sprite — confirm before applying",
+    c3CompactionModalSubtitle:
+      "Imported Character Set {imported} chars + {appended} appended (still rendered dynamically)",
+    c3CompactionMetricCell: "Cell size",
+    c3CompactionMetricColumns: "Columns",
+    c3CompactionMetricImported: "Imported baseline",
+    c3CompactionMetricFinal: "Final texture",
+    c3CompactionMetricRgba: "RGBA estimate",
+    c3CompactionMetricSavings: "Texture height saved",
+    c3CompactionBottleneckTitle: "Bottleneck characters (imported only, top 3 ranks incl. ties)",
+    c3CompactionBottleneckWidth: "Widest",
+    c3CompactionBottleneckHeight: "Tallest",
+    c3CompactionBottleneckThumbAlt: "Character cell thumbnail",
+    c3CompactionTabSprite: "Sprite",
+    c3CompactionTabText: "C3 Text",
+    c3CompactionOldBaseline: "Current baseline",
+    c3CompactionNewBaseline: "Compacted baseline",
+    c3CompactionZoomFit: "Fit",
+    c3CompactionZoomActual: "1:1",
+    c3CompactionZoom: "Zoom",
+    c3CompactionSampleText: "Sample text",
+    c3CompactionResetSample: "Reset",
+    c3CompactionConfigDetails: "Config changes (C3 indices 2/3/4/5 · spacing migration)",
+    c3CompactionConfigCharSet: "Keeps only the Imported Character Set ({count} chars, appended not baked in)",
+    c3CompactionConfigSpacing: "Explicit steps kept (only entries equal to the old characterWidth {width} are removed)",
+    c3CompactionConfigKeep: "kept unchanged",
+    c3CompactionCaveatSpacing:
+      "Explicit spacingData steps are kept (only entries equal to the old characterWidth are removed)",
+    c3CompactionCaveatNoScale:
+      "Appended characters are not remeasured or scaled (font/size/spacing/metrics stay)",
+    c3CompactionCaveatStrictClip:
+      "Content overflowing the new cell is strictly clipped to its cell",
+    c3CompactionCaveatNoUndo:
+      "Applying compaction cannot be undone (old image and config are replaced)",
+    c3CompactionApply: "Apply compaction",
+    c3CompactionApplySuccess: "Compaction applied",
+    c3CompactionApplyFailed: "Failed to apply compaction",
+    c3CompactionAnalyzeFailed: "Failed to analyze compaction, please retry",
+    c3CompactionErrorUnreliableCanvas: "Failed to read canvas pixels reliably, please retry",
+    c3CompactionErrorAlphaRoundtrip:
+      "This canvas cannot preserve the alpha channel losslessly (alpha round-trip failed); compaction is blocked",
+    c3CompactionErrorInvalidGrid: "The current C3 grid configuration is invalid",
+    c3CompactionErrorNoImportedContent: "No visible character content detected in the imported image",
+    c3CompactionErrorContentOutside:
+      "Pixel content exists outside the imported character cells; compaction is blocked",
+    c3CompactionErrorInvalidDimensions: "Invalid compaction output dimensions",
+    c3CompactionErrorInvalidSpacing: "Invalid spacing data, cannot migrate",
+    c3CompactionErrorPersistence: "Failed to save the candidate data, please retry",
 
     // DimensionsInput
     width: "Width",

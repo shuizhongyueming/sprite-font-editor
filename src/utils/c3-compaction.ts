@@ -164,7 +164,7 @@ function isBox(value: C3Box): boolean {
   );
 }
 
-function isValidImageData(imageData: ImageData): boolean {
+export function isValidImageData(imageData: ImageData): boolean {
   return (
     imageData.width > 0 &&
     imageData.height > 0 &&
@@ -173,10 +173,10 @@ function isValidImageData(imageData: ImageData): boolean {
 }
 
 /**
- * 校验精简源配置（analyze 与 repack 共用，fail closed）。
+ * 校验精简/重排源配置（analyze、repack 与 rewrap 共用，fail closed）。
  * 覆盖 computeOldGrid 依赖的全部字段与追加字符数量。
  */
-function isValidSource(source: C3CompactionSource): boolean {
+export function isValidSource(source: C3CompactionSource): boolean {
   return (
     isPositiveInt(source.fontSpriteWidth) &&
     isPositiveInt(source.fontSpriteHeight) &&
@@ -224,6 +224,76 @@ export function computeOldGrid(
 }
 
 /**
+ * 每个导入字符对应的旧 cell 左上角坐标（row-major），
+ * origin = imageMargin + imagePadding（与 CanvasSpace 同一惯例）。
+ * 任何 cell 越出图片边界返回 null（invalid-grid）。
+ * 精简 analyze 与重排（c3-rewrap）共用同一映射，保证 origin/columns 唯一一致。
+ */
+export function computeC3CellOrigins(
+  imageData: ImageData,
+  source: C3CompactionSource,
+  columns: number,
+): Array<{ x: number; y: number }> | null {
+  const { width: imageWidth, height: imageHeight } = imageData;
+  const cellWidth = source.characterWidth;
+  const cellHeight = source.characterHeight;
+  const originX = source.imageMargin.left + source.imagePadding.left;
+  const originY = source.imageMargin.top + source.imagePadding.top;
+
+  const cellOrigins: Array<{ x: number; y: number }> = [];
+  for (let i = 0; i < source.importedCharacterSet.length; i++) {
+    const col = i % columns;
+    const row = Math.floor(i / columns);
+    const x = originX + col * cellWidth;
+    const y = originY + row * cellHeight;
+    if (
+      x < 0 ||
+      y < 0 ||
+      x + cellWidth > imageWidth ||
+      y + cellHeight > imageHeight
+    ) {
+      return null;
+    }
+    cellOrigins.push({ x, y });
+  }
+  return cellOrigins;
+}
+
+/**
+ * 导入 cell 并集覆盖表之外是否存在 alpha >= C3_CONTENT_ALPHA_MIN 的内容
+ * （全透明像素与 RGB 噪点不阻断）。精简 analyze 与重排共用同一覆盖表思路。
+ */
+export function hasContentOutsideImportedCells(
+  imageData: ImageData,
+  cellOrigins: ReadonlyArray<{ x: number; y: number }>,
+  cellWidth: number,
+  cellHeight: number,
+): boolean {
+  const { width: imageWidth, height: imageHeight, data } = imageData;
+  const covered = new Uint8Array(imageWidth * imageHeight);
+  for (const origin of cellOrigins) {
+    for (let y = origin.y; y < origin.y + cellHeight; y++) {
+      const rowStart = y * imageWidth;
+      for (let x = origin.x; x < origin.x + cellWidth; x++) {
+        covered[rowStart + x] = 1;
+      }
+    }
+  }
+  for (let y = 0; y < imageHeight; y++) {
+    const rowStart = y * imageWidth;
+    for (let x = 0; x < imageWidth; x++) {
+      if (
+        data[(rowStart + x) * 4 + 3] >= C3_CONTENT_ALPHA_MIN &&
+        covered[rowStart + x] === 0
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
  * 分析导入图片并产出精简方案。
  *
  * 输入必须是已成功导入的 C3 项目的原始导入图片（自然尺寸 ImageData）；
@@ -253,53 +323,25 @@ export function analyzeC3SpriteCompaction(
     return error("invalid-grid");
   }
 
-  const { width: imageWidth, height: imageHeight, data } = imageData;
+  const { width: imageWidth, data } = imageData;
   const cellWidth = source.characterWidth;
   const cellHeight = source.characterHeight;
-  const originX = source.imageMargin.left + source.imagePadding.left;
-  const originY = source.imageMargin.top + source.imagePadding.top;
 
-  // 每个导入字符对应的旧 cell 左上角坐标（row-major）
-  const cellOrigins: Array<{ x: number; y: number }> = [];
-  for (let i = 0; i < importedCount; i++) {
-    const col = i % oldGrid.columns;
-    const row = Math.floor(i / oldGrid.columns);
-    const x = originX + col * cellWidth;
-    const y = originY + row * cellHeight;
-    if (
-      x < 0 ||
-      y < 0 ||
-      x + cellWidth > imageWidth ||
-      y + cellHeight > imageHeight
-    ) {
-      return error("invalid-grid");
-    }
-    cellOrigins.push({ x, y });
+  // 每个导入字符对应的旧 cell 左上角坐标（row-major；与重排共用同一映射）
+  const cellOrigins = computeC3CellOrigins(imageData, source, oldGrid.columns);
+  if (!cellOrigins) {
+    return error("invalid-grid");
   }
 
-  // 导入 cell 并集覆盖表：用于检测范围外内容
-  const covered = new Uint8Array(imageWidth * imageHeight);
-  for (const origin of cellOrigins) {
-    for (let y = origin.y; y < origin.y + cellHeight; y++) {
-      const rowStart = y * imageWidth;
-      for (let x = origin.x; x < origin.x + cellWidth; x++) {
-        covered[rowStart + x] = 1;
-      }
-    }
-  }
-
-  let outsideContent = false;
-  for (let y = 0; y < imageHeight && !outsideContent; y++) {
-    const rowStart = y * imageWidth;
-    for (let x = 0; x < imageWidth; x++) {
-      const isContent = data[(rowStart + x) * 4 + 3] >= C3_CONTENT_ALPHA_MIN;
-      if (isContent && covered[rowStart + x] === 0) {
-        outsideContent = true;
-        break;
-      }
-    }
-  }
-  if (outsideContent) {
+  // 导入 cell 并集覆盖表之外的内容（alpha >= 阈值）阻断
+  if (
+    hasContentOutsideImportedCells(
+      imageData,
+      cellOrigins,
+      cellWidth,
+      cellHeight,
+    )
+  ) {
     return error("content-outside-imported-cells");
   }
 

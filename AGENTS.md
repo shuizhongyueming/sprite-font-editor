@@ -185,9 +185,12 @@ try {
 - Main canvas component: `src/components/CanvasArea.vue`
 - C3 parser: `src/utils/c3-parser.ts`
 - C3 export: `src/utils/c3-export.ts`
+- C3 rewrap core: `src/utils/c3-rewrap.ts`
+- C3 rewrap errors: `src/utils/c3-rewrap-errors.ts`
 - Grapheme splitting: `src/utils/grapheme.ts`
 - C3 import modal: `src/components/C3ImportModal.vue`
 - C3 export modal: `src/components/C3ExportModal.vue`
+- C3 rewrap modal: `src/components/C3RewrapModal.vue`
 - C3 config/image storage: `src/utils/storage.ts`
 - Project export: `src/utils/project-export.ts`
 - Project import: `src/utils/project-import.ts`

@@ -37,6 +37,15 @@ import {
   imageElementToPngBlob,
   imageToImageData,
 } from "@/utils/c3-compaction-dom";
+import {
+  C3_MAX_TEXTURE_SIZE,
+  computeC3RewrapPlan,
+  rewrapC3ImportedCells,
+  type C3RewrapPlan,
+  type C3RewrapNoLayoutChange,
+  type C3RewrapErrorCode,
+  type C3RewrapOptions,
+} from "@/utils/c3-rewrap";
 import { getImageMimeTypeFromFilename } from "@/utils/image-format";
 import type { ProjectData } from "@/utils/project-import";
 
@@ -185,6 +194,54 @@ export type C3CompactionPreparationResult =
   | C3CompactionPreparationPlan
   | C3CompactionNoSavings
   | C3CompactionError;
+
+/** prepareC3Rewrap 失败的可判别错误码：核心重排码 + canvas 自检码 */
+export type C3RewrapPreparationErrorCode =
+  | C3RewrapErrorCode
+  | "alpha-roundtrip-failed";
+
+/** prepareC3Rewrap 的阻断错误结果 */
+export interface C3RewrapPreparationError {
+  kind: "error";
+  code: C3RewrapPreparationErrorCode;
+}
+
+/** prepareC3Rewrap 成功时携带的完整候选 */
+export interface C3RewrapPreparationPlan {
+  kind: "plan";
+  plan: C3RewrapPlan;
+  repacked: ImageData;
+  source: C3CompactionSource;
+}
+
+export type C3RewrapPreparationResult =
+  | C3RewrapPreparationPlan
+  | C3RewrapNoLayoutChange
+  | C3RewrapPreparationError;
+
+/** applyC3SpriteRewrap 的 typed fail-closed 错误码（复用精简分类 + no-layout-change） */
+export type C3RewrapApplyErrorCode =
+  | "unreliable-canvas"
+  | "alpha-roundtrip-failed"
+  | "invalid-grid"
+  | "invalid-output-dimensions"
+  | "content-outside-imported-cells"
+  | "persistence-failed"
+  | "no-layout-change";
+
+/** applyC3SpriteRewrap 的成功结果 */
+export interface C3RewrapApplySuccess {
+  ok: true;
+  plan: C3RewrapPlan;
+}
+
+/** applyC3SpriteRewrap 的失败结果（typed fail-closed，UI 层据此映射文案） */
+export interface C3RewrapApplyFailure {
+  ok: false;
+  code: C3RewrapApplyErrorCode;
+}
+
+export type C3RewrapApplyResult = C3RewrapApplySuccess | C3RewrapApplyFailure;
 
 export const useEditorStore = defineStore("editor", () => {
   // 基于原始图片尺寸的绝对配置（用于持久化）
@@ -1915,6 +1972,224 @@ export const useEditorStore = defineStore("editor", () => {
     return { ok: true, plan };
   }
 
+  /**
+   * 只读 seam：从当前 store 状态组装 source，执行 alpha 自检、像素读取、
+   * 重排方案计算与像素重排，一次性产出重排候选。不修改任何状态/持久化。
+   * options.outputHeight 可自定义输出高度（≥ 密铺、≤ C3_MAX_TEXTURE_SIZE，
+   * 余量行保持透明）；缺省为精确密铺。
+   */
+  function prepareC3Rewrap(
+    targetWidth: number,
+    options?: C3RewrapOptions,
+  ): C3RewrapPreparationResult {
+    if (!isC3Mode.value || !c3ImportedImage.value || !c3InstanceArray.value) {
+      return { kind: "error", code: "invalid-grid" };
+    }
+    if (!verifyCanvasAlphaRoundTrip()) {
+      return { kind: "error", code: "alpha-roundtrip-failed" };
+    }
+    const source = buildCompactionSource();
+    if (!source) {
+      return { kind: "error", code: "invalid-grid" };
+    }
+    const imageData = imageToImageData(c3ImportedImage.value);
+    if (!imageData) {
+      return { kind: "error", code: "unreliable-canvas" };
+    }
+    const planResult = computeC3RewrapPlan(imageData, source, targetWidth);
+    if (planResult.kind !== "plan") {
+      return planResult;
+    }
+    const repack = rewrapC3ImportedCells(imageData, planResult, source, options);
+    if (repack.kind !== "ok") {
+      return repack;
+    }
+    return {
+      kind: "plan",
+      plan: planResult,
+      repacked: repack.image,
+      source,
+    };
+  }
+
+  // 当前 store 尺寸下的旧网格列数（computeOldGrid 同一映射；apply 校验不读像素）
+  function computeCurrentOldColumns(source: C3CompactionSource): number | null {
+    const dims = {
+      width: originalImageWidth.value,
+      height: originalImageHeight.value,
+    } as ImageData;
+    return computeOldGrid(dims, source)?.columns ?? null;
+  }
+
+  // 校验 apply 输入与当前 store 状态一致（fail closed）。
+  // 不重新做像素分析/重排（那是核心算法的职责），
+  // 只确保 repacked 数据、plan 与当前 store 组装出的 source / 旧网格一致。
+  //
+  // 已知可接受边界（TOCTOU）：plan 按 #17 设计不携带 cell 尺寸（重排永不改
+  // cell），cell 尺寸靠算术等式间接钉住；prepare/apply 之间若 fontSpriteWidth
+  // 与 characterWidth 被同比例改动且列数不变，等式仍可通过，而 repacked 像素
+  // 按旧 cell 切分。该场景在弹窗阻塞编辑期间不可达，且与精简 apply 的同类
+  // 边界（prepare 后重导入同网格图片）对齐，故不另设阻断校验。
+  function validateRewrapApplyInputs(
+    plan: C3RewrapPlan,
+    repacked: ImageData,
+    source: C3CompactionSource,
+  ): C3RewrapApplyErrorCode | null {
+    if (
+      !repacked ||
+      repacked.width <= 0 ||
+      repacked.height <= 0 ||
+      repacked.data.length !== repacked.width * repacked.height * 4
+    ) {
+      return "unreliable-canvas";
+    }
+    // 输出宽度必须精确等于目标宽度；高度不小于方案密铺高度即可——
+    // 自定义加高的余量行保持透明（fontSpriteHeight = repacked.height）
+    if (
+      repacked.width !== plan.targetWidth ||
+      repacked.height < plan.newImageHeight ||
+      repacked.height > C3_MAX_TEXTURE_SIZE
+    ) {
+      return "invalid-output-dimensions";
+    }
+    if (plan.importedCount !== source.importedCharacterSet.length) {
+      return "invalid-output-dimensions";
+    }
+    // targetWidth 合法，且 plan 与 source 的网格等式一致（cell 尺寸未变）：
+    // 行数按导入 + 追加的总字符数计，追加字符按新布局重渲染
+    const totalCharacterCount =
+      plan.importedCount + source.appendedCharacterCount;
+    if (
+      !Number.isInteger(plan.targetWidth) ||
+      plan.targetWidth < source.characterWidth ||
+      plan.newColumns !==
+        Math.floor(plan.targetWidth / source.characterWidth) ||
+      plan.newRows !== Math.ceil(totalCharacterCount / plan.newColumns) ||
+      plan.newImageHeight !== plan.newRows * source.characterHeight
+    ) {
+      return "invalid-output-dimensions";
+    }
+    // plan 必须基于与当前一致的旧网格（防 plan 生成后配置被改动）
+    const oldColumns = computeCurrentOldColumns(source);
+    if (oldColumns === null || plan.oldColumns !== oldColumns) {
+      return "invalid-grid";
+    }
+    // 同列数 = 布局无变化，不允许应用（非阻断地位与精简 no-savings 相同）
+    if (plan.newColumns === plan.oldColumns) {
+      return "no-layout-change";
+    }
+    return null;
+  }
+
+  /**
+   * 原子应用 C3 重排方案（issue #18 seam）。
+   *
+   * 事务边界：在修改任何 Pinia refs 之前完成全部校验与候选构造——
+   * verifyCanvasAlphaRoundTrip、plan/repacked 校验、PNG 无损编码、
+   * 重新解码为可加载图片、候选持久化 stage + 指针 commit。
+   * 指针提交成功后同步替换 refs（不可失败），旧 generation 尽力清理。
+   * 任何失败：内存与持久化原状态均保持不变，返回 typed fail-closed 错误。
+   * 重排不改 cell 尺寸：c3-instance、spacingData、baseCellConfig 逐字节不变，
+   * 追加字符条目原样保留，按 canvasSpace 新列数自动落位重渲染（不重测）。
+   */
+  async function applyC3SpriteRewrap(
+    plan: C3RewrapPlan,
+    repacked: ImageData,
+  ): Promise<C3RewrapApplyResult> {
+    if (!isC3Mode.value || !c3InstanceArray.value || !c3ImportedImage.value) {
+      return { ok: false, code: "invalid-grid" };
+    }
+
+    if (!verifyCanvasAlphaRoundTrip()) {
+      return { ok: false, code: "alpha-roundtrip-failed" };
+    }
+
+    const source = buildCompactionSource();
+    if (!source) {
+      return { ok: false, code: "invalid-grid" };
+    }
+
+    const validationError = validateRewrapApplyInputs(plan, repacked, source);
+    if (validationError) {
+      return { ok: false, code: validationError };
+    }
+
+    // 无损编码 + 重新解码（seam）
+    const pngBlob = await encodeC3RepackedImage(repacked);
+    if (!pngBlob) {
+      return { ok: false, code: "unreliable-canvas" };
+    }
+    const decodedImage = await decodeC3PngBlob(pngBlob);
+    if (!decodedImage) {
+      return { ok: false, code: "unreliable-canvas" };
+    }
+
+    // 构造完整候选：image margin/padding 归零，Font Sprite 尺寸 =
+    // 目标宽度 × repacked 实际高度（含追加字符密铺高度或自定义加高余量）；cell 配置保持
+    const newImageConfig: BaseImageConfig = {
+      margin: { top: 0, right: 0, bottom: 0, left: 0 },
+      padding: { top: 0, right: 0, bottom: 0, left: 0 },
+      fontSpriteWidth: plan.targetWidth,
+      fontSpriteHeight: repacked.height,
+    };
+
+    // 候选持久化：stage 全部成功后 commit 指针（唯一提交点），
+    // 与其它 generation 提交串行；commit 成功后仅做 best-effort 清理
+    const stagedId = await runExclusiveC3Commit(async () => {
+      const id = await C3GenerationStorage.stage({
+        generalState: {
+          ...buildGeneralState(),
+          baseImageConfig: newImageConfig,
+          baseImageMimeType: "image/png",
+        },
+        c3Config: {
+          ...buildC3Config(),
+          originalImageWidth: repacked.width,
+          originalImageHeight: repacked.height,
+        },
+        image: {
+          blob: pngBlob,
+          width: repacked.width,
+          height: repacked.height,
+        },
+      });
+      try {
+        C3GenerationStorage.commit(id);
+      } catch (error) {
+        await C3GenerationStorage.discard(id);
+        throw error;
+      }
+      try {
+        C3GenerationStorage.prune();
+      } catch (error) {
+        console.error("[Editor] Failed to prune stale generations:", error);
+      }
+      return id;
+    }).catch((error) => {
+      console.error("[Editor] Failed to persist rewrap generation:", error);
+      return null;
+    });
+
+    if (!stagedId) {
+      return { ok: false, code: "persistence-failed" };
+    }
+
+    // 提交成功：同步替换 refs（不可失败的整体替换）
+    baseImageConfig.value = newImageConfig;
+    c3ImportedImage.value = decodedImage;
+    baseImage.value = decodedImage;
+    originalImageWidth.value = repacked.width;
+    originalImageHeight.value = repacked.height;
+    baseImageMimeType.value = "image/png";
+
+    // 清除瞬时选择态，刷新画布尺寸并触发一次重绘
+    selectedCharIndex.value = null;
+    refreshCanvasSize();
+    renderTrigger.value++;
+
+    return { ok: true, plan };
+  }
+
   // 自动检测网格
   function autoDetectGrid() {
     if (!baseImage.value) {
@@ -2092,6 +2367,8 @@ export const useEditorStore = defineStore("editor", () => {
     applyProject,
     applyC3SpriteCompaction,
     prepareC3Compaction,
+    applyC3SpriteRewrap,
+    prepareC3Rewrap,
     // canvas ref
     canvasLayer,
   };

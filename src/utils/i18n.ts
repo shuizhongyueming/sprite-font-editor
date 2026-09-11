@@ -240,6 +240,55 @@ export interface Translations {
   c3CompactionErrorInvalidDimensions: string;
   c3CompactionErrorInvalidSpacing: string;
   c3CompactionErrorPersistence: string;
+  c3RewrapButton: string;
+  c3RewrapButtonTitle: string;
+  c3RewrapButtonTooltip: string;
+  c3RewrapModalTitle: string;
+  c3RewrapModalSubtitle: string;
+  c3RewrapWidthLabel: string;
+  c3RewrapChipMostSquare: string;
+  c3RewrapChipTooNarrow: string;
+  c3RewrapChipTooTall: string;
+  c3RewrapWidthErrorInteger: string;
+  c3RewrapWidthErrorMin: string;
+  c3RewrapWidthErrorMax: string;
+  c3RewrapWidthErrorTall: string;
+  c3RewrapHeightErrorInteger: string;
+  c3RewrapHeightErrorMin: string;
+  c3RewrapHeightErrorMax: string;
+  c3RewrapNoLayoutChange: string;
+  c3RewrapMetricWidth: string;
+  c3RewrapMetricColumns: string;
+  c3RewrapMetricFinal: string;
+  c3RewrapMetricRgba: string;
+  c3RewrapTabSprite: string;
+  c3RewrapTabText: string;
+  c3RewrapOldBaseline: string;
+  c3RewrapNewBaseline: string;
+  c3RewrapZoomFit: string;
+  c3RewrapZoomActual: string;
+  c3RewrapZoom: string;
+  c3RewrapSampleText: string;
+  c3RewrapResetSample: string;
+  c3RewrapConfigDetails: string;
+  c3RewrapConfigSpriteSize: string;
+  c3RewrapConfigCharSet: string;
+  c3RewrapCaveatCell: string;
+  c3RewrapCaveatNoScale: string;
+  c3RewrapCaveatMargin: string;
+  c3RewrapCaveatNoUndo: string;
+  c3RewrapApply: string;
+  c3RewrapApplying: string;
+  c3RewrapApplySuccess: string;
+  c3RewrapApplyFailed: string;
+  c3RewrapErrorUnreliableCanvas: string;
+  c3RewrapErrorAlphaRoundtrip: string;
+  c3RewrapErrorInvalidGrid: string;
+  c3RewrapErrorNoImportedContent: string;
+  c3RewrapErrorContentOutside: string;
+  c3RewrapErrorInvalidDimensions: string;
+  c3RewrapErrorInvalidSpacing: string;
+  c3RewrapErrorPersistence: string;
 
   // DimensionsInput
   width: string;
@@ -487,6 +536,63 @@ export const translations: Record<Locale, Translations> = {
     c3CompactionErrorInvalidDimensions: "精简输出尺寸无效",
     c3CompactionErrorInvalidSpacing: "spacing 数据无效，无法迁移",
     c3CompactionErrorPersistence: "候选数据保存失败，请重试",
+
+    // C3 Sprite Re-wrap（重排）
+    c3RewrapButton: "重排",
+    c3RewrapButtonTitle: "重排 Font Sprite（C3）",
+    c3RewrapButtonTooltip:
+      "仅改变换行列数（512/1024/2048/4096 快选或自定义宽度），把导入字符像素按新列数物理重排；cell 尺寸、字符顺序与 spacingData 不变，追加字符按新布局重渲染，应用后不可撤销",
+    c3RewrapModalTitle: "重排 Font Sprite — 应用前确认",
+    c3RewrapModalSubtitle:
+      "Imported Character Set {imported} 字符 + 追加 {appended} 字符；仅改变换行列数，cell 尺寸 {width}×{height} 与字符顺序不变",
+    c3RewrapWidthLabel: "目标宽度",
+    c3RewrapChipMostSquare: "最方",
+    c3RewrapChipTooNarrow: "宽度小于字符宽度 {width}px，不可用",
+    c3RewrapChipTooTall: "按此宽度密铺高度超过 {max}px 上限，不可用",
+    c3RewrapWidthErrorInteger: "宽度必须是整数",
+    c3RewrapWidthErrorMin: "宽度不能小于字符宽度 {width}px",
+    c3RewrapWidthErrorMax: "宽度不能超过 {max}px",
+    c3RewrapWidthErrorTall: "按此宽度密铺高度超过 {max}px 上限",
+    c3RewrapHeightErrorInteger: "高度必须是整数",
+    c3RewrapHeightErrorMin: "高度不能小于密铺高度 {height}px",
+    c3RewrapHeightErrorMax: "高度不能超过 {max}px",
+    c3RewrapNoLayoutChange: "该宽度与当前列数相同，布局无变化，无需重排",
+    c3RewrapMetricWidth: "目标宽度",
+    c3RewrapMetricColumns: "列数",
+    c3RewrapMetricFinal: "最终纹理",
+    c3RewrapMetricRgba: "RGBA 估算",
+    c3RewrapTabSprite: "Sprite",
+    c3RewrapTabText: "C3 文本",
+    c3RewrapOldBaseline: "旧当前基线",
+    c3RewrapNewBaseline: "新重排后基线",
+    c3RewrapZoomFit: "适应窗口",
+    c3RewrapZoomActual: "1:1",
+    c3RewrapZoom: "缩放",
+    c3RewrapSampleText: "示例文本",
+    c3RewrapResetSample: "重置",
+    c3RewrapConfigDetails: "配置变化（仅 Font Sprite 尺寸 · cell 与 spacingData 不变）",
+    c3RewrapConfigSpriteSize: "[2] characterWidth / [3] characterHeight: 保持同值",
+    c3RewrapConfigCharSet:
+      "[4] characterSet / [5] spacingData: 保持同值（重排不做 spacing 迁移）",
+    c3RewrapCaveatCell:
+      "cell 尺寸与字符顺序不变，仅改变换行列数；右侧与底部余量保持透明",
+    c3RewrapCaveatNoScale:
+      "追加字符的字体/字号/间距/测量数据不重新计算、不缩放，按新布局重渲染",
+    c3RewrapCaveatMargin: "应用后 image margin/padding 归零",
+    c3RewrapCaveatNoUndo: "应用重排后无法撤销（旧导入图与旧配置将被替换）",
+    c3RewrapApply: "应用重排",
+    c3RewrapApplying: "正在应用重排…",
+    c3RewrapApplySuccess: "重排已应用",
+    c3RewrapApplyFailed: "应用重排失败",
+    c3RewrapErrorUnreliableCanvas: "无法可靠读取画布像素，请重试",
+    c3RewrapErrorAlphaRoundtrip:
+      "当前画布无法无损保留透明通道（alpha round-trip 失败），已阻止重排",
+    c3RewrapErrorInvalidGrid: "当前 C3 网格配置无效，无法重排",
+    c3RewrapErrorNoImportedContent: "导入图片中未检测到可见字符内容",
+    c3RewrapErrorContentOutside: "导入字符 cell 之外存在像素内容，已阻止重排",
+    c3RewrapErrorInvalidDimensions: "重排输出尺寸无效",
+    c3RewrapErrorInvalidSpacing: "spacing 数据无效，无法渲染文本预览",
+    c3RewrapErrorPersistence: "候选数据保存失败，请重试",
 
     // DimensionsInput
     width: "宽度",
@@ -742,6 +848,70 @@ export const translations: Record<Locale, Translations> = {
     c3CompactionErrorInvalidDimensions: "Invalid compaction output dimensions",
     c3CompactionErrorInvalidSpacing: "Invalid spacing data, cannot migrate",
     c3CompactionErrorPersistence: "Failed to save the candidate data, please retry",
+
+    // C3 Sprite Re-wrap
+    c3RewrapButton: "Re-wrap",
+    c3RewrapButtonTitle: "Re-wrap C3 Font Sprite",
+    c3RewrapButtonTooltip:
+      "Change only the wrap column count (512/1024/2048/4096 presets or a custom width) and physically re-flow imported characters to the new layout; cell size, character order and spacingData stay unchanged, appended characters are re-rendered at their new positions, and the change is not undoable",
+    c3RewrapModalTitle: "Re-wrap Font Sprite — confirm before applying",
+    c3RewrapModalSubtitle:
+      "Imported Character Set {imported} chars + {appended} appended; only the wrap column count changes, cell size {width}×{height} and character order stay unchanged",
+    c3RewrapWidthLabel: "Target width",
+    c3RewrapChipMostSquare: "Most square",
+    c3RewrapChipTooNarrow: "Width is below the character width {width}px; not available",
+    c3RewrapChipTooTall:
+      "Exact tiling at this width exceeds the {max}px limit; not available",
+    c3RewrapWidthErrorInteger: "Width must be an integer",
+    c3RewrapWidthErrorMin: "Width must not be below the character width {width}px",
+    c3RewrapWidthErrorMax: "Width must not exceed {max}px",
+    c3RewrapWidthErrorTall: "Exact tiling at this width exceeds the {max}px limit",
+    c3RewrapHeightErrorInteger: "Height must be an integer",
+    c3RewrapHeightErrorMin:
+      "Height must not be below the exact tiling height {height}px",
+    c3RewrapHeightErrorMax: "Height must not exceed {max}px",
+    c3RewrapNoLayoutChange:
+      "This width keeps the current column count; nothing to re-wrap",
+    c3RewrapMetricWidth: "Target width",
+    c3RewrapMetricColumns: "Columns",
+    c3RewrapMetricFinal: "Final texture",
+    c3RewrapMetricRgba: "RGBA estimate",
+    c3RewrapTabSprite: "Sprite",
+    c3RewrapTabText: "C3 Text",
+    c3RewrapOldBaseline: "Current baseline",
+    c3RewrapNewBaseline: "Rewrapped baseline",
+    c3RewrapZoomFit: "Fit",
+    c3RewrapZoomActual: "1:1",
+    c3RewrapZoom: "Zoom",
+    c3RewrapSampleText: "Sample text",
+    c3RewrapResetSample: "Reset",
+    c3RewrapConfigDetails:
+      "Config changes (Font Sprite size only · cell and spacingData unchanged)",
+    c3RewrapConfigSpriteSize: "[2] characterWidth / [3] characterHeight: kept unchanged",
+    c3RewrapConfigCharSet:
+      "[4] characterSet / [5] spacingData: kept unchanged (no spacing migration in re-wrap)",
+    c3RewrapCaveatCell:
+      "Cell size and character order stay unchanged; only the wrap column count changes, with right/bottom margins left transparent",
+    c3RewrapCaveatNoScale:
+      "Appended characters are not remeasured or scaled (font/size/spacing/metrics stay), only re-rendered at their new positions",
+    c3RewrapCaveatMargin: "Image margin/padding are zeroed after applying",
+    c3RewrapCaveatNoUndo:
+      "Applying a re-wrap cannot be undone (old image and config are replaced)",
+    c3RewrapApply: "Apply re-wrap",
+    c3RewrapApplying: "Applying re-wrap…",
+    c3RewrapApplySuccess: "Re-wrap applied",
+    c3RewrapApplyFailed: "Failed to apply re-wrap",
+    c3RewrapErrorUnreliableCanvas: "Failed to read canvas pixels reliably, please retry",
+    c3RewrapErrorAlphaRoundtrip:
+      "This canvas cannot preserve the alpha channel losslessly (alpha round-trip failed); re-wrap is blocked",
+    c3RewrapErrorInvalidGrid: "The current C3 grid configuration is invalid",
+    c3RewrapErrorNoImportedContent:
+      "No visible character content detected in the imported image",
+    c3RewrapErrorContentOutside:
+      "Pixel content exists outside the imported character cells; re-wrap is blocked",
+    c3RewrapErrorInvalidDimensions: "Invalid re-wrap output dimensions",
+    c3RewrapErrorInvalidSpacing: "Invalid spacing data, cannot render the text preview",
+    c3RewrapErrorPersistence: "Failed to save the candidate data, please retry",
 
     // DimensionsInput
     width: "Width",

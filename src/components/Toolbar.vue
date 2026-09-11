@@ -71,6 +71,15 @@
         {{ isCompacting ? t('c3CompactionAnalyzing') : t('c3CompactButton') }}
       </button>
       <button
+        v-if="canRewrap"
+        class="btn btn-rewrap"
+        :title="t('c3RewrapButtonTooltip')"
+        :aria-label="t('c3RewrapButtonTitle')"
+        @click="openRewrapModal"
+      >
+        {{ t('c3RewrapButton') }}
+      </button>
+      <button
         class="btn btn-secondary"
         @click="uploadFont"
       >
@@ -218,6 +227,11 @@
       :old-grid="compactionCandidate.oldGrid"
       @close="closeCompactionModal"
     />
+    <C3RewrapModal
+      v-if="showC3RewrapModal"
+      :visible="showC3RewrapModal"
+      @close="showC3RewrapModal = false"
+    />
   </div>
 </template>
 
@@ -243,6 +257,7 @@ import SegmentControl from './SegmentControl.vue'
 import C3ImportModal from './C3ImportModal.vue'
 import C3ExportModal from './C3ExportModal.vue'
 import C3CompactionModal from './C3CompactionModal.vue'
+import C3RewrapModal from './C3RewrapModal.vue'
 
 type Locale = 'zh-CN' | 'en-US'
 type CanvasBgType = 'white' | 'black' | 'checkerboard'
@@ -262,6 +277,7 @@ const isExporting = ref(false)
 const isCompacting = ref(false)
 const showC3CompactionModal = ref(false)
 const compactionCandidate = ref<C3CompactionPreparationPlan | null>(null)
+const showC3RewrapModal = ref(false)
 const currentLocale = computed(() => getLocale())
 
 const canSaveProject = computed(() =>
@@ -326,6 +342,26 @@ const canCompact = computed(() => {
     editorStore.c3InstanceArray !== null
   )
 })
+
+/** 「重排」与精简同一可用条件：仅 C3 模式且有导入基线 */
+const canRewrap = computed(() => {
+  return (
+    editorStore.isC3Mode &&
+    editorStore.c3ImportedImage !== null &&
+    editorStore.c3InstanceArray !== null
+  )
+})
+
+/**
+ * 重排为纯几何计算（无像素分析等待），点击即时打开弹窗；
+ * 阻断性 prepare 错误在弹窗内以 typed 文案展示。
+ */
+function openRewrapModal() {
+  if (!canRewrap.value) {
+    return
+  }
+  showC3RewrapModal.value = true
+}
 
 async function compactC3SpriteFont() {
   if (isCompacting.value || !canCompact.value) {
@@ -870,6 +906,17 @@ function clearAll() {
 .btn-warning:hover:not(:disabled) {
   background-color: #c99700;
   border-color: #c99700;
+}
+
+.btn-rewrap {
+  background-color: #6f42c1;
+  color: white;
+  border-color: #6f42c1;
+}
+
+.btn-rewrap:hover:not(:disabled) {
+  background-color: #5a32a3;
+  border-color: #5a32a3;
 }
 
 /* 语言下拉框样式 */

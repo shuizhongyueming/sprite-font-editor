@@ -14,6 +14,9 @@ An editor mode entered when importing a C3 sprite font. In this mode the editor 
 ### C3 Sprite Compaction
 A C3-only operation for transparent-background sprites that removes uniformly removable transparent space from imported character cells and repacks the imported sprite into smaller uniform cells. Appended characters are excluded from pixel analysis and are rendered dynamically using the compacted cell size; opaque solid-color backgrounds are not inferred as whitespace.
 
+### C3 Sprite Re-wrap
+A C3-only operation that changes the sprite sheet's wrap width (number of columns) while keeping the uniform cell size (`characterWidth × characterHeight`) and the row-major character order unchanged. The imported characters' pixels are physically re-flowed to the new column count, and appended characters are re-rendered at their new cell positions with all per-character data (margins, display widths, extra spacing, distribution offsets) preserved. It is not a character reordering: the Imported Character Set remains read-only and in sequence. Applying a Re-wrap replaces the imported base image and the Font Sprite dimensions of the current state, exactly as C3 Sprite Compaction does, and the result is persisted as a new restorable generation. The target width may be smaller or larger than the current width; the resulting height defaults to exact tiling (rows × `characterHeight`) and may optionally be increased, leaving the extra rows transparent.
+
 ### Imported Character Set
 The character set loaded from a C3 instance array when importing. It is kept in memory as the baseline. Users may append new characters, but they cannot edit or reorder existing characters because the imported sprite sheet image already contains them.
 

@@ -265,7 +265,29 @@ const uiLayerStyle = computed(() => ({
   height: `${canvasHeight.value}px`,
 }))
 
-// 使用已缩放的配置创建 CanvasSpace
+// 行列数量以基准（未缩放）配置推导：显示空间的单元格 round 与画布 floor
+// 相互独立，多行时累积漂移会吃掉最后一行/列（CanvasSpace.gridCounts）
+const baseGridCounts = computed(() => {
+  if (!hasImage.value) return null
+
+  const baseCell = editorStore.baseCellConfig
+  const baseSpace = new CanvasSpace(
+    editorStore.canvasBaseWidth,
+    editorStore.canvasBaseHeight,
+    baseCell.width,
+    baseCell.height,
+    editorStore.isC3Mode
+      ? { top: 0, right: 0, bottom: 0, left: 0 }
+      : baseCell.margin,
+    editorStore.baseImageConfig.margin,
+    editorStore.baseImageConfig.padding,
+    editorStore.baseImageConfig.fontSpriteWidth || undefined,
+    editorStore.baseImageConfig.fontSpriteHeight || undefined,
+  )
+  return { rows: baseSpace.rows, columns: baseSpace.columns }
+})
+
+// 使用已缩放的配置创建 CanvasSpace（像素定位用；行列数量取基准空间推导值）
 const canvasSpace = computed(() => {
   if (!hasImage.value) return null
 
@@ -288,7 +310,8 @@ const canvasSpace = computed(() => {
     imageConfig.value.margin,
     imageConfig.value.padding,
     fontSpriteWidth,
-    fontSpriteHeight
+    fontSpriteHeight,
+    baseGridCounts.value ?? undefined
   )
 })
 

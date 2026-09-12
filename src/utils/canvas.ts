@@ -135,6 +135,12 @@ export class CanvasSpace {
     },
     private fontSpriteWidth?: number,
     private fontSpriteHeight?: number,
+    /**
+     * 行列数量覆盖（以基准/未缩放配置推导）。显示空间的单元格 round 与
+     * 画布 floor 相互独立，多行时累积漂移会吃掉最后一行/列；行列数量是
+     * 基准空间的语义，由调用方算好后传入，显示空间只负责像素定位。
+     */
+    private gridCounts?: { rows: number; columns: number },
   ) {}
 
   /**
@@ -175,6 +181,7 @@ export class CanvasSpace {
    * 计算列数
    */
   get columns(): number {
+    if (this.gridCounts) return this.gridCounts.columns;
     const cellTotalWidth =
       this.cellWidth + this.cellMargin.left + this.cellMargin.right;
     const availableWidth = this.usableWidth;
@@ -186,18 +193,10 @@ export class CanvasSpace {
    * 计算行数
    */
   get rows(): number {
+    if (this.gridCounts) return this.gridCounts.rows;
     const cellTotalHeight =
       this.cellHeight + this.cellMargin.top + this.cellMargin.bottom;
     const availableHeight = this.usableHeight;
-    console.log("CanvasSpace: rows", {
-      cellHeight: this.cellHeight,
-      cellMarginTop: this.cellMargin.top,
-      cellMarginBottom: this.cellMargin.bottom,
-      usableWidth: this.usableWidth,
-      usableHeight: this.usableHeight,
-      cellTotalHeight,
-      availableHeight,
-    });
     if (availableHeight < cellTotalHeight) return 0;
     return (
       Math.floor((availableHeight - this.cellHeight) / cellTotalHeight) + 1

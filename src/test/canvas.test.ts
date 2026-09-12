@@ -104,3 +104,58 @@ describe('computeAutoFitSpriteSize', () => {
     ).toBeNull()
   })
 })
+
+// 实样回归：重排到 2048×1680、cell 99×105、scale≈0.7 时，显示空间的
+// 画布 floor 与单元格 round 独立取整，16 行累积漂移超出一个 cell，
+// rows 从 16 掉到 15（底行追加字符失去网格线且点击选不中）
+describe('CanvasSpace gridCounts override', () => {
+  const zeroBox = { top: 0, right: 0, bottom: 0, left: 0 }
+  const scale = 0.7
+
+  function makeDisplaySpace(gridCounts?: { rows: number; columns: number }) {
+    return new CanvasSpace(
+      Math.floor(2048 * scale),
+      Math.floor(1680 * scale),
+      Math.round(99 * scale),
+      Math.round(105 * scale),
+      zeroBox,
+      zeroBox,
+      zeroBox,
+      Math.round(2048 * scale),
+      Math.round(1680 * scale),
+      gridCounts,
+    )
+  }
+
+  it('display-space rounding drifts the derived row count', () => {
+    const displaySpace = makeDisplaySpace()
+    // 漂移证据：基准应为 16 行，显示空间独立取整算出 15 行
+    expect(displaySpace.rows).toBe(15)
+    expect(displaySpace.columns).toBe(20)
+  })
+
+  it('gridCounts override supplies base-space counts to all index math', () => {
+    const baseSpace = new CanvasSpace(
+      2048, 1680, 99, 105, zeroBox, zeroBox, zeroBox, 2048, 1680,
+    )
+    expect(baseSpace.rows).toBe(16)
+    expect(baseSpace.columns).toBe(20)
+
+    const displaySpace = makeDisplaySpace({
+      rows: baseSpace.rows,
+      columns: baseSpace.columns,
+    })
+    expect(displaySpace.rows).toBe(16)
+    expect(displaySpace.columns).toBe(20)
+
+    // 第 301 个 cell（index 300）= 底行第 1 格（重排后追加字符落位）
+    expect(displaySpace.indexToRowCol(300)).toEqual({ row: 15, col: 0 })
+
+    // positionToCell 的 rows 截断同样走 override：底行点击不再返回 null
+    const cellTopLeft = displaySpace.getCellPosition(15, 0)
+    expect(displaySpace.positionToCell(cellTopLeft.x + 1, cellTopLeft.y + 1)).toEqual({
+      row: 15,
+      col: 0,
+    })
+  })
+})

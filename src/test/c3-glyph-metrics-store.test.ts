@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import { useEditorStore } from '@/stores/editor'
 import { parseC3InstanceArray } from '@/utils/c3-parser'
@@ -157,5 +158,30 @@ describe('C3 glyph metrics alignment (issue #21)', () => {
     expect(upgraded.autoGlyphWidth).toBe(8)
     expect(upgraded.autoBearingOffset).toBe(2)
     expect(upgraded.autoDisplayWidth).toBe(9)
+  })
+
+  it('recomputes the bearing offset when cell padding.left changes', async () => {
+    const store = await importWithSheet('[[10,"A"]]')
+    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({
+      width: 8,
+      height: 12,
+      left: 2,
+      top: 0,
+    })
+    store.appendC3Characters(['C'])
+    // bearing 2 − padding.left 0 = 2
+    expect(store.c3AppendedEntries[0].autoBearingOffset).toBe(2)
+
+    store.baseCellConfig.padding.left = 3
+    await nextTick()
+
+    // 重算为 bearing 2 − padding.left 3 = −1，渲染左缘不变量保持成立；
+    // metrics 存在时 advance 与 padding 无关，保持 9
+    const entry = store.c3AppendedEntries[0]
+    expect(entry.autoBearingOffset).toBe(-1)
+    expect(entry.autoDisplayWidth).toBe(9)
+    expect(store.baseCellConfig.padding.left + entry.autoBearingOffset!).toBe(
+      store.c3ImportedGlyphMetrics!.bearing,
+    )
   })
 })

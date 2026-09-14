@@ -2539,6 +2539,18 @@ export const useEditorStore = defineStore("editor", () => {
   watch(() => characterStyle.value.outline.width, onC3StyleChanged);
   watch(() => characterStyle.value.pixelStyle, onC3StyleChanged);
 
+  // C3 模式下 cell padding.left 被编辑时，按新 padding 重算追加字符的
+  // 水平落位与步进（offset = bearing − padding.left），避免已存 offset
+  // 漂移；值不变时 apply 内部不产生 save/render 脉冲
+  watch(
+    () => baseCellConfig.value.padding.left,
+    () => {
+      if (isC3Mode.value) {
+        applyC3GlyphMetricsToEntries();
+      }
+    },
+  );
+
   return {
     // 基础配置（用于持久化，基于原始图片尺寸）
     baseCellConfig,

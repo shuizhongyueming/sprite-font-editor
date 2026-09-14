@@ -758,7 +758,8 @@ export const useEditorStore = defineStore("editor", () => {
   /**
    * metrics 变化后，把带 autoGlyphWidth 的追加条目（旧条目缺字段跳过，
    * 保持旧行为）按新结构重算水平落位与步进，随后持久化并触发一次重绘。
-   * offset 为全条目统一值（bearing − padding.left，与 glyph 无关）。
+   * offset 为全条目统一值（= bearing，与 glyph、padding 无关；padding.left
+   * 在渲染期作为用户全局水平微调叠加，不参与 offset）。
    * 确有条目被修改时才收尾，避免无效 save/render 脉冲。
    */
   function applyC3GlyphMetricsToEntries() {
@@ -769,10 +770,7 @@ export const useEditorStore = defineStore("editor", () => {
       if (entry.autoGlyphWidth === undefined) {
         continue;
       }
-      const nextOffset = computeBearingOffset(
-        metrics,
-        baseCellConfig.value.padding.left,
-      );
+      const nextOffset = computeBearingOffset(metrics);
       const nextAdvance = computeAppendedAdvance(
         entry.autoGlyphWidth,
         metrics,
@@ -827,6 +825,9 @@ export const useEditorStore = defineStore("editor", () => {
       width: parsed.characterWidth,
       height: parsed.characterHeight,
       margin: { top: 0, right: 0, bottom: 0, left: 0 },
+      // C3 导入不携带 padding 概念；重置为 0 使追加字符默认精确对齐
+      // 导入 bearing（padding.left 在此后作为用户全局水平微调生效）
+      padding: { top: 0, right: 0, bottom: 0, left: 0 },
     };
 
     baseImageConfig.value = {
@@ -926,13 +927,10 @@ export const useEditorStore = defineStore("editor", () => {
         extraSpacing: 0,
         distributionOffset: 0,
         // 记录 glyph 视觉宽，供 metrics 变化后重算 advance（issue #21）；
-        // 水平偏移锚定渲染链（ink 左缘 = padding.left + margin.left），
-        // 为全条目统一值 bearing − padding.left
+        // 水平偏移锚定渲染链，为全条目统一值 bearing（padding.left
+        // 在渲染期作为用户全局微调叠加，不参与 offset）
         autoGlyphWidth: bounds.width,
-        autoBearingOffset: computeBearingOffset(
-          c3ImportedGlyphMetrics.value,
-          baseCellConfig.value.padding.left,
-        ),
+        autoBearingOffset: computeBearingOffset(c3ImportedGlyphMetrics.value),
       };
     });
 
@@ -1044,7 +1042,6 @@ export const useEditorStore = defineStore("editor", () => {
       entry.autoGlyphWidth = bounds.width;
       entry.autoBearingOffset = computeBearingOffset(
         c3ImportedGlyphMetrics.value,
-        baseCellConfig.value.padding.left,
       );
       entry.autoDisplayWidth = computeAppendedAdvance(
         bounds.width,
@@ -2114,10 +2111,7 @@ export const useEditorStore = defineStore("editor", () => {
       }
       return {
         ...entry,
-        autoBearingOffset: computeBearingOffset(
-          nextGlyphMetrics,
-          newCellConfig.padding.left,
-        ),
+        autoBearingOffset: computeBearingOffset(nextGlyphMetrics),
         autoDisplayWidth: computeAppendedAdvance(
           entry.autoGlyphWidth,
           nextGlyphMetrics,
@@ -2379,10 +2373,7 @@ export const useEditorStore = defineStore("editor", () => {
       }
       return {
         ...entry,
-        autoBearingOffset: computeBearingOffset(
-          nextGlyphMetrics,
-          baseCellConfig.value.padding.left,
-        ),
+        autoBearingOffset: computeBearingOffset(nextGlyphMetrics),
         autoDisplayWidth: computeAppendedAdvance(
           entry.autoGlyphWidth,
           nextGlyphMetrics,
@@ -2539,9 +2530,11 @@ export const useEditorStore = defineStore("editor", () => {
   watch(() => characterStyle.value.outline.width, onC3StyleChanged);
   watch(() => characterStyle.value.pixelStyle, onC3StyleChanged);
 
-  // C3 模式下 cell padding.left 被编辑时，按新 padding 重算追加字符的
-  // 水平落位与步进（offset = bearing − padding.left），避免已存 offset
-  // 漂移；值不变时 apply 内部不产生 save/render 脉冲
+  // C3 模式下 cell padding.left 被编辑时同步一次 apply：metrics 存在时
+  // offset/advance 均与 padding 无关（apply 为空操作，不产生脉冲）；
+  // metrics 缺失时 advance 回退口径 = glyphWidth + padding.left 依赖
+  // padding，需随之更新。padding.left 对落位的微调作用在渲染期直接生效，
+  // 不经过存储字段。
   watch(
     () => baseCellConfig.value.padding.left,
     () => {

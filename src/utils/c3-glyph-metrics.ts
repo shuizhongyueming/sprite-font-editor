@@ -115,21 +115,17 @@ export function computeAppendedAdvance(
 }
 
 /**
- * 水平自动偏移（全条目统一值，与 glyph 无关）。
+ * 水平自动偏移（全条目统一值，与 glyph 无关）：恒等于导入 sheet 的
+ * 实测 bearing；metrics 缺失时 0（保持旧落位）。
  *
  * 渲染链锚定原理：renderCharacterToCellUnscaled 以 alpha bbox 裁剪结果
  * 绘制（sx = rendered.sourceX），glyph ink 左缘精确落在
  * `cellPadding.left + charMargin.left`，与字体自身 ink 偏移、outline 宽度
  * 无关。追加条目渲染可见左缘 = padding.left + autoBearingOffset +
- * margin.left，要等于导入 sheet 的实测 bearing，须补偿 bearing 与
- * padding.left 的差；metrics 缺失时 0（保持旧落位）。
+ * margin.left = padding.left + bearing + margin.left：padding.left 为 0
+ * 时精确对齐导入 bearing；padding.left 是用户全局水平微调（与垂直方向
+ * padding.top + distributionOffset + margin.top 的结构对称）。
  */
-export function computeBearingOffset(
-  metrics: C3GlyphMetrics | null,
-  paddingLeft: number,
-): number {
-  if (!metrics) {
-    return 0;
-  }
-  return metrics.bearing - paddingLeft;
+export function computeBearingOffset(metrics: C3GlyphMetrics | null): number {
+  return metrics ? metrics.bearing : 0;
 }

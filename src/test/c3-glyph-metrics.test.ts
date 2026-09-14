@@ -151,14 +151,14 @@ describe('computeAppendedAdvance', () => {
 
 describe('computeBearingOffset', () => {
   it('returns 0 when metrics are missing', () => {
-    expect(computeBearingOffset(null, 4)).toBe(0)
+    expect(computeBearingOffset(null)).toBe(0)
   })
 
-  it('compensates the difference between bearing and padding.left', () => {
-    // 渲染链锚定：ink 左缘落在 padding.left + margin.left，
-    // offset = bearing − padding.left 使其精确等于导入 bearing
-    expect(computeBearingOffset({ bearing: 10, overhang: 4 }, 6)).toBe(4)
-    expect(computeBearingOffset({ bearing: 10, overhang: 4 }, 12)).toBe(-2)
-    expect(computeBearingOffset({ bearing: 2, overhang: 1 }, 0)).toBe(2)
+  it('returns the bearing itself, independent of padding', () => {
+    // 渲染可见左缘 = padding.left + offset + margin.left：
+    // padding.left 为 0 时精确对齐导入 bearing；padding 是渲染期
+    // 用户全局微调，不参与 offset
+    expect(computeBearingOffset({ bearing: 10, overhang: 4 })).toBe(10)
+    expect(computeBearingOffset({ bearing: 2, overhang: 1 })).toBe(2)
   })
 })

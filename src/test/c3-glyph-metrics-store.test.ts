@@ -81,14 +81,13 @@ describe('C3 glyph metrics alignment (issue #21)', () => {
     // 新口径 advance：round(bearing 2 + glyphWidth 8 − overhang 1) = 9
     expect(entry.autoDisplayWidth).toBe(9)
     // 渲染链锚定：ink 左缘 = padding.left + autoBearingOffset（+ margin.left），
-    // offset 为全条目统一值 bearing − padding.left
+    // offset 为全条目统一值 = bearing（padding 是渲染期用户微调，不参与 offset）
     expect(entry.autoBearingOffset).toBe(2)
     expect(entry.autoGlyphWidth).toBe(8)
 
-    // 渲染左缘不变量：padding.left + autoBearingOffset === metrics.bearing
-    expect(store.baseCellConfig.padding.left + entry.autoBearingOffset!).toBe(
-      metrics.bearing,
-    )
+    // 落位不变量：autoBearingOffset === metrics.bearing（padding.left 为 0
+    // 时渲染左缘精确等于导入 bearing）
+    expect(entry.autoBearingOffset).toBe(metrics.bearing)
     // overhang 不变量：bearing + glyphWidth − advance === metrics.overhang
     //（导入→追加、追加→导入跨界间距与组内同公式：后字 bearing − 前字 overhang）
     expect(
@@ -160,7 +159,7 @@ describe('C3 glyph metrics alignment (issue #21)', () => {
     expect(upgraded.autoDisplayWidth).toBe(9)
   })
 
-  it('recomputes the bearing offset when cell padding.left changes', async () => {
+  it('leaves stored fields unchanged when cell padding.left changes (padding is a render-time nudge)', async () => {
     const store = await importWithSheet('[[10,"A"]]')
     vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({
       width: 8,
@@ -169,19 +168,37 @@ describe('C3 glyph metrics alignment (issue #21)', () => {
       top: 0,
     })
     store.appendC3Characters(['C'])
-    // bearing 2 − padding.left 0 = 2
     expect(store.c3AppendedEntries[0].autoBearingOffset).toBe(2)
 
     store.baseCellConfig.padding.left = 3
     await nextTick()
 
-    // 重算为 bearing 2 − padding.left 3 = −1，渲染左缘不变量保持成立；
-    // metrics 存在时 advance 与 padding 无关，保持 9
+    // padding.left 的全局微调作用在渲染期（ink 左缘 = padding.left + bearing
+    // + margin.left），不改存储字段：offset 恒为 bearing、advance 不变
     const entry = store.c3AppendedEntries[0]
-    expect(entry.autoBearingOffset).toBe(-1)
+    expect(entry.autoBearingOffset).toBe(2)
     expect(entry.autoDisplayWidth).toBe(9)
-    expect(store.baseCellConfig.padding.left + entry.autoBearingOffset!).toBe(
-      store.c3ImportedGlyphMetrics!.bearing,
-    )
+  })
+
+  it('tracks padding.left in the legacy advance fallback when metrics are missing', async () => {
+    vi.spyOn(c3CompactionDom, 'imageToImageData').mockReturnValue(new ImageData(32, 32))
+    const store = await importWithSheet('[[10,"A"]]')
+    expect(store.c3ImportedGlyphMetrics).toBeNull()
+
+    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({
+      width: 8,
+      height: 12,
+      left: 2,
+      top: 0,
+    })
+    store.appendC3Characters(['C'])
+    expect(store.c3AppendedEntries[0].autoDisplayWidth).toBe(8)
+
+    store.baseCellConfig.padding.left = 3
+    await nextTick()
+
+    // metrics 缺失时 advance 回退口径 = glyphWidth + padding.left，watch 同步
+    expect(store.c3AppendedEntries[0].autoDisplayWidth).toBe(11)
+    expect(store.c3AppendedEntries[0].autoBearingOffset).toBe(0)
   })
 })

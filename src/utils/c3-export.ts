@@ -77,7 +77,13 @@ export interface C3AppendedEntry {
    * autoDisplayWidth 原值（保守迁移不补默认）。
    */
   autoGlyphWidth?: number;
-  /** 水平自动偏移：让 glyph 可见左缘对齐导入 bearing 中位数（类比垂直 distributionOffset） */
+  /**
+   * 水平自动偏移：恒等于导入 sheet 的实测 bearing 中位数（类比垂直
+   * distributionOffset）。渲染可见左缘 = padding.left + autoBearingOffset +
+   * margin.left，padding.left 为 0 时精确对齐导入 bearing；padding.left
+   * 是用户全局水平微调。旧数据缺省（undefined）时渲染按 0 处理、
+   * advance 用存量 autoDisplayWidth 原值（保守迁移不补默认）。
+   */
   autoBearingOffset?: number;
 }
 

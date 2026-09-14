@@ -61,7 +61,7 @@ describe('C3 generation restore and persistence flow', () => {
     ls = installMemoryLocalStorage()
     vi.stubGlobal('Image', LoadableImage)
     vi.spyOn(c3CompactionModule, 'verifyCanvasAlphaRoundTrip').mockReturnValue(true)
-    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({ width: 8, height: 12 })
+    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({ width: 8, height: 12, left: 2, top: 0 })
   })
 
   afterEach(() => {

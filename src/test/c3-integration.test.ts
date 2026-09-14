@@ -290,7 +290,7 @@ describe('C3 appended character vertical distribution', () => {
 
     store.importC3SpriteFont(image, rawArray, parsed)
 
-    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({ width: 8, height: 12 })
+    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({ width: 8, height: 12, left: 2, top: 0 })
     store.appendC3Characters(['A', 'B'])
 
     // Same height: distribution offsets are 0; manual margin remains untouched.
@@ -299,7 +299,7 @@ describe('C3 appended character vertical distribution', () => {
     expect(store.c3AppendedEntries[0].margin.top).toBe(0)
     expect(store.c3AppendedEntries[1].margin.top).toBe(0)
 
-    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({ width: 8, height: 6 })
+    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({ width: 8, height: 6, left: 2, top: 0 })
     store.appendC3Characters(['C'])
 
     // Heights are 12, 12, 6; max is 12.
@@ -343,7 +343,7 @@ describe('C3 appended character vertical distribution', () => {
 
     store.importC3SpriteFont(image, rawArray, parsed)
 
-    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({ width: 8, height: 6 })
+    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({ width: 8, height: 6, left: 2, top: 0 })
     store.appendC3Characters(['A'])
     store.c3AppendedEntries[0].margin.top = 4
 
@@ -380,9 +380,9 @@ describe('C3 appended character vertical distribution', () => {
     store.importC3SpriteFont(image, rawArray, parsed)
 
     const boundsSpy = vi.spyOn(c3CharRenderer, 'measureGlyphBounds')
-    boundsSpy.mockReturnValue({ width: 8, height: 12 })
+    boundsSpy.mockReturnValue({ width: 8, height: 12, left: 2, top: 0 })
     store.appendC3Characters(['A'])
-    boundsSpy.mockReturnValue({ width: 8, height: 6 })
+    boundsSpy.mockReturnValue({ width: 8, height: 6, left: 2, top: 0 })
     store.appendC3Characters(['B'])
 
     // maxHeight = 12

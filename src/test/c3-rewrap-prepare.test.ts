@@ -104,7 +104,7 @@ describe('editorStore.prepareC3Rewrap', () => {
     const store = await importSample()
     const measureSpy = vi
       .spyOn(c3CharRenderer, 'measureGlyphBounds')
-      .mockReturnValue({ width: 8, height: 12 })
+      .mockReturnValue({ width: 8, height: 12, left: 2, top: 0 })
     store.appendC3Characters(['C'])
     vi.spyOn(c3CompactionDom, 'imageToImageData').mockReturnValue(makeSourceImageData())
 

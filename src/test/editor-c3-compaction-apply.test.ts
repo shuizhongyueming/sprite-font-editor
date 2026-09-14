@@ -234,13 +234,18 @@ describe('editorStore.applyC3SpriteCompaction', () => {
     expect(result).toEqual({ ok: false, code: 'invalid-output-dimensions' })
   })
 
-  it('keeps appended entries deep-equal without remeasuring', async () => {
+  it('recomputes appended horizontal metrics against the compacted structure without remeasuring', async () => {
     const { store, plan, repacked } = await setupCompactionScenario()
-    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({ width: 8, height: 12 })
+    const measureSpy = vi
+      .spyOn(c3CharRenderer, 'measureGlyphBounds')
+      .mockReturnValue({ width: 8, height: 12, left: 2, top: 0 })
     store.appendC3Characters(['C'])
     store.updateC3AppendedExtraSpacing(0, 3)
-    const entriesBefore = JSON.parse(JSON.stringify(store.c3AppendedEntries))
-    const characterSetBefore = store.c3EffectiveCharacterSet
+    // append 对每个追加字符度量一次；此后 apply 只重实测导入 sheet，不得重测字形
+    expect(measureSpy).toHaveBeenCalledTimes(1)
+    // 导入图无内容（测试环境像素读取为空）→ 追加时 metrics 缺失，走旧口径
+    expect(store.c3AppendedEntries[0].autoDisplayWidth).toBe(8)
+    expect(store.c3AppendedEntries[0].autoBearingOffset).toBe(0)
 
     vi.spyOn(c3CompactionDom, 'encodeC3RepackedImage').mockResolvedValue(makePngBlob())
     vi.spyOn(c3CompactionDom, 'decodeC3PngBlob').mockResolvedValue(
@@ -250,11 +255,16 @@ describe('editorStore.applyC3SpriteCompaction', () => {
     const result = await store.applyC3SpriteCompaction(plan, repacked)
     expect(result.ok).toBe(true)
 
-    expect(JSON.parse(JSON.stringify(store.c3AppendedEntries))).toEqual(entriesBefore)
-    expect(store.c3EffectiveCharacterSet).toBe(characterSetBefore)
+    // apply 不重测字形（纯像素实测 + 公式重算）
+    expect(measureSpy).toHaveBeenCalledTimes(1)
+    // issue #21 有意为之的行为变化：精简改变 cell/像素布局 → metrics 变为
+    // bearing 1 / overhang 1 → autoDisplayWidth = round(1+8−1) = 8、
+    // autoBearingOffset = bearing − padding.left = 1，追加条目按新结构重算
     expect(store.c3AppendedEntries[0].autoDisplayWidth).toBe(8)
+    expect(store.c3AppendedEntries[0].autoBearingOffset).toBe(1)
     expect(store.c3AppendedEntries[0].autoGlyphHeight).toBe(12)
     expect(store.c3AppendedEntries[0].extraSpacing).toBe(3)
+    expect(store.c3AppendedEntries[0].char).toBe('C')
   })
 
   it('fails closed when verifyCanvasAlphaRoundTrip is false', async () => {

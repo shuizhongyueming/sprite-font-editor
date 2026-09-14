@@ -72,6 +72,26 @@ export interface C3AppendedEntry {
   autoGlyphHeight: number;
   extraSpacing: number;
   distributionOffset: number;
+  /**
+   * 旧数据缺省（undefined）时渲染按 0 处理、advance 用存量
+   * autoDisplayWidth 原值（保守迁移不补默认）。
+   */
+  autoGlyphWidth?: number;
+  /** 水平自动偏移：让 glyph 可见左缘对齐导入 bearing 中位数（类比垂直 distributionOffset） */
+  autoBearingOffset?: number;
+}
+
+/**
+ * 追加字符实际生效的 cell margin：垂直 = distributionOffset + margin.top，
+ * 水平 = autoBearingOffset + margin.left（issue #21，替代三处手工构造）。
+ */
+export function getC3AppendedEffectiveMargin(entry: C3AppendedEntry) {
+  return {
+    top: (entry.distributionOffset ?? 0) + entry.margin.top,
+    right: entry.margin.right,
+    bottom: entry.margin.bottom,
+    left: (entry.autoBearingOffset ?? 0) + entry.margin.left,
+  };
 }
 
 export interface ExportC3Options {
@@ -210,10 +230,7 @@ export async function exportC3SpriteFont(
         baseCellWidth: baseCellConfig.width,
         baseCellHeight: baseCellConfig.height,
         renderScale: 1,
-        charMargin: {
-          ...entry.margin,
-          top: entry.distributionOffset + entry.margin.top,
-        },
+        charMargin: getC3AppendedEffectiveMargin(entry),
         cellPadding: baseCellConfig.padding,
         fontFamily,
         fontSize: characterStyle.fontSize,

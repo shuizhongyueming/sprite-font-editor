@@ -36,6 +36,9 @@ export interface C3StoredConfig {
     autoGlyphHeight: number;
     extraSpacing: number;
     distributionOffset?: number;
+    // issue #21 水平对齐字段（旧数据缺省，保守迁移不补默认）
+    autoGlyphWidth?: number;
+    autoBearingOffset?: number;
     // 向后兼容旧数据
     displayWidth?: number;
     isDisplayWidthManual?: boolean;

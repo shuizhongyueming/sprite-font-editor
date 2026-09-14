@@ -13,6 +13,7 @@ import {
   createSampleArray,
   makePngBlob,
   makeSourceImageData,
+  makeSpriteSheetImageData,
 } from './helpers/c3-fixtures'
 import { resetFakeIndexedDB } from './fake-indexeddb'
 
@@ -60,7 +61,7 @@ describe('C3 rewrap generation commit and restore flow', () => {
 
     const measureSpy = vi
       .spyOn(c3CharRenderer, 'measureGlyphBounds')
-      .mockReturnValue({ width: 8, height: 12 })
+      .mockReturnValue({ width: 8, height: 12, left: 2, top: 0 })
     store.appendC3Characters(['C'])
     vi.spyOn(c3CompactionDom, 'imageToImageData').mockReturnValue(makeSourceImageData())
     const preparation = store.prepareC3Rewrap(16)
@@ -106,6 +107,12 @@ describe('C3 rewrap generation commit and restore flow', () => {
     expect(asset?.width).toBe(16)
     expect(asset?.height).toBe(48)
     expect(asset?.blob).toEqual(makePngBlob())
+
+    // 恢复阶段读取的是重排后的 asset：mock 换成重排布局（1 列，A/B 内容
+    // 搬到 (0,0)/(0,16)），保证恢复时重实测的水平度量与 apply 时一致
+    vi.spyOn(c3CompactionDom, 'imageToImageData').mockReturnValue(
+      makeSpriteSheetImageData(1, 3, 16, 16, 2),
+    )
 
     // 刷新：新 pinia 实例，持久化数据不动，恢复同一 active generation
     vi.stubGlobal('Image', RewrappedImage)

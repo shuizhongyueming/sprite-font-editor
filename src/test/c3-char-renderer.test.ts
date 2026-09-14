@@ -55,7 +55,7 @@ describe('c3-char-renderer', () => {
         padding: { top: 0, right: 0, bottom: 0, left: 4 },
       })
 
-      expect(bounds).toEqual({ width: 0, height: 0 })
+      expect(bounds).toEqual({ width: 0, height: 0, left: 0, top: 0 })
     })
 
     it('should detect visible glyph bounds from alpha data', () => {
@@ -72,6 +72,8 @@ describe('c3-char-renderer', () => {
 
       expect(bounds.width).toBe(3)
       expect(bounds.height).toBe(5)
+      expect(bounds.left).toBe(5)
+      expect(bounds.top).toBe(10)
 
       restore()
     })
@@ -89,7 +91,7 @@ describe('c3-char-renderer', () => {
         padding: { top: 0, right: 0, bottom: 0, left: 0 },
       })
 
-      expect(bounds).toEqual({ width: 32, height: 48 })
+      expect(bounds).toEqual({ width: 32, height: 48, left: 0, top: 0 })
 
       HTMLCanvasElement.prototype.getContext = originalGetContext
     })

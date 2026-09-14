@@ -76,7 +76,7 @@ describe('C3 compaction project round-trip', () => {
     installMemoryLocalStorage()
     vi.stubGlobal('Image', FakeImage)
     vi.spyOn(c3CompactionModule, 'verifyCanvasAlphaRoundTrip').mockReturnValue(true)
-    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({ width: 8, height: 12 })
+    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({ width: 8, height: 12, left: 2, top: 0 })
   })
 
   afterEach(() => {
@@ -219,14 +219,14 @@ describe('C3 compaction project round-trip', () => {
     expect(projectData.state.baseCellConfig.width).toBe(14)
   })
 
-  it('project round-trip preserves appended metrics without remeasuring', async () => {
+  it('recomputes auto horizontal metrics while preserving user-tuned fields across a round-trip without remeasuring', async () => {
     const store = useEditorStore()
     const image = new FakeImage(32, 32)
     const array = createSampleArray('AB', '[]')
     const parsed = parseC3InstanceArray(JSON.stringify(array))
     const measureSpy = vi
       .spyOn(c3CharRenderer, 'measureGlyphBounds')
-      .mockReturnValue({ width: 8, height: 12 })
+      .mockReturnValue({ width: 8, height: 12, left: 2, top: 0 })
     await store.importC3SpriteFont(
       image as unknown as HTMLImageElement,
       array,
@@ -240,14 +240,15 @@ describe('C3 compaction project round-trip', () => {
     store.appendC3Characters(['C'])
     const measureCallsAfterAppend = measureSpy.mock.calls.length
 
-    // 手动设置非默认 metrics/extra/margin/distribution（模拟用户调整）
+    // 手动设置非默认 metrics/extra/margin/distribution（模拟用户调整）。
+    // autoDisplayWidth/autoBearingOffset 是自动量（issue #21）：
+    // 精简 apply 时按新 sheet 结构重算覆盖，extra/margin/distribution 保持
     const entry = store.c3AppendedEntries[0]
     entry.autoDisplayWidth = 118
     entry.autoGlyphHeight = 96
     entry.extraSpacing = 5
     entry.margin = { top: 2, right: 1, bottom: 3, left: 4 }
     entry.distributionOffset = 6
-    const entriesBefore = JSON.parse(JSON.stringify(store.c3AppendedEntries))
 
     // 分析 + 应用（真实候选路径）
     vi.spyOn(c3CompactionDom, 'imageToImageData').mockReturnValue(
@@ -268,6 +269,17 @@ describe('C3 compaction project round-trip', () => {
     )
     expect(applied.ok).toBe(true)
 
+    // issue #21 有意为之：cell 缩到 14×9 后实测 bearing 1/overhang −1，
+    // 自动量重算为 autoDisplayWidth = round(1+8+1) = 10、
+    // autoBearingOffset = bearing − padding.left = 1
+    expect(store.c3AppendedEntries[0].autoDisplayWidth).toBe(10)
+    expect(store.c3AppendedEntries[0].autoBearingOffset).toBe(1)
+    // 用户调整字段不被重算触碰
+    expect(store.c3AppendedEntries[0].autoGlyphHeight).toBe(96)
+    expect(store.c3AppendedEntries[0].extraSpacing).toBe(5)
+    expect(store.c3AppendedEntries[0].margin).toEqual({ top: 2, right: 1, bottom: 3, left: 4 })
+    expect(store.c3AppendedEntries[0].distributionOffset).toBe(6)
+
     // export → import
     const files = await buildProjectFiles(store)
     const map = new Map<string, Blob>()
@@ -280,6 +292,19 @@ describe('C3 compaction project round-trip', () => {
       files.projectJson.c3Instance!,
       new Blob([JSON.stringify(files.c3InstanceArray, null, 2)]),
     )
+
+    // 恢复阶段读取精简后的 asset：mock 换成 14 宽 cell 的精简布局
+    //（内容相对新 cell 左缘 x=1..12，与 repack 裁剪结果一致），
+    // 保证恢复时重实测 metrics 与 apply 时一致（bearing 1/overhang −1）
+    const compactedSheet = new ImageData(32, 9)
+    for (const originX of [0, 14]) {
+      for (let y = 0; y <= 7; y++) {
+        for (let x = 1; x <= 12; x++) {
+          compactedSheet.data[(y * 32 + originX + x) * 4 + 3] = 255
+        }
+      }
+    }
+    vi.spyOn(c3CompactionDom, 'imageToImageData').mockReturnValue(compactedSheet)
     const projectData = await parseProjectFiles(
       map,
       createMockImageLoader(32, 9),
@@ -289,10 +314,14 @@ describe('C3 compaction project round-trip', () => {
     const target = useEditorStore()
     await target.applyProject(projectData)
 
-    // appended metrics/extra/margin/distribution 逐字段相同，且未重测
+    // 自动水平量经导出/导入保持重算后的值，用户调整字段逐字段保持，且未重测
     expect(
       JSON.parse(JSON.stringify(target.c3AppendedEntries)),
-    ).toEqual(entriesBefore)
+    ).toEqual(JSON.parse(JSON.stringify(store.c3AppendedEntries)))
+    expect(target.c3AppendedEntries[0].autoDisplayWidth).toBe(10)
+    expect(target.c3AppendedEntries[0].autoBearingOffset).toBe(1)
+    expect(target.c3AppendedEntries[0].autoGlyphHeight).toBe(96)
+    expect(target.c3AppendedEntries[0].extraSpacing).toBe(5)
     expect(measureSpy.mock.calls.length).toBe(measureCallsAfterAppend)
   })
 })

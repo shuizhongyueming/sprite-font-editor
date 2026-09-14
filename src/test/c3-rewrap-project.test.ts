@@ -29,6 +29,8 @@ async function importAndRewrap(store: ReturnType<typeof useEditorStore>) {
   const image = new FakeImage(32, 32)
   const array = createSampleArray('AB', '[[10,"A"]]')
   const parsed = parseC3InstanceArray(JSON.stringify(array))
+  // import 时即 mock 原始 32×32 两列布局：导入路径实测 metrics（bearing 2/overhang 1）
+  vi.spyOn(c3CompactionDom, 'imageToImageData').mockReturnValue(makeSourceImageData())
   await store.importC3SpriteFont(
     image as unknown as HTMLImageElement,
     array,
@@ -47,7 +49,6 @@ async function importAndRewrap(store: ReturnType<typeof useEditorStore>) {
   const entriesBefore = JSON.parse(JSON.stringify(store.c3AppendedEntries))
   const effectiveSetBefore = store.c3EffectiveCharacterSet
 
-  vi.spyOn(c3CompactionDom, 'imageToImageData').mockReturnValue(makeSourceImageData())
   const preparation = store.prepareC3Rewrap(16)
   if (preparation.kind !== 'plan') {
     throw new Error('expected a rewrap plan')
@@ -58,6 +59,12 @@ async function importAndRewrap(store: ReturnType<typeof useEditorStore>) {
   )
   const result = await store.applyC3SpriteRewrap(preparation.plan, preparation.repacked)
   expect(result.ok).toBe(true)
+
+  // 后续 project 导入/再分析读取的是重排后的 asset：mock 换成 1 列布局
+  // （A/B 内容搬到 (0,0)/(0,16)），保证恢复时重实测 metrics 与 apply 时一致
+  vi.spyOn(c3CompactionDom, 'imageToImageData').mockReturnValue(
+    makeSpriteSheetImageData(1, 3, 16, 16, 2),
+  )
 
   return { entriesBefore, effectiveSetBefore, plan: preparation.plan }
 }
@@ -80,7 +87,7 @@ describe('C3 rewrap project round-trip', () => {
     installMemoryLocalStorage()
     vi.stubGlobal('Image', FakeImage)
     vi.spyOn(c3CompactionModule, 'verifyCanvasAlphaRoundTrip').mockReturnValue(true)
-    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({ width: 8, height: 12 })
+    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({ width: 8, height: 12, left: 2, top: 0 })
   })
 
   afterEach(() => {

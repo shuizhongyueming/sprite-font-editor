@@ -451,4 +451,102 @@ describe("project import/export", () => {
     expect(targetStore.c3AppendedEntries[0].margin.top).toBe(0);
     expect(targetStore.c3AppendedEntries[1].margin.top).toBe(0);
   });
+
+  it("should keep legacy appended entries on the old advance without issue-21 horizontal fields", async () => {
+    const array = createC3Array("AB");
+
+    // 旧 project.json：追加条目缺 issue #21 水平字段（autoGlyphWidth/
+    // autoBearingOffset），advance 为存量旧值
+    const legacyProjectJson = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      appVersion: "0.4.0",
+      mode: "c3",
+      image: "c3-sprite.png",
+      c3Instance: "c3-instance.json",
+      state: {
+        baseCellConfig: {
+          width: 16,
+          height: 16,
+          margin: { top: 0, right: 0, bottom: 0, left: 0 },
+          padding: { top: 0, right: 0, bottom: 0, left: 0 },
+        },
+        baseImageConfig: {
+          margin: { top: 0, right: 0, bottom: 0, left: 0 },
+          padding: { top: 0, right: 0, bottom: 0, left: 0 },
+          fontSpriteWidth: 64,
+          fontSpriteHeight: 64,
+        },
+        cellAlignment: { horizontal: "left", vertical: "middle" },
+        characterStyle: {
+          fontFamily: "Arial",
+          fontSize: 16,
+          color: "#000000",
+          outline: { enabled: false, color: "#ffffff", width: 1 },
+          pixelStyle: false,
+        },
+        insertPointConfig: { mode: "auto", startCellIndex: 0 },
+        gridConfig: {
+          enabled: true,
+          cellBorder: true,
+          cellBorderColor: "rgba(0, 255, 0, 0.5)",
+          cellBorderWidth: 1,
+          marginLines: false,
+          marginLineColor: "rgba(255, 0, 0, 0.3)",
+          paddingLines: false,
+          paddingLineColor: "rgba(0, 0, 255, 0.3)",
+        },
+        canvasBg: "white" as const,
+        canvasViewMode: "fit" as const,
+        originalImageWidth: 64,
+        originalImageHeight: 64,
+        baseImageFilename: "c3-sprite.png",
+        importedCharacterSet: "AB",
+        importedSpacingData: "[]",
+        importedCharacterSpacing: 0,
+        importedLineHeight: 0,
+        c3GlobalExtraSpacing: 0,
+        c3AppendedEntries: [
+          {
+            char: "C",
+            margin: { top: 0, right: 0, bottom: 0, left: 3 },
+            autoDisplayWidth: 8,
+            autoGlyphHeight: 12,
+            extraSpacing: 2,
+          },
+        ],
+      },
+    };
+
+    const map = new Map<string, Blob>();
+    map.set(
+      "project.json",
+      new Blob([JSON.stringify(legacyProjectJson, null, 2)]),
+    );
+    map.set("c3-sprite.png", new Blob(["image"]));
+    map.set(
+      "c3-instance.json",
+      new Blob([JSON.stringify(array, null, 2)]),
+    );
+
+    const projectData = await parseProjectFiles(
+      map,
+      createMockImageLoader(64, 64),
+    );
+
+    setActivePinia(createPinia());
+    const targetStore = useEditorStore();
+    await targetStore.applyProject(projectData);
+
+    // 保守迁移（issue #21）：缺字段的条目保持旧 advance 原值，不补默认数值
+    const entry = targetStore.c3AppendedEntries[0];
+    expect(entry.autoDisplayWidth).toBe(8);
+    expect(entry.autoBearingOffset).toBeUndefined();
+    expect(entry.autoGlyphWidth).toBeUndefined();
+    // 渲染侧按 0 处理：effective margin.left = 存量 margin.left（无 bearing 偏移）
+    expect(targetStore.getEffectiveCharMargin(0).left).toBe(3);
+    expect(targetStore.getEffectiveCharMargin(0).top).toBe(0);
+    // 用户调整的 extraSpacing 不被动
+    expect(entry.extraSpacing).toBe(2);
+  });
 });

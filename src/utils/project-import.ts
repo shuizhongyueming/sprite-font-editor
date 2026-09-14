@@ -359,6 +359,10 @@ export function migrateAppendedEntries(
     autoGlyphHeight?: number;
     extraSpacing?: number;
     distributionOffset?: number;
+    // issue #21 水平对齐字段：旧数据缺省时保持 undefined（保守迁移），
+    // 渲染侧按 0 处理、advance 用存量 autoDisplayWidth 原值
+    autoGlyphWidth?: number;
+    autoBearingOffset?: number;
     displayWidth?: number;
     isDisplayWidthManual?: boolean;
   }>,
@@ -376,6 +380,12 @@ export function migrateAppendedEntries(
       autoGlyphHeight: entry.autoGlyphHeight ?? 0,
       extraSpacing,
       distributionOffset: entry.distributionOffset ?? 0,
+      ...(entry.autoGlyphWidth !== undefined
+        ? { autoGlyphWidth: entry.autoGlyphWidth }
+        : {}),
+      ...(entry.autoBearingOffset !== undefined
+        ? { autoBearingOffset: entry.autoBearingOffset }
+        : {}),
     };
   });
 }

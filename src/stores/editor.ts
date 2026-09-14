@@ -14,10 +14,17 @@ import { detectGridFast } from "@/utils/grid-detector";
 import { notify } from "@/utils/notification";
 import { t } from "@/utils/i18n";
 import { splitGraphemes } from "@/utils/grapheme";
-import { computeAutoFitSpriteSize } from "@/utils/canvas";
+import { computeAutoFitSpriteSize, CanvasSpace } from "@/utils/canvas";
 import { measureGlyphBounds } from "@/utils/c3-char-renderer";
-import { buildC3InstanceArray } from "@/utils/c3-export";
+import { buildC3InstanceArray, getC3AppendedEffectiveMargin } from "@/utils/c3-export";
 import type { C3AppendedEntry } from "@/utils/c3-export";
+import {
+  computeAppendedAdvance,
+  computeBearingOffset,
+  measureImportedGlyphMetrics,
+  type C3GlyphCellProbe,
+  type C3GlyphMetrics,
+} from "@/utils/c3-glyph-metrics";
 import type { C3InstanceArray, C3ParsedData } from "@/utils/c3-parser";
 import {
   analyzeC3SpriteCompaction,
@@ -401,6 +408,9 @@ export const useEditorStore = defineStore("editor", () => {
     "middle",
   );
   const c3AppendedEntries = ref<C3AppendedEntry[]>([]);
+  // 导入 sheet 实测水平度量（bearing/overhang 中位数，issue #21）；
+  // 图片不可读/无内容时为 null，追加字符回退旧口径
+  const c3ImportedGlyphMetrics = ref<C3GlyphMetrics | null>(null);
 
   // 项目导入来源（文件夹句柄，仅通过 showDirectoryPicker 导入时存在）
   const projectDirectoryHandle = ref<FileSystemDirectoryHandle | null>(null);
@@ -655,6 +665,133 @@ export const useEditorStore = defineStore("editor", () => {
     c3GlobalExtraSpacing.value = 0;
     c3AppendedVerticalAlignment.value = "middle";
     c3AppendedEntries.value = [];
+    c3ImportedGlyphMetrics.value = null;
+  }
+
+  // 解析 imported spacingData 为 char → advance 映射（解析失败返回空表，
+  // 度量实测退回默认 advance = characterWidth；与 C3Preview 同一解析口径）
+  function parseImportedSpacingMap(spacingData: string): Map<string, number> {
+    const map = new Map<string, number>();
+    if (!spacingData) return map;
+    try {
+      const tuples = JSON.parse(spacingData) as Array<[number, string]>;
+      for (const [width, chars] of tuples) {
+        for (const char of splitGraphemes(chars)) {
+          map.set(char, width);
+        }
+      }
+    } catch (error) {
+      console.error("[Editor] Failed to parse imported spacing data:", error);
+    }
+    return map;
+  }
+
+  /**
+   * 纯计算：用给定 ImageData + cell/image 配置 + spacingData 实测导入 sheet
+   * 的整体 bearing/overhang 中位数（不写任何 ref，供 apply 在事务边界内
+   * 预计算，refreshC3GlyphMetrics 与精简/重排 apply 共用同一探针构造）。
+   */
+  function measureC3GlyphMetricsFromImage(
+    imageData: ImageData,
+    cellConfig: BaseCellConfig,
+    imageConfig: BaseImageConfig,
+    spacingData: string,
+  ): C3GlyphMetrics | null {
+    const canvasSpace = new CanvasSpace(
+      Math.max(imageData.width, imageConfig.fontSpriteWidth || 0),
+      Math.max(imageData.height, imageConfig.fontSpriteHeight || 0),
+      cellConfig.width,
+      cellConfig.height,
+      cellConfig.margin,
+      imageConfig.margin,
+      imageConfig.padding,
+      imageConfig.fontSpriteWidth,
+      imageConfig.fontSpriteHeight,
+    );
+
+    const importedChars = splitGraphemes(importedCharacterSet.value);
+    const spacingMap = parseImportedSpacingMap(spacingData);
+    const cells: C3GlyphCellProbe[] = importedChars.map((char, index) => {
+      const { row, col } = canvasSpace.indexToRowCol(index);
+      const position = canvasSpace.getCellPosition(row, col);
+      return {
+        originX: position.x,
+        originY: position.y,
+        width: cellConfig.width,
+        height: cellConfig.height,
+        advance: spacingMap.get(char) ?? cellConfig.width,
+      };
+    });
+
+    return measureImportedGlyphMetrics(imageData, cells);
+  }
+
+  /**
+   * 用当前 baseCellConfig/baseImageConfig/importedSpacingData 实测导入
+   * sheet 的整体 bearing/overhang 中位数并存入 ref。imageData 缺省时从
+   * c3ImportedImage 读取；图片不可读或无有效 cell 时置 null，调用方回退
+   * 旧口径。精简/重排 apply 改用 repacked 直接调
+   * measureC3GlyphMetricsFromImage（新配置在事务边界内预计算）。
+   */
+  function refreshC3GlyphMetrics(imageData?: ImageData) {
+    if (!isC3Mode.value || !c3InstanceArray.value) {
+      c3ImportedGlyphMetrics.value = null;
+      return;
+    }
+
+    const data =
+      imageData ??
+      (c3ImportedImage.value ? imageToImageData(c3ImportedImage.value) : null);
+    if (!data) {
+      c3ImportedGlyphMetrics.value = null;
+      return;
+    }
+
+    c3ImportedGlyphMetrics.value = measureC3GlyphMetricsFromImage(
+      data,
+      baseCellConfig.value,
+      baseImageConfig.value,
+      importedSpacingData.value,
+    );
+  }
+
+  /**
+   * metrics 变化后，把带 autoGlyphWidth 的追加条目（旧条目缺字段跳过，
+   * 保持旧行为）按新结构重算水平落位与步进，随后持久化并触发一次重绘。
+   * offset 为全条目统一值（bearing − padding.left，与 glyph 无关）。
+   * 确有条目被修改时才收尾，避免无效 save/render 脉冲。
+   */
+  function applyC3GlyphMetricsToEntries() {
+    const metrics = c3ImportedGlyphMetrics.value;
+    let changed = false;
+
+    for (const entry of c3AppendedEntries.value) {
+      if (entry.autoGlyphWidth === undefined) {
+        continue;
+      }
+      const nextOffset = computeBearingOffset(
+        metrics,
+        baseCellConfig.value.padding.left,
+      );
+      const nextAdvance = computeAppendedAdvance(
+        entry.autoGlyphWidth,
+        metrics,
+        baseCellConfig.value.padding.left,
+      );
+      if (
+        entry.autoBearingOffset !== nextOffset ||
+        entry.autoDisplayWidth !== nextAdvance
+      ) {
+        entry.autoBearingOffset = nextOffset;
+        entry.autoDisplayWidth = nextAdvance;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      saveToLocalStorage();
+      renderTrigger.value++;
+    }
   }
 
   // 导入 C3 Sprite Font
@@ -720,6 +857,10 @@ export const useEditorStore = defineStore("editor", () => {
       height: image.naturalHeight || image.height,
     });
 
+    // 导入图片就绪后实测导入 sheet 水平度量（entries 尚为空，apply 为空操作）
+    refreshC3GlyphMetrics();
+    applyC3GlyphMetricsToEntries();
+
     renderTrigger.value++;
   }
 
@@ -776,10 +917,22 @@ export const useEditorStore = defineStore("editor", () => {
       return {
         char,
         margin: { top: 0, right: 0, bottom: 0, left: 0 },
-        autoDisplayWidth: bounds.width + baseCellConfig.value.padding.left,
+        autoDisplayWidth: computeAppendedAdvance(
+          bounds.width,
+          c3ImportedGlyphMetrics.value,
+          baseCellConfig.value.padding.left,
+        ),
         autoGlyphHeight: bounds.height,
         extraSpacing: 0,
         distributionOffset: 0,
+        // 记录 glyph 视觉宽，供 metrics 变化后重算 advance（issue #21）；
+        // 水平偏移锚定渲染链（ink 左缘 = padding.left + margin.left），
+        // 为全条目统一值 bearing − padding.left
+        autoGlyphWidth: bounds.width,
+        autoBearingOffset: computeBearingOffset(
+          c3ImportedGlyphMetrics.value,
+          baseCellConfig.value.padding.left,
+        ),
       };
     });
 
@@ -821,17 +974,14 @@ export const useEditorStore = defineStore("editor", () => {
     renderTrigger.value++;
   }
 
-  // 获取追加字符实际生效的边距（包含自动分布偏移）
+  // 获取追加字符实际生效的边距（垂直分布偏移 + 水平 bearing 对齐偏移）
   function getEffectiveCharMargin(index: number) {
     const entry = c3AppendedEntries.value[index];
     if (!entry) {
       return { top: 0, right: 0, bottom: 0, left: 0 };
     }
 
-    return {
-      ...entry.margin,
-      top: entry.distributionOffset + entry.margin.top,
-    };
+    return getC3AppendedEffectiveMargin(entry);
   }
 
   // 更新追加字符的额外间距
@@ -871,7 +1021,9 @@ export const useEditorStore = defineStore("editor", () => {
     renderTrigger.value++;
   }
 
-  // 重新计算所有追加字符的自动显示宽度与可见高度
+  // 重新计算所有追加字符的自动显示宽度与可见高度，
+  // 并同步刷新水平落位字段（left/width/offset/advance，issue #21；
+  // 旧条目借此机会升级出新字段）
   function recalculateC3AppendedVerticalMetrics() {
     if (!isC3Mode.value) return;
 
@@ -889,7 +1041,16 @@ export const useEditorStore = defineStore("editor", () => {
         outline: characterStyle.value.outline,
       });
 
-      entry.autoDisplayWidth = bounds.width + baseCellConfig.value.padding.left;
+      entry.autoGlyphWidth = bounds.width;
+      entry.autoBearingOffset = computeBearingOffset(
+        c3ImportedGlyphMetrics.value,
+        baseCellConfig.value.padding.left,
+      );
+      entry.autoDisplayWidth = computeAppendedAdvance(
+        bounds.width,
+        c3ImportedGlyphMetrics.value,
+        baseCellConfig.value.padding.left,
+      );
       entry.autoGlyphHeight = bounds.height;
     }
 
@@ -1394,7 +1555,9 @@ export const useEditorStore = defineStore("editor", () => {
     );
   }
 
-  // 迁移旧版追加字符数据：补全 autoGlyphHeight、distributionOffset 并从 displayWidth 推导出 extraSpacing
+  // 迁移旧版追加字符数据：补全 autoGlyphHeight、distributionOffset 并从 displayWidth 推导出 extraSpacing。
+  // issue #21 水平字段（autoGlyphWidth/autoBearingOffset）保守迁移：
+  // 旧数据缺省保持 undefined，渲染按 0 处理、advance 用存量 autoDisplayWidth 原值。
   function migrateAppendedEntries(
     entries: Array<{
       char: string;
@@ -1403,6 +1566,8 @@ export const useEditorStore = defineStore("editor", () => {
       autoGlyphHeight?: number;
       extraSpacing?: number;
       distributionOffset?: number;
+      autoGlyphWidth?: number;
+      autoBearingOffset?: number;
       displayWidth?: number;
       isDisplayWidthManual?: boolean;
     }>,
@@ -1435,6 +1600,12 @@ export const useEditorStore = defineStore("editor", () => {
         autoGlyphHeight: entry.autoGlyphHeight ?? 0,
         extraSpacing,
         distributionOffset,
+        ...(entry.autoGlyphWidth !== undefined
+          ? { autoGlyphWidth: entry.autoGlyphWidth }
+          : {}),
+        ...(entry.autoBearingOffset !== undefined
+          ? { autoBearingOffset: entry.autoBearingOffset }
+          : {}),
       };
     });
   }
@@ -1487,6 +1658,9 @@ export const useEditorStore = defineStore("editor", () => {
             baseImageMimeType.value =
               imageAsset.mimeType || imageAsset.blob.type;
             URL.revokeObjectURL(url);
+            // 图片就绪后重实测导入水平度量并应用到追加条目
+            refreshC3GlyphMetrics();
+            applyC3GlyphMetricsToEntries();
           };
           img.onerror = () => {
             URL.revokeObjectURL(url);
@@ -1665,7 +1839,9 @@ export const useEditorStore = defineStore("editor", () => {
 
       // 不重测/重分布：已持久化的 appended metrics（autoDisplayWidth、
       // autoGlyphHeight、extraSpacing、distributionOffset）原样保留。
-      // 旧数据缺省字段由 migrateAppendedEntries 补齐。
+      // 旧数据缺省字段由 migrateAppendedEntries 补齐；issue #21 水平字段
+      // （autoGlyphWidth/autoBearingOffset）保守迁移不补默认，
+      // 图片就绪后仅对带新字段的条目按当前 sheet 结构重算水平自动量。
 
       setC3ImportedImage(project.image);
       await persistC3Generation({
@@ -1673,6 +1849,10 @@ export const useEditorStore = defineStore("editor", () => {
         width: project.image.naturalWidth,
         height: project.image.naturalHeight,
       });
+      // 图片就绪后实测导入水平度量：存量新字段条目按当前 sheet 结构重算，
+      // 缺字段旧条目跳过（apply 内部判断），保持迁移后的旧行为
+      refreshC3GlyphMetrics();
+      applyC3GlyphMetricsToEntries();
     }
 
     if (project.font) {
@@ -1918,6 +2098,34 @@ export const useEditorStore = defineStore("editor", () => {
       fontSpriteHeight: plan.newFinalTextureHeight,
     };
 
+    // cell 尺寸与像素布局已变：用 repacked + 新配置/清理后 spacing 纯计算
+    // 新基线水平度量（不触碰任何 ref，保持 fail-closed），追加条目随之重算。
+    // 结果注入下方 stage 的 c3Config，使提交的唯一 generation 即最终基线，
+    // 避免提交后再异步补写第二个 generation（issue #21）
+    const nextGlyphMetrics = measureC3GlyphMetricsFromImage(
+      repacked,
+      newCellConfig,
+      newImageConfig,
+      cleanedSpacing,
+    );
+    const nextAppendedEntries = c3AppendedEntries.value.map((entry) => {
+      if (entry.autoGlyphWidth === undefined) {
+        return entry;
+      }
+      return {
+        ...entry,
+        autoBearingOffset: computeBearingOffset(
+          nextGlyphMetrics,
+          newCellConfig.padding.left,
+        ),
+        autoDisplayWidth: computeAppendedAdvance(
+          entry.autoGlyphWidth,
+          nextGlyphMetrics,
+          newCellConfig.padding.left,
+        ),
+      };
+    });
+
     // 候选持久化：stage 全部成功后 commit 指针（唯一提交点），
     // 与其它 generation 提交串行；commit 成功后仅做 best-effort 清理
     const stagedId = await runExclusiveC3Commit(async () => {
@@ -1932,6 +2140,7 @@ export const useEditorStore = defineStore("editor", () => {
           ...buildC3Config(),
           instanceArrayJson: JSON.stringify(newInstanceArray),
           importedSpacingData: cleanedSpacing,
+          appendedEntries: nextAppendedEntries,
           originalImageWidth: repacked.width,
           originalImageHeight: repacked.height,
         },
@@ -1972,6 +2181,9 @@ export const useEditorStore = defineStore("editor", () => {
     originalImageWidth.value = repacked.width;
     originalImageHeight.value = repacked.height;
     baseImageMimeType.value = targetMimeType;
+    // 提交前已实测的度量与重算条目一并生效（单 generation，无需再补写）
+    c3ImportedGlyphMetrics.value = nextGlyphMetrics;
+    c3AppendedEntries.value = nextAppendedEntries;
 
     // 清除瞬时选择态，刷新画布尺寸并触发一次重绘
     selectedCharIndex.value = null;
@@ -2098,8 +2310,11 @@ export const useEditorStore = defineStore("editor", () => {
    * 重新解码为可加载图片、候选持久化 stage + 指针 commit。
    * 指针提交成功后同步替换 refs（不可失败），旧 generation 尽力清理。
    * 任何失败：内存与持久化原状态均保持不变，返回 typed fail-closed 错误。
-   * 重排不改 cell 尺寸：c3-instance、spacingData、baseCellConfig 逐字节不变，
-   * 追加字符条目原样保留，按 canvasSpace 新列数自动落位重渲染（不重测）。
+   * 重排不改 cell 尺寸：c3-instance、spacingData、baseCellConfig 逐字节不变。
+   * 追加字符条目保留（不重测字形），按 canvasSpace 新列数自动落位重渲染；
+   * issue #21：仅重实测导入水平度量（像素与 cell 不变 → 度量一致 → 条目值
+   * 不变），带新字段条目的 autoBearingOffset/autoDisplayWidth 随之重算并随
+   * 本次提交持久化。
    */
   async function applyC3SpriteRewrap(
     plan: C3RewrapPlan,
@@ -2148,6 +2363,34 @@ export const useEditorStore = defineStore("editor", () => {
       fontSpriteHeight: repacked.height,
     };
 
+    // 重排不改 cell 尺寸与像素内容：用 repacked + 新 imageConfig + 不变 cell
+    // 纯计算重实测水平度量（不触碰任何 ref，保持 fail-closed；metrics 一致时
+    // 条目值不变，deep-equal 不变量），结果注入 stage 的 c3Config——提交的
+    // 唯一 generation 即最终基线，避免事后再异步补写（issue #21）
+    const nextGlyphMetrics = measureC3GlyphMetricsFromImage(
+      repacked,
+      baseCellConfig.value,
+      newImageConfig,
+      importedSpacingData.value,
+    );
+    const nextAppendedEntries = c3AppendedEntries.value.map((entry) => {
+      if (entry.autoGlyphWidth === undefined) {
+        return entry;
+      }
+      return {
+        ...entry,
+        autoBearingOffset: computeBearingOffset(
+          nextGlyphMetrics,
+          baseCellConfig.value.padding.left,
+        ),
+        autoDisplayWidth: computeAppendedAdvance(
+          entry.autoGlyphWidth,
+          nextGlyphMetrics,
+          baseCellConfig.value.padding.left,
+        ),
+      };
+    });
+
     // 候选持久化：stage 全部成功后 commit 指针（唯一提交点），
     // 与其它 generation 提交串行；commit 成功后仅做 best-effort 清理
     const stagedId = await runExclusiveC3Commit(async () => {
@@ -2159,6 +2402,7 @@ export const useEditorStore = defineStore("editor", () => {
         },
         c3Config: {
           ...buildC3Config(),
+          appendedEntries: nextAppendedEntries,
           originalImageWidth: repacked.width,
           originalImageHeight: repacked.height,
         },
@@ -2196,6 +2440,9 @@ export const useEditorStore = defineStore("editor", () => {
     originalImageWidth.value = repacked.width;
     originalImageHeight.value = repacked.height;
     baseImageMimeType.value = targetMimeType;
+    // 提交前已实测的度量与重算条目一并生效（单 generation，无需再补写）
+    c3ImportedGlyphMetrics.value = nextGlyphMetrics;
+    c3AppendedEntries.value = nextAppendedEntries;
 
     // 清除瞬时选择态，刷新画布尺寸并触发一次重绘
     selectedCharIndex.value = null;
@@ -2347,6 +2594,7 @@ export const useEditorStore = defineStore("editor", () => {
     c3GlobalExtraSpacing,
     c3AppendedVerticalAlignment,
     c3AppendedEntries,
+    c3ImportedGlyphMetrics,
     c3EffectiveCharacterSet,
     c3EffectiveSpacingData,
     c3ExportInstanceArray,

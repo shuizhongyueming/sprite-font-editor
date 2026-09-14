@@ -21,6 +21,9 @@ async function setupRewrapScenario(options?: { filename?: string; mimeType?: str
   const image = new FakeImage(32, 32)
   const array = createSampleArray('AB', '[[10,"A"]]')
   const parsed = parseC3InstanceArray(JSON.stringify(array))
+  // import 时即 mock 像素读取：导入路径实测的水平度量（bearing 2/overhang 1）
+  // 与重排后 repacked 实测结果一致，验证「像素与 cell 不变 → 条目不变」不变量
+  vi.spyOn(c3CompactionDom, 'imageToImageData').mockReturnValue(makeSourceImageData())
   await store.importC3SpriteFont(
     image as unknown as HTMLImageElement,
     array,
@@ -32,7 +35,6 @@ async function setupRewrapScenario(options?: { filename?: string; mimeType?: str
     makePngBlob(),
   )
 
-  vi.spyOn(c3CompactionDom, 'imageToImageData').mockReturnValue(makeSourceImageData())
   const preparation = store.prepareC3Rewrap(16)
   if (preparation.kind !== 'plan') {
     throw new Error('expected a rewrap plan')
@@ -173,7 +175,7 @@ describe('editorStore.applyC3SpriteRewrap', () => {
     const { store } = await setupRewrapScenario()
     const measureSpy = vi
       .spyOn(c3CharRenderer, 'measureGlyphBounds')
-      .mockReturnValue({ width: 8, height: 12 })
+      .mockReturnValue({ width: 8, height: 12, left: 2, top: 0 })
     store.appendC3Characters(['C'])
     store.updateC3AppendedExtraSpacing(0, 3)
     // append 对每个追加字符度量一次；此后 prepare/apply 均不得重测
@@ -199,7 +201,9 @@ describe('editorStore.applyC3SpriteRewrap', () => {
     expect(store.baseImageConfig.fontSpriteHeight).toBe(48)
     expect(JSON.parse(JSON.stringify(store.c3AppendedEntries))).toEqual(entriesBefore)
     expect(store.c3EffectiveCharacterSet).toBe(characterSetBefore)
-    expect(store.c3AppendedEntries[0].autoDisplayWidth).toBe(8)
+    // issue #21 新口径：导入时实测 metrics（bearing 2/overhang 1）→
+    // advance = round(2 + 8 − 1) = 9；重排后像素与 cell 不变，条目值保持
+    expect(store.c3AppendedEntries[0].autoDisplayWidth).toBe(9)
     expect(store.c3AppendedEntries[0].autoGlyphHeight).toBe(12)
     expect(store.c3AppendedEntries[0].extraSpacing).toBe(3)
   })

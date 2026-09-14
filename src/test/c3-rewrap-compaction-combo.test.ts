@@ -114,7 +114,7 @@ describe('C3 rewrap × compaction combination', () => {
     installMemoryLocalStorage()
     vi.stubGlobal('Image', FakeImage)
     vi.spyOn(c3CompactionModule, 'verifyCanvasAlphaRoundTrip').mockReturnValue(true)
-    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({ width: 8, height: 12 })
+    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({ width: 8, height: 12, left: 2, top: 0 })
   })
 
   afterEach(() => {
@@ -124,7 +124,7 @@ describe('C3 rewrap × compaction combination', () => {
 
   it('compact then rewrap produces a valid generation', async () => {
     const store = useEditorStore()
-    const entriesBefore = await importSample(store)
+    await importSample(store)
 
     // 1) 精简：32×32 → cell 14×9（fontSpriteWidth 保持 32，导入基图 32×9）
     const compactSource = makeSpriteSheetImageData(2, 1, 16, 16, 2)
@@ -157,7 +157,15 @@ describe('C3 rewrap × compaction combination', () => {
     expect(store.baseImageConfig.fontSpriteHeight).toBe(18)
     expect(store.baseImageConfig.margin).toEqual({ top: 0, right: 0, bottom: 0, left: 0 })
     expect(store.baseImageConfig.padding).toEqual({ top: 0, right: 0, bottom: 0, left: 0 })
-    expect(JSON.parse(JSON.stringify(store.c3AppendedEntries))).toEqual(entriesBefore)
+    // issue #21：精简改变 cell/像素布局 → 追加条目水平度量按新结构重算
+    // （新 cell 14 宽下实测 bearing 1/overhang 1 → offset 1、width 8），
+    // 用户调整的 extraSpacing/margin/distributionOffset 原样保留
+    expect(store.c3AppendedEntries[0].char).toBe('C')
+    expect(store.c3AppendedEntries[0].autoBearingOffset).toBe(1)
+    expect(store.c3AppendedEntries[0].autoDisplayWidth).toBe(8)
+    expect(store.c3AppendedEntries[0].extraSpacing).toBe(3)
+    expect(store.c3AppendedEntries[0].margin).toEqual({ top: 2, right: 1, bottom: 3, left: 4 })
+    expect(store.c3AppendedEntries[0].distributionOffset).toBe(6)
 
     // 2) 重排：14×9 cell 基线（32×18，2 列）→ 目标 16（⌊16/14⌋=1 列）
     // 精简后的导入基图带右侧透明余量（28 用过列 < 32 fontSpriteWidth）
@@ -194,8 +202,14 @@ describe('C3 rewrap × compaction combination', () => {
     expect(store.baseImageConfig.padding).toEqual({ top: 0, right: 0, bottom: 0, left: 0 })
     expect(store.originalImageWidth).toBe(16)
     expect(store.originalImageHeight).toBe(27)
-    // 追加字符原样保留，按最终布局渲染：cellIndex 2、1 列 → (0, 18)
-    expect(JSON.parse(JSON.stringify(store.c3AppendedEntries))).toEqual(entriesBefore)
+    // 追加字符按最终布局渲染：cellIndex 2、1 列 → (0, 18)
+    // 重排不改 cell/像素内容：重实测 metrics（bearing 2/overhang 2）后
+    // 条目重算值与上一步一致（offset 2、width 8），用户调整字段保持
+    expect(store.c3AppendedEntries[0].autoBearingOffset).toBe(2)
+    expect(store.c3AppendedEntries[0].autoDisplayWidth).toBe(8)
+    expect(store.c3AppendedEntries[0].extraSpacing).toBe(3)
+    expect(store.c3AppendedEntries[0].margin).toEqual({ top: 2, right: 1, bottom: 3, left: 4 })
+    expect(store.c3AppendedEntries[0].distributionOffset).toBe(6)
     expect(store.c3EffectiveCharacterSet).toBe('ABC')
     expect(appendedCellPosition(store, 0)).toEqual({ x: 0, y: 18 })
 
@@ -213,7 +227,7 @@ describe('C3 rewrap × compaction combination', () => {
 
   it('rewrap then compact produces a valid generation', async () => {
     const store = useEditorStore()
-    const entriesBefore = await importSample(store)
+    await importSample(store)
 
     // 1) 重排：32×32（2 列）→ 目标 16（1 列，3 行密铺 48 高）
     const rewrapSource = makeSpriteSheetImageData(2, 1, 16, 16, 2)
@@ -245,7 +259,13 @@ describe('C3 rewrap × compaction combination', () => {
     expect(store.baseImageConfig.fontSpriteHeight).toBe(48)
     expect(store.baseImageConfig.margin).toEqual({ top: 0, right: 0, bottom: 0, left: 0 })
     expect(store.baseImageConfig.padding).toEqual({ top: 0, right: 0, bottom: 0, left: 0 })
-    expect(JSON.parse(JSON.stringify(store.c3AppendedEntries))).toEqual(entriesBefore)
+    // issue #21：重排后重实测 metrics（bearing 2/overhang 1）→
+    // 条目按新结构重算（offset 2、width 9），用户调整字段保持
+    expect(store.c3AppendedEntries[0].autoBearingOffset).toBe(2)
+    expect(store.c3AppendedEntries[0].autoDisplayWidth).toBe(9)
+    expect(store.c3AppendedEntries[0].extraSpacing).toBe(3)
+    expect(store.c3AppendedEntries[0].margin).toEqual({ top: 2, right: 1, bottom: 3, left: 4 })
+    expect(store.c3AppendedEntries[0].distributionOffset).toBe(6)
 
     // 2) 精简：16×48（1 列，16×16 cell）→ cell 14×9（导入基图 16×18）
     const compactSource = makeSpriteSheetImageData(1, 3, 16, 16, 2)
@@ -281,8 +301,13 @@ describe('C3 rewrap × compaction combination', () => {
     expect(store.baseImageConfig.fontSpriteHeight).toBe(27)
     expect(store.originalImageWidth).toBe(16)
     expect(store.originalImageHeight).toBe(18)
-    // 追加字符原样保留，按最终布局渲染：cellIndex 2、1 列 → (0, 18)
-    expect(JSON.parse(JSON.stringify(store.c3AppendedEntries))).toEqual(entriesBefore)
+    // 追加字符按最终布局渲染：cellIndex 2、1 列 → (0, 18)
+    // 精简再次改变 cell/像素布局 → 条目水平度量按新结构重算（offset 1、width 8）
+    expect(store.c3AppendedEntries[0].autoBearingOffset).toBe(1)
+    expect(store.c3AppendedEntries[0].autoDisplayWidth).toBe(8)
+    expect(store.c3AppendedEntries[0].extraSpacing).toBe(3)
+    expect(store.c3AppendedEntries[0].margin).toEqual({ top: 2, right: 1, bottom: 3, left: 4 })
+    expect(store.c3AppendedEntries[0].distributionOffset).toBe(6)
     expect(store.c3EffectiveCharacterSet).toBe('ABC')
     expect(appendedCellPosition(store, 0)).toEqual({ x: 0, y: 18 })
 

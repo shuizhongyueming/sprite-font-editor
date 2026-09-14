@@ -67,7 +67,7 @@ describe('C3 rewrap fixture smoke', () => {
     setLanguage('en-US')
     vi.stubGlobal('Image', FakeImage)
     vi.spyOn(c3CompactionModule, 'verifyCanvasAlphaRoundTrip').mockReturnValue(true)
-    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({ width: 8, height: 12 })
+    vi.spyOn(c3CharRenderer, 'measureGlyphBounds').mockReturnValue({ width: 8, height: 12, left: 2, top: 0 })
 
     pinia = createPinia()
     setActivePinia(pinia)

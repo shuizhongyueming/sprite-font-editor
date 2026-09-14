@@ -187,6 +187,7 @@ try {
 - C3 export: `src/utils/c3-export.ts`
 - C3 rewrap core: `src/utils/c3-rewrap.ts`
 - C3 rewrap errors: `src/utils/c3-rewrap-errors.ts`
+- C3 glyph metrics (bearing/overhang 实测): `src/utils/c3-glyph-metrics.ts`
 - Grapheme splitting: `src/utils/grapheme.ts`
 - C3 import modal: `src/components/C3ImportModal.vue`
 - C3 export modal: `src/components/C3ExportModal.vue`

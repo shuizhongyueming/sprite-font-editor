@@ -11,6 +11,7 @@
 import { renderC3AppendedCharacter } from "@/utils/c3-char-renderer";
 import { migrateC3SpacingData, type C3CompactionError } from "@/utils/c3-compaction";
 import type { C3AppendedEntry } from "@/utils/c3-export";
+import { getC3AppendedEffectiveMargin } from "@/utils/c3-export";
 import { splitGraphemes } from "@/utils/grapheme";
 
 /** 把 HTMLImageElement 原尺寸画成 canvas（context 缺失时抛出，不静默假成功） */
@@ -229,10 +230,7 @@ export function renderC3TextPreview(
           baseCellWidth: characterWidth,
           baseCellHeight: characterHeight,
           renderScale: 1,
-          charMargin: {
-            ...entry.margin,
-            top: entry.margin.top + (entry.distributionOffset ?? 0),
-          },
+          charMargin: getC3AppendedEffectiveMargin(entry),
           cellPadding: options.cellPadding,
           fontFamily: options.currentFontFamily || options.font.fontFamily,
           fontSize: options.font.fontSize,

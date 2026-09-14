@@ -26,16 +26,34 @@ export interface MeasureGlyphBoundsOptions {
 export type MeasureGlyphDisplayWidthOptions = MeasureGlyphBoundsOptions;
 
 /**
+ * 单字符可见 alpha bbox：width/height 为视觉宽高，
+ * left/top 为可见左缘/上缘相对画布（cell）原点的偏移（alpha bbox 的 minX/minY）。
+ * 无可见像素时 width/height 为 0，left/top 为 0。
+ */
+export interface GlyphBounds {
+  width: number;
+  height: number;
+  left: number;
+  top: number;
+}
+
+/**
  * Render a single character offscreen and scan its visible alpha bounds.
- * Returns the visible glyph width and height, excluding padding.
+ * Returns the visible glyph width and height, excluding padding,
+ * plus the glyph's visible left/top offset relative to the cell origin.
  */
 export function measureGlyphBounds(
   options: MeasureGlyphBoundsOptions,
-): { width: number; height: number } {
+): GlyphBounds {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   if (!ctx) {
-    return { width: options.characterWidth, height: options.characterHeight };
+    return {
+      width: options.characterWidth,
+      height: options.characterHeight,
+      left: 0,
+      top: 0,
+    };
   }
 
   canvas.width = options.characterWidth;
@@ -95,7 +113,12 @@ export function measureGlyphBounds(
 
   const visibleGlyphWidth = maxX >= minX ? maxX - minX + 1 : 0;
   const visibleGlyphHeight = maxY >= minY ? maxY - minY + 1 : 0;
-  return { width: visibleGlyphWidth, height: visibleGlyphHeight };
+  return {
+    width: visibleGlyphWidth,
+    height: visibleGlyphHeight,
+    left: maxX >= minX ? minX : 0,
+    top: maxY >= minY ? minY : 0,
+  };
 }
 
 /**

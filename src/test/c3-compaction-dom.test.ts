@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { imageToImageData } from '@/utils/c3-compaction-dom'
+import { encodeC3RepackedImage, imageToImageData } from '@/utils/c3-compaction-dom'
 
 function makeImage(width: number, height: number): HTMLImageElement {
   const img = new Image()
@@ -53,5 +53,29 @@ describe('c3-compaction-dom imageToImageData', () => {
     } finally {
       HTMLCanvasElement.prototype.getContext = originalGetContext
     }
+  })
+})
+
+describe('encodeC3RepackedImage', () => {
+  it('encodes lossless png by default', async () => {
+    const blob = await encodeC3RepackedImage(new ImageData(4, 4))
+
+    expect(blob?.type).toBe('image/png')
+    expect(HTMLCanvasElement.prototype.toBlob).toHaveBeenCalledWith(
+      expect.any(Function),
+      'image/png',
+      undefined,
+    )
+  })
+
+  it('encodes webp at maximum quality when requested', async () => {
+    const blob = await encodeC3RepackedImage(new ImageData(4, 4), 'image/webp')
+
+    expect(blob?.type).toBe('image/webp')
+    expect(HTMLCanvasElement.prototype.toBlob).toHaveBeenCalledWith(
+      expect.any(Function),
+      'image/webp',
+      1,
+    )
   })
 })

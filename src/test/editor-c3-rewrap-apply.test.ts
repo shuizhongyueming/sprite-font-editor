@@ -16,7 +16,7 @@ import {
 } from './helpers/c3-fixtures'
 import { resetFakeIndexedDB, failNextIndexedDBPut } from './fake-indexeddb'
 
-async function setupRewrapScenario() {
+async function setupRewrapScenario(options?: { filename?: string; mimeType?: string }) {
   const store = useEditorStore()
   const image = new FakeImage(32, 32)
   const array = createSampleArray('AB', '[[10,"A"]]')
@@ -25,10 +25,10 @@ async function setupRewrapScenario() {
     image as unknown as HTMLImageElement,
     array,
     parsed,
-    'c3-sprite.png',
+    options?.filename ?? 'c3-sprite.png',
     32,
     32,
-    'image/png',
+    options?.mimeType ?? 'image/png',
     makePngBlob(),
   )
 
@@ -141,6 +141,32 @@ describe('editorStore.applyC3SpriteRewrap', () => {
     const asset = await C3GenerationStorage.loadActiveC3ImageAsset()
     expect(asset?.width).toBe(16)
     expect(asset?.height).toBe(32)
+  })
+
+  it('preserves the webp source format instead of forcing png', async () => {
+    const { store, plan, repacked } = await setupRewrapScenario({
+      filename: 'c3-sprite.webp',
+      mimeType: 'image/webp',
+    })
+    const webpBlob = new Blob(['fake-webp-bytes'], { type: 'image/webp' })
+    const encodeSpy = vi
+      .spyOn(c3CompactionDom, 'encodeC3RepackedImage')
+      .mockResolvedValue(webpBlob)
+    vi.spyOn(c3CompactionDom, 'decodeC3PngBlob').mockResolvedValue(
+      new FakeImage(plan.targetWidth, plan.newImageHeight) as unknown as HTMLImageElement,
+    )
+
+    const result = await store.applyC3SpriteRewrap(plan, repacked)
+
+    expect(result.ok).toBe(true)
+    expect(encodeSpy).toHaveBeenCalledWith(expect.anything(), 'image/webp')
+    expect(store.baseImageMimeType).toBe('image/webp')
+
+    const generation = C3GenerationStorage.readActiveC3Generation()!
+    const generalState = generation.generalState as { baseImageMimeType?: string }
+    expect(generalState.baseImageMimeType).toBe('image/webp')
+    const asset = await C3GenerationStorage.loadActiveC3ImageAsset()
+    expect(asset?.blob.type).toBe('image/webp')
   })
 
   it('keeps appended entries deep-equal without remeasuring', async () => {

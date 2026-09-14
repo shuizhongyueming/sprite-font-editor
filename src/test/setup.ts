@@ -129,8 +129,9 @@ HTMLCanvasElement.prototype.getContext = vi.fn((contextType: string) => {
 HTMLCanvasElement.prototype.toDataURL = vi.fn(() => 'data:image/png;base64,mock')
 
 // 模拟 Canvas toBlob（imageElementToPngBlob 等依赖它；c3-export 测试的实例级 spy 覆盖此默认）
-HTMLCanvasElement.prototype.toBlob = vi.fn((callback: BlobCallback) => {
-  callback(new Blob(['mock-png'], { type: 'image/png' }))
+// 按请求的 MIME type 产出对应类型的 Blob，与真实浏览器行为一致
+HTMLCanvasElement.prototype.toBlob = vi.fn((callback: BlobCallback, type?: string | null) => {
+  callback(new Blob(['mock-image'], { type: type || 'image/png' }))
 }) as unknown as typeof HTMLCanvasElement.prototype.toBlob
 
 // 模拟 URL.createObjectURL

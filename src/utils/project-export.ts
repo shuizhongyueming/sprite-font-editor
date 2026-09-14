@@ -106,9 +106,8 @@ const RESERVED_NAMES = new Set(["project.json", "c3-instance.json"]);
 
 /**
  * 决定 C3 图片的 Project 导出文件名。仅当实际导出的 blob 是 PNG
- * （含精简基线——其内部持久化必然是 PNG）时才强制 .png 扩展名；
- * 其他格式（如透明 WebP 原样导入）保留原逻辑文件名，避免
- * "PNG 扩展名 + 非 PNG blob" 的 MIME/扩展名不一致。
+ * 时才强制 .png 扩展名；其他格式（如透明 WebP）保留原逻辑文件名，
+ * 避免 "PNG 扩展名 + 非 PNG blob" 的 MIME/扩展名不一致。
  */
 function resolveC3ImageFilename(filename: string, mimeType?: string): string {
   if (mimeType === "image/png") {
@@ -146,7 +145,7 @@ async function getStoredImageBlob(
   store: ReturnType<typeof useEditorStore>,
 ): Promise<Blob> {
   if (store.isC3Mode) {
-    // 优先读取 active generation 的版本化图片 asset（含精简后的 PNG）
+    // 优先读取 active generation 的版本化图片 asset（含精简/重排后的图片）
     const generationAsset = await C3GenerationStorage.loadActiveC3ImageAsset();
     if (generationAsset) {
       return generationAsset.blob;

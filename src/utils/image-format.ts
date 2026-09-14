@@ -92,6 +92,18 @@ function getMimeTypeFromExtension(
 }
 
 /**
+ * 决定精简/重排后图片的编码格式：仅当源格式是支持 alpha 的
+ * WebP 时保留之，其余（PNG、JPEG、未知）一律使用无损 PNG。
+ * 注意 canvas 的 WebP 编码必然有损（调用方应取质量上限），
+ * 但其 alpha 通道独立无损存储，字形边缘不受影响。
+ */
+export function resolveAlphaSafeImageMimeType(
+  mimeType: string,
+): "image/png" | "image/webp" {
+  return mimeType === "image/webp" ? "image/webp" : "image/png";
+}
+
+/**
  * 替换文件名扩展名
  */
 export function replaceExtension(filename: string, extension: string): string {

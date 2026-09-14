@@ -46,7 +46,10 @@ import {
   type C3RewrapErrorCode,
   type C3RewrapOptions,
 } from "@/utils/c3-rewrap";
-import { getImageMimeTypeFromFilename } from "@/utils/image-format";
+import {
+  getImageMimeTypeFromFilename,
+  resolveAlphaSafeImageMimeType,
+} from "@/utils/image-format";
 import type { ProjectData } from "@/utils/project-import";
 
 // 单元格信息接口（用于插入点检测）
@@ -1876,12 +1879,18 @@ export const useEditorStore = defineStore("editor", () => {
     }
     const cleanedSpacing = migrated.spacingData;
 
-    // 无损编码 + 重新解码（可注入 seam）
-    const pngBlob = await encodeC3RepackedImage(repacked);
-    if (!pngBlob) {
+    // 按源格式编码（webp 保留，其余无损 png）+ 重新解码（可注入 seam）
+    const targetMimeType = resolveAlphaSafeImageMimeType(
+      baseImageMimeType.value,
+    );
+    const repackedBlob = await encodeC3RepackedImage(
+      repacked,
+      targetMimeType,
+    );
+    if (!repackedBlob) {
       return { ok: false, code: "unreliable-canvas" };
     }
-    const decodedImage = await decodeC3PngBlob(pngBlob);
+    const decodedImage = await decodeC3PngBlob(repackedBlob);
     if (!decodedImage) {
       return { ok: false, code: "unreliable-canvas" };
     }
@@ -1917,7 +1926,7 @@ export const useEditorStore = defineStore("editor", () => {
           ...buildGeneralState(),
           baseCellConfig: newCellConfig,
           baseImageConfig: newImageConfig,
-          baseImageMimeType: "image/png",
+          baseImageMimeType: targetMimeType,
         },
         c3Config: {
           ...buildC3Config(),
@@ -1927,7 +1936,7 @@ export const useEditorStore = defineStore("editor", () => {
           originalImageHeight: repacked.height,
         },
         image: {
-          blob: pngBlob,
+          blob: repackedBlob,
           width: repacked.width,
           height: repacked.height,
         },
@@ -1962,7 +1971,7 @@ export const useEditorStore = defineStore("editor", () => {
     baseImage.value = decodedImage;
     originalImageWidth.value = repacked.width;
     originalImageHeight.value = repacked.height;
-    baseImageMimeType.value = "image/png";
+    baseImageMimeType.value = targetMimeType;
 
     // 清除瞬时选择态，刷新画布尺寸并触发一次重绘
     selectedCharIndex.value = null;
@@ -2114,12 +2123,18 @@ export const useEditorStore = defineStore("editor", () => {
       return { ok: false, code: validationError };
     }
 
-    // 无损编码 + 重新解码（seam）
-    const pngBlob = await encodeC3RepackedImage(repacked);
-    if (!pngBlob) {
+    // 按源格式编码（webp 保留，其余无损 png）+ 重新解码（seam）
+    const targetMimeType = resolveAlphaSafeImageMimeType(
+      baseImageMimeType.value,
+    );
+    const repackedBlob = await encodeC3RepackedImage(
+      repacked,
+      targetMimeType,
+    );
+    if (!repackedBlob) {
       return { ok: false, code: "unreliable-canvas" };
     }
-    const decodedImage = await decodeC3PngBlob(pngBlob);
+    const decodedImage = await decodeC3PngBlob(repackedBlob);
     if (!decodedImage) {
       return { ok: false, code: "unreliable-canvas" };
     }
@@ -2140,7 +2155,7 @@ export const useEditorStore = defineStore("editor", () => {
         generalState: {
           ...buildGeneralState(),
           baseImageConfig: newImageConfig,
-          baseImageMimeType: "image/png",
+          baseImageMimeType: targetMimeType,
         },
         c3Config: {
           ...buildC3Config(),
@@ -2148,7 +2163,7 @@ export const useEditorStore = defineStore("editor", () => {
           originalImageHeight: repacked.height,
         },
         image: {
-          blob: pngBlob,
+          blob: repackedBlob,
           width: repacked.width,
           height: repacked.height,
         },
@@ -2180,7 +2195,7 @@ export const useEditorStore = defineStore("editor", () => {
     baseImage.value = decodedImage;
     originalImageWidth.value = repacked.width;
     originalImageHeight.value = repacked.height;
-    baseImageMimeType.value = "image/png";
+    baseImageMimeType.value = targetMimeType;
 
     // 清除瞬时选择态，刷新画布尺寸并触发一次重绘
     selectedCharIndex.value = null;

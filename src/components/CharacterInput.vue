@@ -231,6 +231,7 @@
       <SpacingInput
         v-model="selectedCharMargin"
         :label="t('marginLabel')"
+        :disabled-sides="marginDisabledSides"
         @change="saveMargin"
       />
       <div
@@ -423,6 +424,13 @@ const selectedCharMargin = computed({
     }
   }
 })
+
+// C3 模式下绘制只消费 margin 左/上，右/下不参与排版：禁用并附说明
+const marginDisabledSides = computed(() =>
+  editorStore.isC3Mode
+    ? { right: t('c3SpacingSideInactive'), bottom: t('c3SpacingSideInactive') }
+    : undefined
+)
 
 const canRender = computed(() => {
   return editorStore.baseImage &&

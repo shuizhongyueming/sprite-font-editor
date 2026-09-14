@@ -5,11 +5,12 @@
         :value="modelValue.top"
         type="number"
         class="form-control spacing-input"
-        :class="{ 'is-readonly': readonlyTop }"
+        :class="{ 'is-readonly': readonlyTop || !!disabledSides?.top }"
         :placeholder="`${label}上`"
         min="0"
-        :readonly="readonlyTop"
-        :disabled="readonlyTop"
+        :readonly="readonlyTop || !!disabledSides?.top"
+        :disabled="readonlyTop || !!disabledSides?.top"
+        :title="disabledSides?.top"
         @input="handleTopInput"
         @change="handleChange"
         @blur="handleChange"
@@ -19,8 +20,12 @@
         :value="modelValue.right"
         type="number"
         class="form-control spacing-input"
+        :class="{ 'is-readonly': !!disabledSides?.right }"
         :placeholder="`${label}右`"
         min="0"
+        :readonly="!!disabledSides?.right"
+        :disabled="!!disabledSides?.right"
+        :title="disabledSides?.right"
         @input="handleRightInput"
         @change="handleChange"
         @blur="handleChange"
@@ -30,8 +35,12 @@
         :value="modelValue.bottom"
         type="number"
         class="form-control spacing-input"
+        :class="{ 'is-readonly': !!disabledSides?.bottom }"
         :placeholder="`${label}下`"
         min="0"
+        :readonly="!!disabledSides?.bottom"
+        :disabled="!!disabledSides?.bottom"
+        :title="disabledSides?.bottom"
         @input="handleBottomInput"
         @change="handleChange"
         @blur="handleChange"
@@ -41,8 +50,12 @@
         :value="modelValue.left"
         type="number"
         class="form-control spacing-input"
+        :class="{ 'is-readonly': !!disabledSides?.left }"
         :placeholder="`${label}左`"
         min="0"
+        :readonly="!!disabledSides?.left"
+        :disabled="!!disabledSides?.left"
+        :title="disabledSides?.left"
         @input="handleLeftInput"
         @change="handleChange"
         @blur="handleChange"
@@ -60,9 +73,13 @@ interface SpacingValue {
   left: number
 }
 
+type SpacingSide = 'top' | 'right' | 'bottom' | 'left'
+
 interface Props {
   label?: string
   readonlyTop?: boolean
+  /** 按方向禁用输入；值为禁用原因，作为悬停 tooltip 展示 */
+  disabledSides?: Partial<Record<SpacingSide, string>>
 }
 
 const props = defineProps<Props>()
@@ -104,10 +121,10 @@ function handleLeftInput(event: Event) {
 
 function handleChange() {
   const newValue = {
-    top: props.readonlyTop ? modelValue.value.top : currentTop,
-    right: currentRight,
-    bottom: currentBottom,
-    left: currentLeft,
+    top: props.readonlyTop || props.disabledSides?.top ? modelValue.value.top : currentTop,
+    right: props.disabledSides?.right ? modelValue.value.right : currentRight,
+    bottom: props.disabledSides?.bottom ? modelValue.value.bottom : currentBottom,
+    left: props.disabledSides?.left ? modelValue.value.left : currentLeft,
   }
   modelValue.value = newValue
   emit('update:model-value', newValue)

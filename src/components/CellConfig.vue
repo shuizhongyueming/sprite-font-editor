@@ -38,6 +38,7 @@
       <SpacingInput
         :model-value="editorStore.baseCellConfig.padding"
         label="padding"
+        :disabled-sides="paddingDisabledSides"
         @update:model-value="updatePadding"
       />
     </div>
@@ -194,6 +195,13 @@ function updatePadding(padding: { top: number; right: number; bottom: number; le
   editorStore.baseCellConfig.padding.left = Math.round(padding.left);
   saveConfig();
 }
+
+// C3 模式下追加字符按左/上锚定渲染，padding 右/下不参与排版：禁用并附说明
+const paddingDisabledSides = computed(() =>
+  editorStore.isC3Mode
+    ? { right: t('c3SpacingSideInactive'), bottom: t('c3SpacingSideInactive') }
+    : undefined
+  );
 
 const cellAlignment = computed({
   get: () => editorStore.cellAlignment,

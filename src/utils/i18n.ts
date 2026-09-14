@@ -178,6 +178,7 @@ export interface Translations {
   c3GlobalExtraSpacing: string;
   c3ResetAuto: string;
   c3Recalculate: string;
+  c3SpacingSideInactive: string;
   c3AppendedVerticalAlignment: string;
   c3AutoFitSpriteSize: string;
   c3SpriteSizeOverflowWarning: string;
@@ -474,6 +475,7 @@ export const translations: Record<Locale, Translations> = {
     c3GlobalExtraSpacing: "全局追加字符额外间距",
     c3ResetAuto: "自动",
     c3Recalculate: "重算",
+    c3SpacingSideInactive: "C3 模式下字符按左/上锚定渲染，该方向不参与排版",
     c3AppendedVerticalAlignment: "追加字符垂直分布",
     c3AutoFitSpriteSize: "自动适配全部字符",
     c3SpriteSizeOverflowWarning:
@@ -780,6 +782,7 @@ export const translations: Record<Locale, Translations> = {
     c3GlobalExtraSpacing: "Global Appended Extra Spacing",
     c3ResetAuto: "Auto",
     c3Recalculate: "Recalculate",
+    c3SpacingSideInactive: "Glyphs anchor to the left/top in C3 mode; this side has no effect",
     c3AppendedVerticalAlignment: "Appended Vertical Alignment",
     c3AutoFitSpriteSize: "Auto-fit All Characters",
     c3SpriteSizeOverflowWarning:

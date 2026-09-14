@@ -177,6 +177,7 @@ export interface Translations {
   c3ResetExtraSpacing: string;
   c3GlobalExtraSpacing: string;
   c3ResetAuto: string;
+  c3Recalculate: string;
   c3AppendedVerticalAlignment: string;
   c3AutoFitSpriteSize: string;
   c3SpriteSizeOverflowWarning: string;
@@ -472,6 +473,7 @@ export const translations: Record<Locale, Translations> = {
     c3ResetExtraSpacing: "重置额外间距",
     c3GlobalExtraSpacing: "全局追加字符额外间距",
     c3ResetAuto: "自动",
+    c3Recalculate: "重算",
     c3AppendedVerticalAlignment: "追加字符垂直分布",
     c3AutoFitSpriteSize: "自动适配全部字符",
     c3SpriteSizeOverflowWarning:
@@ -777,6 +779,7 @@ export const translations: Record<Locale, Translations> = {
     c3ResetExtraSpacing: "Reset Extra Spacing",
     c3GlobalExtraSpacing: "Global Appended Extra Spacing",
     c3ResetAuto: "Auto",
+    c3Recalculate: "Recalculate",
     c3AppendedVerticalAlignment: "Appended Vertical Alignment",
     c3AutoFitSpriteSize: "Auto-fit All Characters",
     c3SpriteSizeOverflowWarning:

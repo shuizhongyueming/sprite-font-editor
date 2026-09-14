@@ -155,7 +155,7 @@ describe('CharacterInput C3 character list', () => {
       const items = appendedSection.findAll('.character-item')
       expect(items.length).toBe(12)
 
-      const toggleBtn = appendedSection.find('.button-group__actions .btn-outline-secondary')
+      const toggleBtn = appendedSection.find('.button-group__actions .toggle-expand-btn')
       expect(toggleBtn.exists()).toBe(true)
       expect(toggleBtn.text()).toBe('Show more')
     })
@@ -169,7 +169,7 @@ describe('CharacterInput C3 character list', () => {
       await nextTick()
 
       const appendedSection = wrapper.findAll('.character-section')[1]
-      const toggleBtn = appendedSection.find('.button-group__actions .btn-outline-secondary')
+      const toggleBtn = appendedSection.find('.button-group__actions .toggle-expand-btn')
       await toggleBtn.trigger('click')
       await nextTick()
 
@@ -190,7 +190,7 @@ describe('CharacterInput C3 character list', () => {
       const items = appendedSection.findAll('.character-item')
       expect(items.length).toBe(10)
 
-      const toggleBtn = appendedSection.find('.button-group__actions .btn-outline-secondary')
+      const toggleBtn = appendedSection.find('.button-group__actions .toggle-expand-btn')
       expect(toggleBtn.exists()).toBe(false)
     })
 
@@ -220,7 +220,7 @@ describe('CharacterInput C3 character list', () => {
       await nextTick()
 
       const appendedSection = wrapper.findAll('.character-section')[1]
-      const toggleBtn = appendedSection.find('.button-group__actions .btn-outline-secondary')
+      const toggleBtn = appendedSection.find('.button-group__actions .toggle-expand-btn')
       await toggleBtn.trigger('click')
       await nextTick()
 
@@ -232,6 +232,22 @@ describe('CharacterInput C3 character list', () => {
 
       expect(store.c3AppendedEntries.length).toBe(0)
       expect(wrapper.findAll('.character-section').length).toBe(1)
+    })
+
+    it('recalculates appended metrics when clicking the recalculate button', async () => {
+      const store = useEditorStore()
+      importC3Font(store)
+      store.appendC3Characters(['C', 'D'])
+
+      wrapper = mount(CharacterInput, { attachTo: document.body })
+      await nextTick()
+
+      const spy = vi.spyOn(store, 'recalculateC3AppendedDisplayWidths')
+      const appendedSection = wrapper.findAll('.character-section')[1]
+      const recalcBtn = appendedSection.find('.button-group__actions .recalculate-btn')
+      expect(recalcBtn.exists()).toBe(true)
+      await recalcBtn.trigger('click')
+      expect(spy).toHaveBeenCalledTimes(1)
     })
 
     it('selects the correct appended character by original index when collapsed', async () => {

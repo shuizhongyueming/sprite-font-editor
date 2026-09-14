@@ -113,10 +113,16 @@
           <div class="button-group__actions">
             <button
               v-if="hasMoreAppended"
-              class="btn btn-sm btn-outline-secondary"
+              class="btn btn-sm btn-outline-secondary toggle-expand-btn"
               @click="toggleAppendedExpanded"
             >
               {{ isAppendedExpanded ? t('c3ShowLess') : t('c3ShowMore') }}
+            </button>
+            <button
+              class="btn btn-sm btn-outline-secondary recalculate-btn"
+              @click="recalculateAppended"
+            >
+              {{ t('c3Recalculate') }}
             </button>
             <button
               class="btn btn-sm btn-outline-danger"
@@ -561,6 +567,10 @@ function deleteAppendedCharacter(index: number) {
 function clearAppendedCharacters() {
   editorStore.clearC3AppendedCharacters()
   isAppendedExpanded.value = false
+}
+
+function recalculateAppended() {
+  editorStore.recalculateC3AppendedDisplayWidths()
 }
 
 function toggleAppendedExpanded() {

@@ -86,7 +86,6 @@
           type="number"
           class="form-control"
           min="1"
-          max="10"
           @change="saveConfig"
         >
       </div>

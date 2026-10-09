@@ -941,8 +941,9 @@ function renderC3AppendedCharacters() {
     return
   }
 
-  // 重置画布为导入的底图（按原始宽高比绘制，扩展区域保持透明）
+  // 重置画布为导入的底图（按原始宽高比绘制，扩展区域保持背景）
   ctx.clearRect(0, 0, canvas.width, canvas.height)
+  drawCanvasBackground(ctx, canvas)
   const sourceImage = editorStore.c3ImportedImage || editorStore.baseImage
   const sourceScale = editorStore.canvasScale
   ctx.drawImage(

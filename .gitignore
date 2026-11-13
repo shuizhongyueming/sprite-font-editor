@@ -31,3 +31,6 @@ dist-ssr
 .env.production.local
 
 tsconfig.tsbuildinfo
+
+# headless export temp config
+.harness-export-*.config.mts

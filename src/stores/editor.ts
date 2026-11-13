@@ -1081,6 +1081,21 @@ export const useEditorStore = defineStore("editor", () => {
     }
   }
 
+  /**
+   * 外部构建的 C3 项目只写占位度量：autoGlyphHeight = 0 且带 autoGlyphWidth。
+   * 历史项目缺 autoGlyphWidth，因此这个判定不会误伤已经测过的项目。
+   */
+  function hasPlaceholderC3AppendedMetrics(): boolean {
+    if (c3AppendedEntries.value.length === 0) {
+      return false;
+    }
+
+    return c3AppendedEntries.value.every(
+      (entry) =>
+        entry.autoGlyphHeight === 0 && entry.autoGlyphWidth !== undefined,
+    );
+  }
+
   // 重新计算所有追加字符的自动显示宽度（保留向后兼容的别名）
   function recalculateC3AppendedDisplayWidths() {
     recalculateC3AppendedVerticalMetrics();
@@ -1863,6 +1878,15 @@ export const useEditorStore = defineStore("editor", () => {
         console.warn("Failed to load project font:", error);
         notify.warning(t("projectFontLoadWarning"));
       }
+    }
+
+    // 外部构建的 C3 项目（批量 i18n 流程）只写占位度量：autoGlyphHeight = 0
+    // 且带 autoGlyphWidth。字体就绪后重测一次，占位值即被真实度量替换；
+    // 重算后 autoGlyphHeight 非 0，判定条件自然失效，下次打开不会重复重算。
+    if (isC3Mode.value && hasPlaceholderC3AppendedMetrics()) {
+      recalculateC3AppendedVerticalMetrics();
+      applyC3AppendedVerticalDistribution();
+      saveToLocalStorage();
     }
 
     if (project.mode === "normal") {
